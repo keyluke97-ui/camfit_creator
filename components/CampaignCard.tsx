@@ -79,7 +79,6 @@ export default function CampaignCard({ campaign }: CampaignCardProps) {
                 {/* 상세보기 버튼 */}
                 <a
                     href={campaign.detailUrl}
-                    target="_blank"
                     rel="noreferrer"
                     className="flex-1 h-12 flex items-center justify-center bg-[#2A2A2A] text-white font-medium rounded-lg hover:bg-[#333333] transition-colors text-center"
                 >

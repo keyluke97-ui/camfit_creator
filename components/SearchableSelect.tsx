@@ -65,10 +65,11 @@ export default function SearchableSelect({
                         setSearchTerm(e.target.value);
                         if (!isOpen) setIsOpen(true);
                     }}
-                    onFocus={(e) => {
+                    onFocus={() => {
                         setIsOpen(true);
-                        // 모바일에서 전체 선택하여 편집하기 쉽게 함
-                        e.target.select();
+                    }}
+                    onClick={() => {
+                        if (!isOpen) setIsOpen(true);
                     }}
                     autoComplete="off"
                 />

@@ -317,7 +317,6 @@ export default function ApplicationModal({ isOpen, onClose, campaign }: Applicat
                             <div className="space-y-3">
                                 <a
                                     href="https://camfit.co.kr/mypage/coupon/register"
-                                    target="_blank"
                                     rel="noreferrer"
                                     className="block w-full h-14 flex items-center justify-center bg-[#01DF82] text-black font-bold text-lg rounded-xl hover:bg-[#00C972] transition-colors"
                                 >
