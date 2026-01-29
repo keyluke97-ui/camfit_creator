@@ -86,5 +86,17 @@ export interface AirtableApplicationRecord {
     '크리에이터 채널명(프리미엄 협찬 신청)': string[]; // Linked Record
     '이메일': string;
     '숙소 이름 (유료 오퍼)': string[]; // Linked Record
+    '입실일'?: string;
+    '입실 사이트'?: string;
+    'Status'?: string;
   };
+}
+
+export interface Application {
+  id: string;
+  campaignId: string;
+  accommodationName: string;
+  checkInDate: string;
+  checkInSite: string;
+  status: string;
 }

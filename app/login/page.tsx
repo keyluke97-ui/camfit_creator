@@ -150,7 +150,7 @@ export default function LoginPage() {
                 <div className="mt-6 p-4 bg-[#1E1E1E] border border-[#333333] rounded-lg">
                     <p className="text-sm text-[#B0B0B0] text-center">
                         등록된 인플루언서만 로그인할 수 있습니다.<br />
-                        문의사항은 캠핏 운영팀에 연락주세요.
+                        문의사항은 <a href="http://pf.kakao.com/_fBxaQG" target="_blank" rel="noreferrer" className="text-[#01DF82] hover:underline font-bold">캠핏 크리에이터 카카오톡 채널</a>로 연락주세요.
                     </p>
                 </div>
             </div>

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import CampaignCard from '@/components/CampaignCard';
+import CheckinModal from '@/components/CheckinModal';
 import type { Campaign } from '@/types';
 
 export default function DashboardPage() {
@@ -10,6 +11,7 @@ export default function DashboardPage() {
     const [campaigns, setCampaigns] = useState<Campaign[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [isCheckinModalOpen, setIsCheckinModalOpen] = useState(false);
 
     useEffect(() => {
         fetchCampaigns();
@@ -47,12 +49,20 @@ export default function DashboardPage() {
                             <h1 className="text-2xl font-bold text-white">캠핏 협찬</h1>
                             <p className="text-sm text-[#B0B0B0] mt-1">프리미엄 협찬 목록</p>
                         </div>
-                        <button
-                            onClick={handleLogout}
-                            className="h-10 px-5 bg-[#2A2A2A] text-white text-sm font-medium rounded-lg hover:bg-[#333333] transition-colors"
-                        >
-                            로그아웃
-                        </button>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => setIsCheckinModalOpen(true)}
+                                className="h-10 px-4 bg-[#01DF82] text-black text-sm font-bold rounded-lg hover:bg-[#00C972] transition-colors"
+                            >
+                                입실 일정 등록하기
+                            </button>
+                            <button
+                                onClick={handleLogout}
+                                className="h-10 px-5 bg-[#2A2A2A] text-white text-sm font-medium rounded-lg hover:bg-[#333333] transition-colors"
+                            >
+                                로그아웃
+                            </button>
+                        </div>
                     </div>
                 </div>
             </header>
@@ -109,6 +119,11 @@ export default function DashboardPage() {
                     </>
                 )}
             </main>
+
+            <CheckinModal
+                isOpen={isCheckinModalOpen}
+                onClose={() => setIsCheckinModalOpen(false)}
+            />
         </div>
     );
 }

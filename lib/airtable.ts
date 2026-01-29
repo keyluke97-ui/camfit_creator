@@ -5,7 +5,9 @@ import type {
     Campaign,
     CampaignTierData,
     AirtableUserRecord,
-    AirtableCampaignRecord
+    AirtableCampaignRecord,
+    AirtableApplicationRecord,
+    Application
 } from '@/types';
 
 // Airtable 클라이언트 초기화
@@ -269,6 +271,79 @@ export async function applyCampaign({
             }
         }
 
+        throw error;
+    }
+}
+
+/**
+ * 내 신청 내역 조회
+ */
+export async function getUserApplications(channelName: string): Promise<Application[]> {
+    try {
+        // 채널명으로 필터링
+        const records = await applicationTable
+            .select({
+                filterByFormula: `{크리에이터 채널명} = '${channelName}'`,
+                sort: [{ field: 'Created', direction: 'desc' }]
+            })
+            .all();
+
+        const applications = await Promise.all(records.map(async (record) => {
+            const r = record as unknown as AirtableApplicationRecord;
+            const fields = r.fields;
+
+            // 숙소 이름 가져오기 (Linked Record)
+            let accommodationName = 'Unknown';
+            let campaignId = '';
+
+            if (fields['숙소 이름 (유료 오퍼)'] && fields['숙소 이름 (유료 오퍼)'].length > 0) {
+                campaignId = fields['숙소 이름 (유료 오퍼)'][0];
+                try {
+                    const campRecord = await campaignTable.find(campaignId) as unknown as AirtableCampaignRecord;
+                    accommodationName = campRecord.fields['숙소 이름을 적어주세요.'] || 'Unknown';
+                } catch (e) {
+                    // console.error('Failed to fetch campaign details', e);
+                }
+            }
+
+            return {
+                id: r.id,
+                campaignId,
+                accommodationName,
+                checkInDate: fields['입실일'] || '',
+                checkInSite: fields['입실 사이트'] || '',
+                status: fields['Status'] || ''
+            };
+        }));
+
+        return applications;
+    } catch (error) {
+        console.error('Get user applications error:', error);
+        return [];
+    }
+}
+
+/**
+ * 입실 정보 업데이트 (Check-in)
+ */
+export async function updateApplicationCheckin(
+    recordId: string,
+    checkInDate: string,
+    checkInSite: string
+): Promise<boolean> {
+    try {
+        await applicationTable.update([
+            {
+                id: recordId,
+                fields: {
+                    '입실일': checkInDate,
+                    '입실 사이트': checkInSite
+                }
+            }
+        ]);
+        return true;
+    } catch (error) {
+        console.error('Update application checkin error:', error);
         throw error;
     }
 }
