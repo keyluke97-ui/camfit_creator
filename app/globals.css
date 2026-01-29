@@ -1,26 +1,56 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* 캠핏 브랜드 컬러 */
+  --color-primary: #01DF82; /* 네온 그린 */
+  --color-bg: #111111; /* 다크 배경 */
+  --color-text: #FFFFFF; /* 기본 텍스트 */
+  --color-text-secondary: #B0B0B0; /* 보조 텍스트 */
+  
+  --background: #111111;
+  --foreground: #FFFFFF;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-brand-primary: var(--color-primary);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: Arial, Helvetica, sans-serif;
+  /* 모바일 폰트 사이즈 기본 16px */
+  font-size: 16px;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* 모바일 퍼스트: 터치 타겟 최소 크기 보장 */
+button,
+input,
+select,
+textarea {
+  min-height: 48px;
+  font-size: 16px; /* iOS 자동 줌인 방지 */
 }
+
+/* 버튼 기본 스타일 */
+button {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+button:hover {
+  opacity: 0.9;
+}
+
+/* 입력창 포커스 스타일 */
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
