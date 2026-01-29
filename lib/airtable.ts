@@ -176,19 +176,31 @@ export async function getCampaigns(tier: TierLevel): Promise<Campaign[]> {
  */
 export async function getChannelNames(): Promise<string[]> {
     try {
+        console.log('Fetching channel names from Airtable...');
         const records = await userTable.select({
-            fields: ['크리에이터 채널명']
+            fields: ['크리에이터 채널명'],
+            sort: [{ field: '크리에이터 채널명', direction: 'asc' }]
         }).all();
+
+        console.log(`Fetched ${records.length} user records.`);
 
         const channelNames = records
             .map((record) => {
                 const fields = (record as unknown as AirtableUserRecord).fields;
                 const name = fields['크리에이터 채널명'];
-                return Array.isArray(name) ? name[0] : name;
-            })
-            .filter(Boolean);
 
-        return [...new Set(channelNames)]; // 중복 제거
+                if (!name) return null;
+
+                // 문자열이거나 배열인 경우 모두 처리
+                const cleanName = Array.isArray(name) ? name[0] : name;
+                return typeof cleanName === 'string' ? cleanName.trim() : null;
+            })
+            .filter((name): name is string => !!name);
+
+        const uniqueNames = [...new Set(channelNames)];
+        console.log(`Returning ${uniqueNames.length} unique channel names.`);
+
+        return uniqueNames;
     } catch (error) {
         console.error('Get channel names error:', error);
         return [];

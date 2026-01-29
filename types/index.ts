@@ -45,10 +45,10 @@ export interface Campaign extends CampaignBase {
 export interface AirtableUserRecord {
   id: string;
   fields: {
-    '크리에이터 채널명': string[];  // Linked Record
+    '크리에이터 채널명': string | string[];  // Primary Field or Linked Record
     '생년월일': string;              // Date
     '연락처': string;                // Phone
-    '등급화 (from 크리에이터 채널명 (크리에이터 명단))': string[];  // Lookup
+    '등급화 (from 크리에이터 채널명 (크리에이터 명단))': string | string[];  // Lookup
   };
 }
 
@@ -61,17 +61,17 @@ export interface AirtableCampaignRecord {
     '숙소 특장점'?: string;
     '숙소 링크 (캠핏 내 상세페이지만 삽입 가능)': string;
     '신청 링크': string;
-    
+
     // Tier 3 (Icon) 필드
     '⭐️ 협찬 제안 금액'?: number;
     '⭐️ 모집 희망 인원'?: number;
     '⭐️ 신청 가능 인원'?: number;
-    
+
     // Tier 2 (Partner) 필드
     '✔️ 협찬 제안 금액'?: number;
     '✔️ 모집 인원'?: number;
     '✔️ 신청 가능 인원'?: number;
-    
+
     // Tier 1 (Rising) 필드
     '🔥 협찬 제안 금액'?: number;
     '🔥 모집 인원'?: number;

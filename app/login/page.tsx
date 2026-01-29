@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import SearchableSelect from '@/components/SearchableSelect';
 
 export default function LoginPage() {
     const router = useRouter();
@@ -72,28 +73,13 @@ export default function LoginPage() {
                 {/* 로그인 폼 */}
                 <form onSubmit={handleSubmit} className="space-y-5">
                     {/* 채널명 선택 */}
-                    <div>
-                        <label
-                            htmlFor="channelName"
-                            className="block text-sm font-medium text-white mb-2"
-                        >
-                            크리에이터 채널명
-                        </label>
-                        <select
-                            id="channelName"
-                            value={formData.channelName}
-                            onChange={(e) => setFormData({ ...formData, channelName: e.target.value })}
-                            className="w-full h-12 px-4 bg-[#1E1E1E] text-white border border-[#333333] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#01DF82] focus:border-transparent"
-                            required
-                        >
-                            <option value="">채널을 선택하세요</option>
-                            {channelNames.map((name) => (
-                                <option key={name} value={name}>
-                                    {name}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+                    <SearchableSelect
+                        label="크리에이터 채널명"
+                        options={channelNames}
+                        value={formData.channelName}
+                        onChange={(value) => setFormData({ ...formData, channelName: value })}
+                        placeholder="채널명을 검색하거나 선택하세요"
+                    />
 
                     {/* 생년월일 입력 */}
                     <div>
