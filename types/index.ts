@@ -59,6 +59,8 @@ export interface AirtableCampaignRecord {
     '⏰ 콘텐츠 제작 기한': string;
     '숙소 링크 (캠핏 내 상세페이지만 삽입 가능)': string;
     '신청 링크': string;
+    '쿠폰코드'?: string;
+    '유료 오퍼 신청 인플루언서'?: string[]; // Linked Record
 
     // Tier 3 (Icon) 필드
     '⭐️ 협찬 제안 금액'?: number;
@@ -74,5 +76,15 @@ export interface AirtableCampaignRecord {
     '🔥 협찬 제안 금액'?: number;
     '🔥 모집 인원'?: number;
     '🔥 신청 가능 인원'?: number;
+  };
+}
+
+export interface AirtableApplicationRecord {
+  id: string;
+  fields: {
+    '크리에이터 채널명': string;
+    '크리에이터 채널명(프리미엄 협찬 신청)': string[]; // Linked Record
+    '이메일': string;
+    '숙소 이름 (유료 오퍼)': string[]; // Linked Record
   };
 }

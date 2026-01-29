@@ -1,10 +1,16 @@
+'use client';
+
+import { useState } from 'react';
 import type { Campaign } from '@/types';
+import ApplicationModal from './ApplicationModal';
 
 interface CampaignCardProps {
     campaign: Campaign;
 }
 
 export default function CampaignCard({ campaign }: CampaignCardProps) {
+    const [isModalOpen, setIsModalOpen] = useState(false);
+
     if (campaign.isClosed) {
         // 마감 상태
         return (
@@ -80,16 +86,21 @@ export default function CampaignCard({ campaign }: CampaignCardProps) {
                     상세보기
                 </a>
 
-                {/* 신청하기 버튼 */}
-                <a
-                    href={campaign.applicationUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                {/* 신청하기 버튼 (In-App Modal) */}
+                <button
+                    onClick={() => setIsModalOpen(true)}
                     className="flex-1 h-12 flex items-center justify-center bg-[#01DF82] text-black font-bold rounded-lg hover:bg-[#00C972] transition-colors text-center"
                 >
                     신청하기
-                </a>
+                </button>
             </div>
+
+            {/* 신청 모달 */}
+            <ApplicationModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                campaign={campaign}
+            />
         </div>
     );
 }

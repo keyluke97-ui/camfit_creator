@@ -18,6 +18,7 @@ const base = airtable.base(process.env.AIRTABLE_BASE_ID!);
 // 테이블 참조
 const userTable = base(process.env.AIRTABLE_USER_TABLE_ID!);
 const campaignTable = base(process.env.AIRTABLE_CAMPAIGN_TABLE_ID!);
+const applicationTable = base(process.env.AIRTABLE_APPLICATION_TABLE_ID!);
 
 /**
  * 등급별 필드명 매핑
@@ -206,5 +207,102 @@ export async function getChannelNames(): Promise<string[]> {
     } catch (error) {
         console.error('Get channel names error:', error);
         return [];
+    }
+}
+
+/**
+ * 중복 신청 확인
+ */
+export async function checkDuplicateApplication(
+    userRecordId: string,
+    campaignId: string
+): Promise<boolean> {
+    try {
+        // filterByFormula를 사용하여 User ID와 Campaign ID가 모두 일치하는 레코드 검색
+        // Airtable의 AND 함수 사용
+        const formula = `AND({크리에이터 채널명(프리미엄 협찬 신청)} = '${userRecordId}', {숙소 이름 (유료 오퍼)} = '${campaignId}')`;
+
+        const records = await applicationTable
+            .select({
+                filterByFormula: formula,
+                maxRecords: 1
+            })
+            .firstPage();
+
+        return records.length > 0;
+    } catch (error) {
+        console.error('Check duplicate application error:', error);
+        // 에러 발생 시 안전을 위해 중복으로 간주하지 않거나, 에러를 던질 수 있음
+        // 여기서는 에러를 던져서 상위에서 처리하도록 함
+        throw error;
+    }
+}
+
+interface ApplyCampaignParams {
+    campaignId: string;
+    channelName: string;
+    userRecordId: string;
+    email: string;
+}
+
+/**
+ * 캠페인 신청 처리
+ */
+export async function applyCampaign({
+    campaignId,
+    channelName,
+    userRecordId,
+    email
+}: ApplyCampaignParams): Promise<{ success: boolean; couponCode: string }> {
+    try {
+        // 1. 중복 신청 확인
+        const isDuplicate = await checkDuplicateApplication(userRecordId, campaignId);
+        if (isDuplicate) {
+            throw new Error('ALREADY_APPLIED');
+        }
+
+        // 2. 쿠폰 코드 조회
+        const campaignRecord = await campaignTable.find(campaignId) as unknown as AirtableCampaignRecord;
+        const couponCode = campaignRecord.fields['쿠폰코드'];
+
+        if (!couponCode) {
+            throw new Error('COUPON_NOT_FOUND');
+        }
+
+        // 3. 유료 오퍼 신청 건 테이블에 레코드 생성
+        await applicationTable.create([
+            {
+                fields: {
+                    '크리에이터 채널명': channelName,
+                    '크리에이터 채널명(프리미엄 협찬 신청)': [userRecordId],
+                    '이메일': email,
+                    '숙소 이름 (유료 오퍼)': [campaignId]
+                }
+            }
+        ]);
+
+        // 4. 캠지기 모집 폼 테이블에 유저 추가 (PATCH)
+        // 기존 신청자 목록을 가져와서 추가해야 하는지, 아니면 그냥 배열에 추가하면 되는지 확인 필요.
+        // Airtable API는 배열을 전달하면 "덮어쓰기"가 기본이므로, 기존 목록을 가져와야 함.
+        // 하지만 update 시 'typecast': true 사용하거나, 기존 필드 값에 추가하는 로직이 필요.
+        // 간단하게 기존 값을 읽어서 배열에 추가하는 방식으로 구현.
+
+        const existingApplicants = campaignRecord.fields['유료 오퍼 신청 인플루언서'] as string[] || [];
+        // 이미 있는지 확인 (중복 방지 2차)
+        const updatedApplicants = [...new Set([...existingApplicants, userRecordId])];
+
+        await campaignTable.update([
+            {
+                id: campaignId,
+                fields: {
+                    '유료 오퍼 신청 인플루언서': updatedApplicants
+                }
+            }
+        ]);
+
+        return { success: true, couponCode };
+    } catch (error) {
+        console.error('Apply campaign error:', error);
+        throw error;
     }
 }
