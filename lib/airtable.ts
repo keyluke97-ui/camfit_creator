@@ -58,12 +58,13 @@ export function isCampaignClosed(availableCount: number, price: number): boolean
 function convertBirthDate(input: string): string {
     if (input.length !== 6) return '';
 
-    const yy = input.substring(0, 2);
+    const yyStr = input.substring(0, 2);
+    const yy = parseInt(yyStr, 10);
     const mm = input.substring(2, 4);
     const dd = input.substring(4, 6);
 
-    // 2000년대 기준 (00-99 -> 2000-2099)
-    const yyyy = `20${yy}`;
+    // 30보다 크면 1900년대, 30 이하면 2000년대로 판별
+    const yyyy = yy > 30 ? `19${yyStr}` : `20${yyStr}`;
 
     return `${yyyy}-${mm}-${dd}`;
 }
@@ -101,9 +102,11 @@ export async function authenticateInfluencer(
             return null;
         }
 
-        // 연락처 뒷자리 검증
+        // 연락처 뒷자리 검증 (숫자만 남긴 후 뒷자리 4자리 비교)
         const phone = fields['연락처'] || '';
-        const actualLastFour = phone.slice(-4);
+        const cleanedPhone = phone.replace(/[^0-9]/g, '');
+        const actualLastFour = cleanedPhone.slice(-4);
+
         if (actualLastFour !== phoneLastFour) {
             return null;
         }
