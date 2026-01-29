@@ -28,21 +28,27 @@ export default function SearchableSelect({
 
     // 외부 클릭 시 닫기
     useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
+        const handleClickOutside = (event: MouseEvent | TouchEvent) => {
             if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
                 setIsOpen(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
+        document.addEventListener('touchstart', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('touchstart', handleClickOutside);
+        };
     }, []);
 
     // 값 변경 시 검색어 초기화
     useEffect(() => {
         if (value) {
             setSearchTerm(value);
+        } else {
+            setSearchTerm('');
         }
-    }, [value]);
+    }, [value, isOpen]);
 
     return (
         <div className="relative" ref={containerRef}>
@@ -52,17 +58,19 @@ export default function SearchableSelect({
             <div className="relative">
                 <input
                     type="text"
-                    className="w-full h-12 px-4 bg-[#1E1E1E] text-white border border-[#333333] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#01DF82] focus:border-transparent placeholder-[#666666]"
+                    className="w-full h-12 px-4 bg-[#1E1E1E] text-white border border-[#333333] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#01DF82] focus:border-transparent placeholder-[#666666] appearance-none"
                     placeholder={placeholder}
                     value={isOpen ? searchTerm : value || ''}
                     onChange={(e) => {
                         setSearchTerm(e.target.value);
                         if (!isOpen) setIsOpen(true);
                     }}
-                    onFocus={() => {
+                    onFocus={(e) => {
                         setIsOpen(true);
-                        setSearchTerm('');
+                        // 모바일에서 전체 선택하여 편집하기 쉽게 함
+                        e.target.select();
                     }}
+                    autoComplete="off"
                 />
                 <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
                     <svg
@@ -77,25 +85,26 @@ export default function SearchableSelect({
             </div>
 
             {isOpen && (
-                <div className="absolute z-50 w-full mt-2 bg-[#1E1E1E] border border-[#333333] rounded-lg shadow-2xl max-h-60 overflow-y-auto overflow-x-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="absolute z-[100] w-full mt-2 bg-[#1E1E1E] border border-[#333333] rounded-lg shadow-[0_10px_40px_rgba(0,0,0,0.5)] max-h-[300px] overflow-y-auto overflow-x-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                     {filteredOptions.length > 0 ? (
                         filteredOptions.map((option) => (
-                            <button
+                            <div
                                 key={option}
-                                type="button"
-                                className={`w-full text-left px-4 py-3 text-sm hover:bg-[#2A2A2A] transition-colors ${value === option ? 'text-[#01DF82] bg-[#2A2A2A]' : 'text-white'
+                                className={`w-full text-left px-4 py-3.5 text-sm cursor-pointer transition-colors active:bg-[#01DF82] active:text-black ${value === option ? 'text-[#01DF82] bg-[#2A2A2A]' : 'text-white hover:bg-[#2A2A2A]'
                                     }`}
-                                onClick={() => {
+                                onMouseDown={(e) => {
+                                    // 클릭 이벤트가 input blur 보다 먼저 실행되도록 보장
+                                    e.preventDefault();
                                     onChange(option);
                                     setSearchTerm(option);
                                     setIsOpen(false);
                                 }}
                             >
                                 {option}
-                            </button>
+                            </div>
                         ))
                     ) : (
-                        <div className="px-4 py-3 text-sm text-[#666666] text-center">
+                        <div className="px-4 py-4 text-sm text-[#666666] text-center">
                             검색 결과가 없습니다.
                         </div>
                     )}

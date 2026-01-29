@@ -23,7 +23,6 @@ export interface CampaignBase {
   accommodationName: string;     // 숙소 이름
   location: string;              // 숙소 위치
   deadline: string;              // 콘텐츠 제작 기한
-  features?: string;             // 숙소 특장점 (선택)
   detailUrl: string;             // 캠핏 상세페이지 링크
   applicationUrl: string;         // 신청 링크
 }
@@ -57,8 +56,7 @@ export interface AirtableCampaignRecord {
   fields: {
     '숙소 이름을 적어주세요.': string;
     '숙소 위치': string;
-    '콘텐츠 제작 기한': string;
-    '숙소 특장점'?: string;
+    '⏰ 콘텐츠 제작 기한': string;
     '숙소 링크 (캠핏 내 상세페이지만 삽입 가능)': string;
     '신청 링크': string;
 

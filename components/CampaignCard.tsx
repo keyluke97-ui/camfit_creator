@@ -18,11 +18,6 @@ export default function CampaignCard({ campaign }: CampaignCardProps) {
                     <p className="text-sm text-[#B0B0B0] mt-2">
                         제작 기한: {campaign.deadline}
                     </p>
-                    {campaign.features && (
-                        <p className="text-sm text-[#B0B0B0] mt-2 line-clamp-2">
-                            {campaign.features}
-                        </p>
-                    )}
                 </div>
 
                 {/* 마감 뱃지 */}
@@ -73,22 +68,13 @@ export default function CampaignCard({ campaign }: CampaignCardProps) {
                 </span>
             </div>
 
-            {/* 숙소 특장점 (있을 경우) */}
-            {campaign.features && (
-                <div className="mb-4">
-                    <p className="text-sm text-[#B0B0B0] leading-relaxed line-clamp-3">
-                        {campaign.features}
-                    </p>
-                </div>
-            )}
-
             {/* 버튼 그룹 */}
             <div className="flex gap-3">
                 {/* 상세보기 버튼 */}
                 <a
                     href={campaign.detailUrl}
                     target="_blank"
-                    rel="noopener noreferrer"
+                    rel="noreferrer"
                     className="flex-1 h-12 flex items-center justify-center bg-[#2A2A2A] text-white font-medium rounded-lg hover:bg-[#333333] transition-colors text-center"
                 >
                     상세보기
