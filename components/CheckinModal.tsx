@@ -8,29 +8,37 @@ interface CheckinModalProps {
     onClose: () => void;
 }
 
+type ActionType = 'change' | 'cancel' | null;
+
 export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
     const [applications, setApplications] = useState<Application[]>([]);
     const [loading, setLoading] = useState(false);
-    const [selectedAppId, setSelectedAppId] = useState<string>('');
-    const [checkInDate, setCheckInDate] = useState('');
-    const [checkInSite, setCheckInSite] = useState('');
-    const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // UI State
-    const [mode, setMode] = useState<'read' | 'write' | 'none'>('none');
-    const [message, setMessage] = useState(''); // Success or Error message
-    const [couponInfo, setCouponInfo] = useState<{ code: string; url: string } | null>(null);
+    // 각 application별 입력 데이터
+    const [formData, setFormData] = useState<Record<string, { date: string; site: string }>>({});
+
+    // 저장 상태 추적
+    const [savingId, setSavingId] = useState<string | null>(null);
+    const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
+
+    // 예약 변경/취소 플로우
+    const [step, setStep] = useState(1); // 1: 리스트, 2: 확인, 3: 완료
+    const [selectedApp, setSelectedApp] = useState<Application | null>(null);
+    const [actionType, setActionType] = useState<ActionType>(null);
+    const [confirmInput, setConfirmInput] = useState('');
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [couponInfo, setCouponInfo] = useState<{ code: string } | null>(null);
 
     useEffect(() => {
         if (isOpen) {
             fetchApplications();
-            // Reset states
-            setMessage('');
+            // Reset all states
+            setStep(1);
+            setSelectedApp(null);
+            setActionType(null);
+            setConfirmInput('');
             setCouponInfo(null);
-            setMode('none');
-            setSelectedAppId('');
-            setCheckInDate('');
-            setCheckInSite('');
+            setSavedIds(new Set());
         }
     }, [isOpen]);
 
@@ -41,7 +49,17 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
             const data = await res.json();
 
             if (res.ok) {
-                setApplications(data.applications || []);
+                const apps = data.applications || [];
+                setApplications(apps);
+                // 기존 데이터로 formData 초기화
+                const initialData: Record<string, { date: string; site: string }> = {};
+                apps.forEach((app: Application) => {
+                    initialData[app.id] = {
+                        date: app.checkInDate || '',
+                        site: app.checkInSite || ''
+                    };
+                });
+                setFormData(initialData);
             } else {
                 console.error(data.error);
             }
@@ -52,295 +70,347 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
         }
     };
 
-    // 신청 건 선택 시 모드 결정
-    const handleSelectApplication = (appId: string) => {
-        setSelectedAppId(appId);
-        const app = applications.find(a => a.id === appId);
-
-        if (app) {
-            // 이미 입실 정보가 있으면 Read Mode, 없으면 Write Mode
-            // 단, 예약 변경/취소 상태가 '변경'이거나 '취소'이면 WriteMode (혹은 초기화된 상태) 일 수 있음
-            // 로직: 입실일이 있으면 ReadMode
-            if (app.checkInDate && app.checkInSite) {
-                setMode('read');
-                setCheckInDate(app.checkInDate);
-                setCheckInSite(app.checkInSite);
-            } else {
-                setMode('write');
-                setCheckInDate('');
-                setCheckInSite('');
+    const handleInputChange = (appId: string, field: 'date' | 'site', value: string) => {
+        setFormData(prev => ({
+            ...prev,
+            [appId]: {
+                ...prev[appId],
+                [field]: value
             }
-            // 메시지 초기화
-            setMessage('');
-            setCouponInfo(null);
-        }
+        }));
     };
 
-    const handleSave = async () => {
-        if (!selectedAppId || !checkInDate || !checkInSite) {
-            alert('입실일과 입실 사이트를 모두 입력해주세요.');
-            return;
+    const handleSave = async (appId: string) => {
+        const data = formData[appId];
+        if (!data?.date || !data?.site) {
+            return; // 유효성 검사 실패 시 무시
         }
 
-        setIsSubmitting(true);
+        setSavingId(appId);
         try {
             const res = await fetch('/api/applications/checkin', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    recordId: selectedAppId,
-                    checkInDate,
-                    checkInSite
+                    recordId: appId,
+                    checkInDate: data.date,
+                    checkInSite: data.site
                 })
             });
 
             if (res.ok) {
-                setMessage('입실 정보가 성공적으로 저장되었습니다.');
-                // 로컬 데이터 업데이트 및 모드 전환
+                // 로컬 상태 업데이트
                 setApplications(prev => prev.map(app =>
-                    app.id === selectedAppId
-                        ? { ...app, checkInDate, checkInSite }
+                    app.id === appId
+                        ? { ...app, checkInDate: data.date, checkInSite: data.site }
                         : app
                 ));
-                setMode('read');
-            } else {
-                const data = await res.json();
-                alert(data.error || '저장에 실패했습니다.');
+                setSavedIds(prev => new Set(prev).add(appId));
             }
         } catch (error) {
-            alert('오류가 발생했습니다.');
+            console.error('Save failed', error);
         } finally {
-            setIsSubmitting(false);
+            setSavingId(null);
         }
     };
 
-    // 예약 변경 플로우
-    const handleChangeReservation = async () => {
-        const confirmed = window.confirm('캠지기님이 설정한 제작 기한 안에 방문 후 콘텐츠 제작이 가능해야 합니다.\n이에 동의하시나요?');
-        if (!confirmed) return;
+    // 예약 변경/취소 시작
+    const handleActionStart = (app: Application, action: ActionType) => {
+        setSelectedApp(app);
+        setActionType(action);
+        setConfirmInput('');
+        setStep(2);
+    };
 
-        const app = applications.find(a => a.id === selectedAppId);
-        if (!app) return;
+    // 확인 후 실행
+    const handleConfirmAction = async () => {
+        if (confirmInput !== '이해') return;
+        if (!selectedApp || !actionType) return;
 
-        setIsSubmitting(true);
+        setIsProcessing(true);
         try {
-            // 1. 상태 업데이트 및 데이터 초기화 API 호출
             const res = await fetch('/api/applications/status', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    recordId: selectedAppId,
-                    status: '변경'
+                    recordId: selectedApp.id,
+                    status: actionType === 'change' ? '변경' : '취소'
                 })
             });
 
             if (res.ok) {
-                // 2. 쿠폰 정보 노출
-                setCouponInfo({
-                    code: app.couponCode || '쿠폰코드 없음',
-                    url: 'https://camfit.co.kr/mypage/coupons' // 예시 URL, 실제 외부 링크로 교체 필요
-                });
-
-                // 3. 로컬 상태 업데이트 (초기화)
-                setApplications(prev => prev.map(a =>
-                    a.id === selectedAppId
-                        ? { ...a, checkInDate: '', checkInSite: '', reservationStatus: '변경' }
-                        : a
-                ));
-                setMode('write'); // 다시 쓰기 모드로 전환 (혹은 쿠폰만 보여주고 닫기?)
-                // 여기서는 쿠폰 정보를 보여주는 것으로 완료
-            } else {
-                alert('요청 처리에 실패했습니다.');
+                if (actionType === 'change') {
+                    setCouponInfo({ code: selectedApp.couponCode || '쿠폰코드 없음' });
+                    // 로컬 상태 업데이트
+                    setApplications(prev => prev.map(app =>
+                        app.id === selectedApp.id
+                            ? { ...app, checkInDate: '', checkInSite: '', reservationStatus: '변경' }
+                            : app
+                    ));
+                    setFormData(prev => ({
+                        ...prev,
+                        [selectedApp.id]: { date: '', site: '' }
+                    }));
+                } else {
+                    // 취소 시 목록에서 제거
+                    setApplications(prev => prev.filter(app => app.id !== selectedApp.id));
+                }
+                setStep(3);
             }
         } catch (error) {
-            console.error(error);
-            alert('오류가 발생했습니다.');
+            console.error('Action failed', error);
         } finally {
-            setIsSubmitting(false);
+            setIsProcessing(false);
         }
     };
 
-    // 예약 취소 플로우
-    const handleCancelReservation = async () => {
-        const confirmed = window.confirm('프리미엄 협찬의 경우 취소가 반복될 경우 향후 참여가 어려울 수 있습니다.\n정말 취소하시겠습니까?');
-        if (!confirmed) return;
-
-        setIsSubmitting(true);
-        try {
-            // 1. 상태 업데이트 (취소)
-            const res = await fetch('/api/applications/status', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    recordId: selectedAppId,
-                    status: '취소'
-                })
-            });
-
-            if (res.ok) {
-                alert('예약이 취소되었습니다. 카카오톡 채널로 이동합니다.');
-                window.open('http://pf.kakao.com/_fBxaQG', '_blank');
-                onClose(); // 모달 닫기
-            } else {
-                alert('요청 처리에 실패했습니다.');
-            }
-        } catch (error) {
-            console.error(error);
-            alert('오류가 발생했습니다.');
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    const copyCouponCode = () => {
-        if (couponInfo?.code) {
-            navigator.clipboard.writeText(couponInfo.code);
-            alert('쿠폰 코드가 복사되었습니다.');
-        }
+    const handleBackToList = () => {
+        setStep(1);
+        setSelectedApp(null);
+        setActionType(null);
+        setConfirmInput('');
+        setCouponInfo(null);
     };
 
     if (!isOpen) return null;
 
+    // 앱이 등록 완료 상태인지 확인
+    const isRegistered = (app: Application) => !!(app.checkInDate && app.checkInSite);
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/80 backdrop-blur-sm">
-            <div className="bg-[#1E1E1E] w-full max-w-md rounded-2xl p-6 border border-[#333333] shadow-2xl relative max-h-[90vh] overflow-y-auto">
-                {/* 닫기 버튼 */}
-                <button
-                    onClick={onClose}
-                    className="absolute top-4 right-4 text-[#888888] hover:text-white"
-                >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
+            <div className="bg-[#1E1E1E] w-full max-w-lg rounded-2xl border border-[#333333] shadow-2xl relative max-h-[90vh] flex flex-col">
+                {/* 헤더 */}
+                <div className="p-5 border-b border-[#333333] flex justify-between items-center flex-shrink-0">
+                    <h2 className="text-xl font-bold text-white">
+                        {step === 1 && '입실 일정 등록'}
+                        {step === 2 && (actionType === 'change' ? '예약 변경 확인' : '예약 취소 확인')}
+                        {step === 3 && (actionType === 'change' ? '예약 변경 완료' : '예약 취소 완료')}
+                    </h2>
+                    {step === 1 && (
+                        <button onClick={onClose} className="text-[#888888] hover:text-white">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    )}
+                </div>
 
-                <h2 className="text-xl font-bold text-white mb-6">입실 일정 등록 및 관리</h2>
-
-                {loading ? (
-                    <div className="flex justify-center py-10">
-                        <div className="w-8 h-8 border-2 border-[#01DF82] border-t-transparent rounded-full animate-spin"></div>
-                    </div>
-                ) : applications.length === 0 ? (
-                    <div className="text-center py-10 text-[#888888] bg-[#111111] rounded-lg">
-                        <p>프리미엄 협찬 신청 내역이 없습니다.</p>
-                    </div>
-                ) : (
-                    <div className="space-y-6">
-                        {/* 1. 협찬 선택 */}
-                        <div>
-                            <label className="block text-sm text-[#B0B0B0] mb-2">협찬 내역 선택</label>
-                            <select
-                                className="w-full h-12 bg-[#111111] border border-[#333333] rounded-lg px-4 text-white focus:border-[#01DF82] outline-none"
-                                value={selectedAppId}
-                                onChange={(e) => handleSelectApplication(e.target.value)}
-                            >
-                                <option value="">선택해주세요</option>
-                                {applications.map(app => (
-                                    <option key={app.id} value={app.id}>
-                                        {app.accommodationName}
-                                    </option>
-                                ))}
-                            </select>
+                {/* 콘텐츠 */}
+                <div className="flex-1 overflow-y-auto p-5">
+                    {loading ? (
+                        <div className="flex justify-center py-10">
+                            <div className="w-8 h-8 border-2 border-[#01DF82] border-t-transparent rounded-full animate-spin"></div>
                         </div>
+                    ) : step === 1 ? (
+                        /* Step 1: 카드 리스트 */
+                        applications.length === 0 ? (
+                            <div className="text-center py-10 text-[#888888] bg-[#111111] rounded-lg">
+                                <p>프리미엄 협찬 신청 내역이 없습니다.</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                {applications.map(app => (
+                                    <div
+                                        key={app.id}
+                                        className="bg-[#111111] border border-[#333333] rounded-xl p-4 space-y-4"
+                                    >
+                                        {/* 캠핑장 이름 */}
+                                        <h3 className="text-white font-bold text-lg">{app.accommodationName}</h3>
 
-                        {/* 선택된 내역이 있을 때만 표시 */}
-                        {selectedAppId && (
-                            <>
-                                {/* 쿠폰 정보 (예약 변경 시 노출) */}
-                                {couponInfo && (
-                                    <div className="p-4 bg-[#01DF82]/10 border border-[#01DF82]/30 rounded-lg animate-fade-in text-center">
-                                        <p className="text-sm text-[#01DF82] mb-2 font-bold">재예약을 위한 쿠폰 코드입니다.</p>
-                                        <div className="flex items-center gap-2 justify-center mb-3">
-                                            <code className="bg-[#111111] px-3 py-1 rounded text-white font-mono">
-                                                {couponInfo.code}
-                                            </code>
-                                            <button
-                                                onClick={copyCouponCode}
-                                                className="text-xs bg-[#333333] px-2 py-1 rounded text-[#B0B0B0]"
-                                            >
-                                                복사
-                                            </button>
-                                        </div>
-                                        <a
-                                            href="https://camfit.co.kr/mypage/coupons"
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="inline-block text-xs text-white bg-[#01DF82] px-3 py-2 rounded-lg font-bold hover:bg-[#00C972]"
-                                        >
-                                            캠핏 쿠폰 등록하러 가기 &rarr;
-                                        </a>
-                                        <p className="text-xs text-[#666666] mt-2">
-                                            위 링크로 이동하여 쿠폰을 등록하고 변경된 일정으로 예약해주세요.
-                                        </p>
+                                        {isRegistered(app) ? (
+                                            /* 등록 완료 상태 */
+                                            <div className="space-y-3">
+                                                <div className="flex gap-4">
+                                                    <div className="flex-1">
+                                                        <span className="text-xs text-[#888888]">입실일</span>
+                                                        <p className="text-white font-medium">{app.checkInDate}</p>
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <span className="text-xs text-[#888888]">입실 사이트</span>
+                                                        <p className="text-white font-medium">{app.checkInSite}</p>
+                                                    </div>
+                                                </div>
+
+                                                {/* 저장 완료 메시지 */}
+                                                <p className="text-sm text-[#01DF82] font-medium">✨ 예약 정보가 저장되었습니다.</p>
+
+                                                {/* 변경/취소 버튼 */}
+                                                <div className="grid grid-cols-2 gap-2 pt-2">
+                                                    <button
+                                                        onClick={() => handleActionStart(app, 'change')}
+                                                        className="h-10 border border-[#444444] text-[#CCCCCC] rounded-lg text-sm hover:bg-[#2A2A2A] transition-colors"
+                                                    >
+                                                        예약 변경
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleActionStart(app, 'cancel')}
+                                                        className="h-10 border border-red-500/30 text-red-400 rounded-lg text-sm hover:bg-red-500/10 transition-colors"
+                                                    >
+                                                        예약 취소
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            /* 미등록 상태 - 입력 폼 */
+                                            <div className="space-y-3">
+                                                <div className="flex gap-3">
+                                                    <div className="flex-1">
+                                                        <label className="text-xs text-[#888888] mb-1 block">입실일</label>
+                                                        <input
+                                                            type="date"
+                                                            className="w-full h-10 bg-[#1E1E1E] border border-[#333333] rounded-lg px-3 text-white text-sm focus:border-[#01DF82] outline-none"
+                                                            value={formData[app.id]?.date || ''}
+                                                            onChange={(e) => handleInputChange(app.id, 'date', e.target.value)}
+                                                        />
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <label className="text-xs text-[#888888] mb-1 block">입실 사이트</label>
+                                                        <input
+                                                            type="text"
+                                                            placeholder="예: A-1"
+                                                            className="w-full h-10 bg-[#1E1E1E] border border-[#333333] rounded-lg px-3 text-white text-sm focus:border-[#01DF82] outline-none"
+                                                            value={formData[app.id]?.site || ''}
+                                                            onChange={(e) => handleInputChange(app.id, 'site', e.target.value)}
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                <button
+                                                    onClick={() => handleSave(app.id)}
+                                                    disabled={savingId === app.id || !formData[app.id]?.date || !formData[app.id]?.site}
+                                                    className="w-full h-11 bg-[#01DF82] text-black font-bold rounded-lg hover:bg-[#00C972] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                >
+                                                    {savingId === app.id ? '저장 중...' : '등록하기'}
+                                                </button>
+
+                                                {savedIds.has(app.id) && (
+                                                    <p className="text-sm text-[#01DF82] text-center font-medium">✅ 저장 완료!</p>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
+                                ))}
+                            </div>
+                        )
+                    ) : step === 2 ? (
+                        /* Step 2: 확인 화면 */
+                        <div className="space-y-6">
+                            <div className="bg-[#2A2A2A] p-4 rounded-lg space-y-3 text-sm text-[#B0B0B0]">
+                                {actionType === 'change' ? (
+                                    <>
+                                        <h3 className="text-white font-bold text-lg mb-2">📅 예약 변경 안내</h3>
+                                        <p>
+                                            <span className="text-[#01DF82]">제작 기한 준수</span>: 캠지기님이 설정한 제작 기한 안에 방문 후 콘텐츠 제작이 가능해야 합니다.
+                                        </p>
+                                        <p>변경 절차 완료 시 기존 예약 정보가 초기화되며, <strong className="text-white">쿠폰 코드</strong>를 통해 새로운 일정으로 재예약하셔야 합니다.</p>
+                                    </>
+                                ) : (
+                                    <>
+                                        <h3 className="text-white font-bold text-lg mb-2">⚠️ 예약 취소 주의사항</h3>
+                                        <p className="text-red-400">
+                                            프리미엄 협찬의 경우 취소가 반복될 경우 <strong>향후 참여가 제한</strong>될 수 있습니다.
+                                        </p>
+                                        <p>취소 시 해당 일정 예약 불가로 인해 캠핑장 사업주에게 실질적인 금전적 손해가 발생합니다.</p>
+                                    </>
                                 )}
+                            </div>
 
-                                {/* 모드별 UI */}
-                                {mode === 'write' && !couponInfo && (
-                                    <div className="space-y-4 animate-fade-in">
-                                        <div>
-                                            <label className="block text-sm text-[#B0B0B0] mb-2">입실일</label>
-                                            <input
-                                                type="date"
-                                                className="w-full h-12 bg-[#111111] border border-[#333333] rounded-lg px-4 text-white focus:border-[#01DF82] outline-none"
-                                                value={checkInDate}
-                                                onChange={(e) => setCheckInDate(e.target.value)}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm text-[#B0B0B0] mb-2">입실 사이트</label>
-                                            <input
-                                                type="text"
-                                                placeholder="예: A1, B3"
-                                                className="w-full h-12 bg-[#111111] border border-[#333333] rounded-lg px-4 text-white focus:border-[#01DF82] outline-none"
-                                                value={checkInSite}
-                                                onChange={(e) => setCheckInSite(e.target.value)}
-                                            />
-                                        </div>
+                            <div>
+                                <label className="block text-sm font-medium text-white mb-2">
+                                    위 내용을 이해하셨다면 <span className="text-[#01DF82]">'이해'</span>를 입력해주세요.
+                                </label>
+                                <input
+                                    type="text"
+                                    value={confirmInput}
+                                    onChange={(e) => setConfirmInput(e.target.value)}
+                                    placeholder="이해"
+                                    className="w-full h-12 px-4 bg-[#111] border border-[#333] rounded-lg text-white focus:border-[#01DF82] focus:outline-none transition-colors"
+                                />
+                            </div>
+                        </div>
+                    ) : (
+                        /* Step 3: 완료 화면 */
+                        <div className="space-y-6 text-center py-4">
+                            <div className="w-16 h-16 mx-auto bg-[#01DF82]/20 rounded-full flex items-center justify-center">
+                                <svg className="w-8 h-8 text-[#01DF82]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                </svg>
+                            </div>
+
+                            {actionType === 'change' && couponInfo ? (
+                                <>
+                                    <h3 className="text-xl font-bold text-white">예약 변경이 완료되었습니다!</h3>
+                                    <div className="bg-[#2A2A2A] border border-[#01DF82] p-6 rounded-xl space-y-4">
+                                        <p className="text-[#B0B0B0] text-sm">재예약을 위한 쿠폰 코드</p>
+                                        <p className="text-2xl font-mono font-bold text-[#01DF82] tracking-wider break-all">
+                                            {couponInfo.code}
+                                        </p>
                                         <button
-                                            onClick={handleSave}
-                                            disabled={isSubmitting}
-                                            className="w-full h-12 bg-[#01DF82] text-black font-bold rounded-lg hover:bg-[#00C972] transition-colors disabled:opacity-50"
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(couponInfo.code);
+                                            }}
+                                            className="px-6 py-2 bg-[#111] border border-[#333] rounded-full text-white text-sm font-medium hover:bg-[#333] transition-colors"
                                         >
-                                            {isSubmitting ? '저장 중...' : '저장하기'}
+                                            코드 복사하기
                                         </button>
                                     </div>
-                                )}
+                                    <a
+                                        href="https://camfit.co.kr/mypage/coupon/register"
+                                        rel="noreferrer"
+                                        className="block w-full h-14 flex items-center justify-center bg-[#01DF82] text-black font-bold text-lg rounded-xl hover:bg-[#00C972] transition-colors"
+                                    >
+                                        캠핏 쿠폰 등록하러 가기
+                                    </a>
+                                </>
+                            ) : (
+                                <>
+                                    <h3 className="text-xl font-bold text-white">예약이 취소되었습니다.</h3>
+                                    <p className="text-[#B0B0B0]">취소 관련 문의는 카카오톡 채널로 연락주세요.</p>
+                                    <a
+                                        href="http://pf.kakao.com/_fBxaQG"
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="inline-block px-6 py-3 bg-[#FEE500] text-black font-bold rounded-xl hover:bg-[#E5D000] transition-colors"
+                                    >
+                                        카카오톡 채널 문의하기
+                                    </a>
+                                </>
+                            )}
+                        </div>
+                    )}
+                </div>
 
-                                {mode === 'read' && !couponInfo && (
-                                    <div className="space-y-4 animate-fade-in">
-                                        {/* 완료 상태 메시지 */}
-                                        <div className="p-4 bg-[#111111] border border-[#333333] rounded-lg text-center">
-                                            <div className="flex flex-col gap-1 mb-2">
-                                                <span className="text-xs text-[#888888]">등록된 입실일</span>
-                                                <span className="text-white font-bold">{checkInDate}</span>
-                                            </div>
-                                            <div className="flex flex-col gap-1">
-                                                <span className="text-xs text-[#888888]">등록된 사이트</span>
-                                                <span className="text-white font-bold">{checkInSite}</span>
-                                            </div>
-                                            <p className="mt-4 text-sm text-[#01DF82] font-bold">✨ 예약 정보가 저장되었습니다.</p>
-                                        </div>
+                {/* 푸터 버튼 */}
+                {step === 2 && (
+                    <div className="p-5 border-t border-[#333333] flex gap-3 flex-shrink-0">
+                        <button
+                            onClick={handleBackToList}
+                            className="flex-1 h-12 bg-[#2A2A2A] text-white font-medium rounded-lg hover:bg-[#333] transition-colors"
+                        >
+                            취소
+                        </button>
+                        <button
+                            onClick={handleConfirmAction}
+                            disabled={confirmInput !== '이해' || isProcessing}
+                            className={`flex-[2] h-12 font-bold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${actionType === 'cancel'
+                                    ? 'bg-red-500 text-white hover:bg-red-600'
+                                    : 'bg-[#01DF82] text-black hover:bg-[#00C972]'
+                                }`}
+                        >
+                            {isProcessing ? '처리 중...' : '확인'}
+                        </button>
+                    </div>
+                )}
 
-                                        {/* 액션 버튼 */}
-                                        <div className="grid grid-cols-2 gap-3 pt-2">
-                                            <button
-                                                onClick={handleChangeReservation}
-                                                className="h-10 border border-[#444444] text-[#CCCCCC] rounded-lg text-sm hover:bg-[#2A2A2A]"
-                                            >
-                                                예약 변경
-                                            </button>
-                                            <button
-                                                onClick={handleCancelReservation}
-                                                className="h-10 border border-red-500/30 text-red-500 rounded-lg text-sm hover:bg-red-500/10"
-                                            >
-                                                예약 취소
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-                            </>
-                        )}
+                {step === 3 && (
+                    <div className="p-5 border-t border-[#333333] flex-shrink-0">
+                        <button
+                            onClick={handleBackToList}
+                            className="w-full h-12 bg-[#2A2A2A] text-white font-medium rounded-lg hover:bg-[#333] transition-colors"
+                        >
+                            목록으로 돌아가기
+                        </button>
                     </div>
                 )}
             </div>

@@ -132,8 +132,8 @@ export default function ApplicationModal({ isOpen, onClose, campaign }: Applicat
                                 <h3 className="text-white font-bold text-lg mb-2">1️⃣ 매칭 및 취소 정책</h3>
                                 <div className="bg-[#2A2A2A] p-4 rounded-lg space-y-3">
                                     <p><span className="text-[#01DF82]">신청 시 매칭 완료</span>: 협찬 공고에 신청한 시점을 기준으로 즉시 <strong>'매칭 완료'</strong>로 간주됩니다.</p>
-                                    <p><strong>취소 제한 및 책임</strong>: 매칭 완료 이후 개인 사정으로 인한 취소는 지양해주세요. (취소 시 해당 일정 예약 불가로 인해 캠핑장 사업주에게 실질적인 금전적 손해가 발생합니다.)</p>
-                                    <p><strong>노쇼(No-show) 처리</strong>: 노쇼 또는 당일 취소 시 협찬은 무효 처리되며, 재방문 또는 보상은 제공되지 않습니다.</p>
+                                    <p><span className="text-[#01DF82]">취소 제한 및 책임</span>: 매칭 완료 이후 개인 사정으로 인한 취소는 지양해주세요. (취소 시 해당 일정 예약 불가로 인해 캠핑장 사업주에게 실질적인 금전적 손해가 발생합니다.)</p>
+                                    <p><span className="text-[#01DF82]">노쇼(No-show) 처리</span>: 노쇼 또는 당일 취소 시 협찬은 무효 처리되며, 재방문 또는 보상은 제공되지 않습니다.</p>
                                 </div>
                             </div>
 
@@ -161,10 +161,10 @@ export default function ApplicationModal({ isOpen, onClose, campaign }: Applicat
                                 <div className="bg-[#2A2A2A] p-4 rounded-lg text-sm text-[#B0B0B0] space-y-2">
                                     <p>본인은 캠핏 인플루언서 프리미엄 서비스와 관련하여, 콘텐츠 제작 완료 후 정산 시점 및 방식에 대해 아래와 같이 안내받았으며 이에 동의합니다.</p>
                                     <ul className="list-disc pl-5 space-y-1 mt-2">
-                                        <li><strong>콘텐츠 제작 완료 기준</strong>: 콘텐츠 수정 및 저장 완료 시점</li>
-                                        <li><strong>정산 시점</strong>: 콘텐츠 완료 기준 익월 10일, 캠핏에서 일괄 지급</li>
-                                        <li>소득세(3.3%)가 원천징수되며, 실지급액이 등록하신 계좌로 입금됩니다.</li>
-                                        <li>크리에이터 본인이 사업자의 경우 세금계산서 발행이 필요하며, 미발행 시 정산이 지연될 수 있습니다.</li>
+                                        <li><span className="text-[#01DF82]">콘텐츠 제작 완료 기준</span>: 콘텐츠 수정 및 <span className="text-[#01DF82]">저장 완료</span> 시점</li>
+                                        <li><span className="text-[#01DF82]">정산 시점</span>: 콘텐츠 완료 기준 <span className="text-[#01DF82]">익월 10일</span>, 캠핏에서 일괄 지급</li>
+                                        <li><strong><u>소득세(3.3%)가 원천징수</u></strong>되며, 실지급액이 등록하신 계좌로 입금됩니다.</li>
+                                        <li>크리에이터 본인이 사업자의 경우 <strong>세금계산서 발행이 필요</strong>하며, 미발행 시 정산이 지연될 수 있습니다.</li>
                                     </ul>
                                 </div>
                             </div>
@@ -173,8 +173,8 @@ export default function ApplicationModal({ isOpen, onClose, campaign }: Applicat
                             <div>
                                 <h3 className="text-white font-bold text-lg mb-3">3️⃣ 이용 혜택 및 비용 부담</h3>
                                 <div className="bg-[#2A2A2A] p-4 rounded-lg text-sm text-[#B0B0B0] space-y-2">
-                                    <p><strong>제공 범위</strong>: 혜택은 캠지기가 기재한 숙박권과 원고료에 한합니다.</p>
-                                    <p><strong>추가 비용</strong>: 기준 인원 초과, 추가 옵션, 시설 이용료 등 추가 비용은 본인 부담입니다.</p>
+                                    <p><span className="text-[#01DF82]">제공 범위</span>: 혜택은 캠지기가 기재한 숙박권과 원고료에 한합니다.</p>
+                                    <p><span className="text-[#01DF82]">추가 비용</span>: 기준 인원 초과, 추가 옵션, 시설 이용료 등 추가 비용은 본인 부담입니다.</p>
                                 </div>
                             </div>
 
@@ -182,8 +182,8 @@ export default function ApplicationModal({ isOpen, onClose, campaign }: Applicat
                             <div>
                                 <h3 className="text-white font-bold text-lg mb-3">4️⃣ 콘텐츠 제작 및 수정</h3>
                                 <div className="bg-[#2A2A2A] p-4 rounded-lg text-sm text-[#B0B0B0] space-y-2">
-                                    <p><strong>기한 및 페널티</strong>: 안내된 기한 내 콘텐츠 미제출 또는 반복 지연 시 향후 프리미엄 협찬 참여가 제한됩니다.</p>
-                                    <p><strong>사실 오류 수정</strong>: 콘텐츠 내 사실 정보 오류가 있을 경우 1회 수정 요청이 발생할 수 있습니다.</p>
+                                    <p><span className="text-[#01DF82]">기한 및 페널티</span>: 안내된 기한 내 콘텐츠 미제출 또는 반복 지연 시 향후 프리미엄 협찬 참여가 제한됩니다.</p>
+                                    <p><span className="text-[#01DF82]">사실 오류 수정</span>: 콘텐츠 내 사실 정보 오류가 있을 경우 1회 수정 요청이 발생할 수 있습니다.</p>
                                 </div>
                             </div>
 
@@ -246,10 +246,10 @@ export default function ApplicationModal({ isOpen, onClose, campaign }: Applicat
                             <div className="bg-[#2A2A2A] p-4 rounded-lg space-y-3">
                                 <p className="text-sm font-bold text-[#01DF82]">🚨 예약 완료 소식 알리기 (필수)</p>
                                 <p className="text-sm text-[#B0B0B0]">
-                                    쿠폰을 사용해 예약을 완료하신 후, 다시 본 페이지로 들어와 <strong>로그인 후 &gt; 입실일 등록하기</strong>를 통해 예약 완료 소식을 알려주세요.
+                                    쿠폰을 사용해 예약을 완료하신 후, 다시 본 페이지로 들어와 <strong>로그인 후 &gt; <span className="text-[#01DF82]">입실일 등록하기</span></strong>를 통해 예약 완료 소식을 알려주세요.
                                 </p>
                                 <p className="text-sm text-[#B0B0B0]">
-                                    예약 완료 소식이 등록되지 않을 경우 <span className="text-white font-bold underline">일반 협찬으로 간주되어 원고료 지급이 어려울 수 있습니다.</span> 번거로우시더라도 정산 불이익이 없도록 반드시 작성 부탁드립니다.
+                                    입실일, 입실 사이트가 등록되지 않을 경우 <span className="text-white font-bold underline">일반 협찬으로 간주되어 원고료 지급이 어려울 수 있습니다.</span> 번거로우시더라도 <strong>정산 불이익이 없도록 반드시 작성 부탁드립니다.</strong>
                                 </p>
                             </div>
 
