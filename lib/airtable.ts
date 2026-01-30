@@ -278,40 +278,22 @@ export async function applyCampaign({
  */
 export async function getUserApplications(channelName: string): Promise<Application[]> {
     try {
-        // 필터링: 채널명 일치 & 예약 취소/변경 != '취소' & 입금내역 확인(체크박스) = True
+        // 필터링: 채널명 일치 & 예약 취소/변경 != '취소'
+        // (입금내역은 캠페인 목록 필터용이므로 여기선 불필요)
         const filterFormula = `AND(
             {크리에이터 채널명} = '${channelName}',
-            {예약 취소/변경} != '취소',
-            {입금내역 확인}
+            {예약 취소/변경} != '취소'
         )`;
 
         const records = await applicationTable
             .select({
                 filterByFormula: filterFormula,
-                fields: [
-                    '크리에이터 채널명',
-                    '크리에이터 채널명(프리미엄 협찬 신청)',
-                    '이메일',
-                    '숙소 이름 (유료 오퍼)',
-                    '입실일',
-                    '입실 사이트',
-                    'Status',
-                    '예약 취소/변경',
-                    '입금내역 확인'
-                ]
+                sort: [{ field: '입실일', direction: 'asc' }] // 가까운 날짜부터
             })
             .all();
 
-        // 메모리 상에서 최신순 정렬 (CreatedTime 이용) - 복사 후 정렬
-        const sortedRecords = [...records].sort((a: any, b: any) => {
-            const timeA = a._rawJson?.createdTime || '';
-            const timeB = b._rawJson?.createdTime || '';
-            if (timeA < timeB) return 1;
-            if (timeA > timeB) return -1;
-            return 0;
-        });
-
-        const applications = await Promise.all(sortedRecords.map(async (record) => {
+        // 메모리 정렬 제거 (서버 측 정렬 사용)
+        const applications = await Promise.all(records.map(async (record) => {
             const r = record as unknown as AirtableApplicationRecord;
             const fields = r.fields;
 
