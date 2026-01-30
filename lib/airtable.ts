@@ -119,7 +119,10 @@ export async function authenticateInfluencer(
  */
 export async function getCampaigns(tier: TierLevel): Promise<Campaign[]> {
     try {
-        const records = await campaignTable.select().all();
+        // 입금내역 확인된 캠페인만 조회
+        const records = await campaignTable.select({
+            filterByFormula: '{입금내역 확인}'
+        }).all();
         const tierFields = getTierFields(tier);
 
         return records.map((record) => {
