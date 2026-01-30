@@ -106,6 +106,9 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
                         : app
                 ));
                 setSavedIds(prev => new Set(prev).add(appId));
+            } else {
+                const errorData = await res.json();
+                alert(errorData.error || '저장에 실패했습니다.');
             }
         } catch (error) {
             console.error('Save failed', error);
@@ -156,6 +159,9 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
                     setApplications(prev => prev.filter(app => app.id !== selectedApp.id));
                 }
                 setStep(3);
+            } else {
+                const errorData = await res.json();
+                alert(errorData.error || '요청 처리에 실패했습니다.');
             }
         } catch (error) {
             console.error('Action failed', error);
@@ -394,8 +400,8 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
                             onClick={handleConfirmAction}
                             disabled={confirmInput !== '이해' || isProcessing}
                             className={`flex-[2] h-12 font-bold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${actionType === 'cancel'
-                                    ? 'bg-red-500 text-white hover:bg-red-600'
-                                    : 'bg-[#01DF82] text-black hover:bg-[#00C972]'
+                                ? 'bg-red-500 text-white hover:bg-red-600'
+                                : 'bg-[#01DF82] text-black hover:bg-[#00C972]'
                                 }`}
                         >
                             {isProcessing ? '처리 중...' : '확인'}
