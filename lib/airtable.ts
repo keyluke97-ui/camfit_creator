@@ -201,7 +201,7 @@ interface ApplyCampaignParams {
 }
 
 /**
- * 캠페인 신청 처리 (트랜잭션 유사 로직 적용)
+ * 캠페인 신청 처리
  */
 export async function applyCampaign({
     campaignId,
@@ -244,7 +244,6 @@ export async function applyCampaign({
         createdApplicationId = createdRecords[0].id;
 
         // 4. 캠지기 모집 폼 테이블에 유저 추가 (PATCH)
-        // userRecordId (User)가 아니라 createdApplicationId (Application)를 넣어야 함
         const existingApplicants = campaignRecord.fields['유료 오퍼 신청 인플루언서'] as string[] || [];
         const updatedApplicants = [...new Set([...existingApplicants, createdApplicationId])];
 
@@ -263,11 +262,10 @@ export async function applyCampaign({
 
         // [Cleanup] 캠페인 업데이트 실패 시 생성된 신청 레코드 삭제
         if (createdApplicationId) {
-            console.log('Rolling back: Deleting application record', createdApplicationId);
             try {
                 await applicationTable.destroy(createdApplicationId);
             } catch (cleanupError) {
-                console.error('Cleanup error (failed to delete record):', cleanupError);
+                console.error('Cleanup error:', cleanupError);
             }
         }
 
@@ -276,19 +274,24 @@ export async function applyCampaign({
 }
 
 /**
- * 내 신청 내역 조회
+ * 내 신청 내역 조회 (필터링: 예약취소건 제외, 입금확인된 건만)
  */
 export async function getUserApplications(channelName: string): Promise<Application[]> {
     try {
-        // 채널명으로 필터링
-        // Sort 제거 (API 에러 방지)
+        // 필터링: 채널명 일치 & 예약 취소/변경 != '취소' & 입금내역 확인 = true
+        const filterFormula = `AND(
+            {크리에이터 채널명} = '${channelName}',
+            {예약 취소/변경} != '취소',
+            {입금내역 확인} = 1
+        )`;
+
         const records = await applicationTable
             .select({
-                filterByFormula: `{크리에이터 채널명} = '${channelName}'`
+                filterByFormula: filterFormula
             })
             .all();
 
-        // 메모리 상에서 최신순 정렬 (CreatedTime 이용)
+        // 메모리 상에서 최신순 정렬 (CreatedTime 이용) - 복사 후 정렬
         const sortedRecords = [...records].sort((a: any, b: any) => {
             const timeA = a._rawJson?.createdTime || '';
             const timeB = b._rawJson?.createdTime || '';
@@ -301,8 +304,9 @@ export async function getUserApplications(channelName: string): Promise<Applicat
             const r = record as unknown as AirtableApplicationRecord;
             const fields = r.fields;
 
-            // 숙소 이름 가져오기 (Linked Record)
+            // 숙소 이름 & 쿠폰코드 가져오기 (Linked Record)
             let accommodationName = 'Unknown';
+            let couponCode = '';
             let campaignId = '';
 
             if (fields['숙소 이름 (유료 오퍼)'] && fields['숙소 이름 (유료 오퍼)'].length > 0) {
@@ -310,6 +314,7 @@ export async function getUserApplications(channelName: string): Promise<Applicat
                 try {
                     const campRecord = await campaignTable.find(campaignId) as unknown as AirtableCampaignRecord;
                     accommodationName = campRecord.fields['숙소 이름을 적어주세요.'] || 'Unknown';
+                    couponCode = campRecord.fields['쿠폰코드'] || '';
                 } catch (e) {
                     // console.error('Failed to fetch campaign details', e);
                 }
@@ -321,7 +326,10 @@ export async function getUserApplications(channelName: string): Promise<Applicat
                 accommodationName,
                 checkInDate: fields['입실일'] || '',
                 checkInSite: fields['입실 사이트'] || '',
-                status: fields['Status'] || ''
+                status: fields['Status'] || '',
+                couponCode,
+                reservationStatus: fields['예약 취소/변경'] || '',
+                isDepositConfirmed: fields['입금내역 확인'] || false
             };
         }));
 
@@ -346,13 +354,43 @@ export async function updateApplicationCheckin(
                 id: recordId,
                 fields: {
                     '입실일': checkInDate,
-                    '입실 사이트': checkInSite
+                    '입실 사이트': checkInSite,
+                    '예약 취소/변경': '' // 수정 시 상태 초기화 (필요 시)
                 }
             }
         ]);
         return true;
     } catch (error) {
         console.error('Update application checkin error:', error);
+        throw error;
+    }
+}
+
+/**
+ * 예약 상태 (변경/취소) 업데이트
+ */
+export async function updateApplicationStatus(
+    recordId: string,
+    status: '변경' | '취소'
+): Promise<boolean> {
+    try {
+        const updates: any = {
+            '예약 취소/변경': status,
+        };
+
+        // 변경 및 취소 시 입실 정보 초기화
+        updates['입실일'] = null;
+        updates['입실 사이트'] = null;
+
+        await applicationTable.update([
+            {
+                id: recordId,
+                fields: updates
+            }
+        ]);
+        return true;
+    } catch (error) {
+        console.error('Update application status error:', error);
         throw error;
     }
 }
