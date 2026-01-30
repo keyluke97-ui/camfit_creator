@@ -351,7 +351,7 @@ export async function updateApplicationCheckin(
                 fields: {
                     '입실일': checkInDate,
                     '입실 사이트': checkInSite,
-                    '예약 취소/변경': null // Single Select 필드 초기화는 null 사용해야 함
+                    '예약 취소/변경': null as any // Single Select 필드 초기화
                 }
             }
         ]);
