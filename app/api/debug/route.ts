@@ -18,10 +18,14 @@ export async function GET() {
         const debugData = records.map(record => ({
             id: record.id,
             channelName: record.fields['크리에이터 채널명'],
+            accommodationName: record.fields['숙소 이름을 적어주세요. (from 숙소 이름 (유료 오퍼ㅏ))'],
             depositConfirmed: record.fields['입금내역 확인'],
+            depositConfirmedType: typeof record.fields['입금내역 확인'],
+            depositConfirmedRaw: JSON.stringify(record.fields['입금내역 확인']),
             status: record.fields['예약 취소/변경'],
+            statusType: typeof record.fields['예약 취소/변경'],
             checkInDate: record.fields['입실일'],
-            allFields: record.fields
+            allFieldKeys: Object.keys(record.fields)
         }));
 
         return NextResponse.json({
