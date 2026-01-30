@@ -278,11 +278,10 @@ export async function applyCampaign({
  */
 export async function getUserApplications(channelName: string): Promise<Application[]> {
     try {
-        // 필터링: 채널명 일치 & 예약 취소/변경 != '취소' & 입금내역 확인 = true
+        // 필터링: 채널명 일치 & 예약 취소/변경 != '취소'
         const filterFormula = `AND(
             {크리에이터 채널명} = '${channelName}',
-            {예약 취소/변경} != '취소',
-            {입금내역 확인} = 1
+            {예약 취소/변경} != '취소'
         )`;
 
         const records = await applicationTable

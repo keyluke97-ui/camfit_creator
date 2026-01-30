@@ -222,7 +222,7 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
                     </div>
                 ) : applications.length === 0 ? (
                     <div className="text-center py-10 text-[#888888] bg-[#111111] rounded-lg">
-                        <p>등록 가능한 협찬 내역이 없습니다.<br />(입금 확인된 내역만 표시됩니다)</p>
+                        <p>프리미엄 협찬 신청 내역이 없습니다.</p>
                     </div>
                 ) : (
                     <div className="space-y-6">
