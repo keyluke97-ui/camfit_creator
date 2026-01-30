@@ -287,7 +287,18 @@ export async function getUserApplications(channelName: string): Promise<Applicat
 
         const records = await applicationTable
             .select({
-                filterByFormula: filterFormula
+                filterByFormula: filterFormula,
+                fields: [
+                    '크리에이터 채널명',
+                    '크리에이터 채널명(프리미엄 협찬 신청)',
+                    '이메일',
+                    '숙소 이름 (유료 오퍼)',
+                    '입실일',
+                    '입실 사이트',
+                    'Status',
+                    '예약 취소/변경',
+                    '입금내역 확인'
+                ]
             })
             .all();
 
