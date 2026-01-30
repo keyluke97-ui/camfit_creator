@@ -281,12 +281,21 @@ export async function applyCampaign({
 export async function getUserApplications(channelName: string): Promise<Application[]> {
     try {
         // 채널명으로 필터링
+        // Sort 제거 (API 에러 방지)
         const records = await applicationTable
             .select({
-                filterByFormula: `{크리에이터 채널명} = '${channelName}'`,
-                sort: [{ field: 'Created', direction: 'desc' }]
+                filterByFormula: `{크리에이터 채널명} = '${channelName}'`
             })
             .all();
+
+        // 메모리 상에서 최신순 정렬 (CreatedTime 이용)
+        records.sort((a: any, b: any) => {
+            const timeA = a._rawJson?.createdTime || '';
+            const timeB = b._rawJson?.createdTime || '';
+            if (timeA < timeB) return 1;
+            if (timeA > timeB) return -1;
+            return 0;
+        });
 
         const applications = await Promise.all(records.map(async (record) => {
             const r = record as unknown as AirtableApplicationRecord;
