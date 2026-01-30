@@ -289,7 +289,7 @@ export async function getUserApplications(channelName: string): Promise<Applicat
             .all();
 
         // 메모리 상에서 최신순 정렬 (CreatedTime 이용)
-        records.sort((a: any, b: any) => {
+        const sortedRecords = [...records].sort((a: any, b: any) => {
             const timeA = a._rawJson?.createdTime || '';
             const timeB = b._rawJson?.createdTime || '';
             if (timeA < timeB) return 1;
@@ -297,7 +297,7 @@ export async function getUserApplications(channelName: string): Promise<Applicat
             return 0;
         });
 
-        const applications = await Promise.all(records.map(async (record) => {
+        const applications = await Promise.all(sortedRecords.map(async (record) => {
             const r = record as unknown as AirtableApplicationRecord;
             const fields = r.fields;
 
