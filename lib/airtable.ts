@@ -159,23 +159,26 @@ export async function getCampaigns(tier: TierLevel): Promise<Campaign[]> {
  */
 export async function getChannelNames(): Promise<string[]> {
     try {
-        // CHANGED: cellFormat: 'string' 추가하여 Link to Another Record 필드의 display value(실제 채널명)를 반환받음
+        // CHANGED: cellFormat: 'string' + sort 충돌 문제 해결 — cellFormat/userLocale/timeZone을 함께 지정하고, sort 제거 후 JS에서 정렬
         const records = await userTable.select({
             fields: ['크리에이터 채널명 (크리에이터 명단)'],
-            sort: [{ field: '크리에이터 채널명 (크리에이터 명단)', direction: 'asc' }],
-            cellFormat: 'string'
+            cellFormat: 'string',
+            userLocale: 'ko',
+            timeZone: 'Asia/Seoul'
         } as any).all();
 
         const channelNames = records
             .map((record) => {
-                // CHANGED: cellFormat: 'string'이면 값이 쉼표 구분 문자열로 반환됨
                 const rawValue = record.get('크리에이터 채널명 (크리에이터 명단)') as string | undefined;
                 if (!rawValue) return null;
                 return rawValue.trim();
             })
-            .filter((name): name is string => !!name);
+            .filter((name): name is string => !!name && name.length > 0);
 
-        return [...new Set(channelNames)];
+        // 중복 제거 후 가나다순 정렬
+        const uniqueNames = [...new Set(channelNames)];
+        uniqueNames.sort((a, b) => a.localeCompare(b, 'ko'));
+        return uniqueNames;
     } catch (error) {
         console.error('Get channel names error:', error);
         return [];
