@@ -93,7 +93,8 @@ export default function CampaignCard({ campaign }: CampaignCardProps) {
                 {/* 상세보기 버튼 */}
                 <a
                     href={campaign.detailUrl}
-                    rel="noreferrer"
+                    target="_blank" // CHANGED: 외부 링크가 새 탭에서 열리도록 추가
+                    rel="noopener noreferrer" // CHANGED: noreferrer → noopener noreferrer 보안 강화
                     className="flex-1 h-12 flex items-center justify-center bg-[#2A2A2A] text-white font-medium rounded-lg hover:bg-[#333333] transition-colors text-center"
                 >
                     상세보기

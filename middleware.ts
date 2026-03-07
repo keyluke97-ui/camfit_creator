@@ -2,9 +2,12 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { jwtVerify } from 'jose';
 
-const JWT_SECRET = new TextEncoder().encode(
-    process.env.NEXTAUTH_SECRET || 'your-secret-key-change-this'
-);
+// CHANGED: 하드코딩된 폴백 시크릿 제거 — 환경변수 미설정 시 즉시 에러
+const nextAuthSecret = process.env.NEXTAUTH_SECRET;
+if (!nextAuthSecret) {
+    throw new Error('NEXTAUTH_SECRET 환경변수가 설정되지 않았습니다.');
+}
+const JWT_SECRET = new TextEncoder().encode(nextAuthSecret);
 
 export async function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl;

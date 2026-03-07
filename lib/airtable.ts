@@ -1,4 +1,4 @@
-import Airtable from 'airtable';
+import Airtable, { FieldSet } from 'airtable';
 import type {
     TierLevel,
     Influencer,
@@ -9,6 +9,28 @@ import type {
     AirtableApplicationRecord,
     Application
 } from '@/types';
+
+/**
+ * Airtable select() 옵션 확장 타입 — cellFormat/userLocale/timeZone은 REST API에서 지원하지만 SDK 타입에 미포함
+ */
+interface AirtableSelectOptionsWithCellFormat {
+    fields?: string[];
+    filterByFormula?: string;
+    maxRecords?: number;
+    cellFormat?: 'json' | 'string';
+    userLocale?: string;
+    timeZone?: string;
+}
+
+/**
+ * Airtable filterByFormula 인젝션 방어: 특수문자 이스케이프
+ */
+function escapeAirtableValue(value: string): string {
+    return value
+        .replace(/\\/g, '\\\\')
+        .replace(/"/g, '\\"')
+        .replace(/'/g, "\\'");
+}
 
 // Airtable 클라이언트 초기화
 const airtable = new Airtable({
@@ -79,7 +101,7 @@ export async function authenticateInfluencer(
         // CHANGED: '크리에이터 채널명' → '크리에이터 채널명 (크리에이터 명단)' Link to Another Record 필드로 변경
         const records = await userTable
             .select({
-                filterByFormula: `SEARCH("${channelName}", {크리에이터 채널명 (크리에이터 명단)})`,
+                filterByFormula: `SEARCH("${escapeAirtableValue(channelName)}", {크리에이터 채널명 (크리에이터 명단)})`, // CHANGED: Formula Injection 방어
                 maxRecords: 1
             })
             .firstPage();
@@ -160,12 +182,14 @@ export async function getCampaigns(tier: TierLevel): Promise<Campaign[]> {
 export async function getChannelNames(): Promise<string[]> {
     try {
         // CHANGED: cellFormat: 'string' + sort 충돌 문제 해결 — cellFormat/userLocale/timeZone을 함께 지정하고, sort 제거 후 JS에서 정렬
-        const records = await userTable.select({
+        // CHANGED: as any → AirtableSelectOptionsWithCellFormat 타입 사용
+        const selectOptions: AirtableSelectOptionsWithCellFormat = {
             fields: ['크리에이터 채널명 (크리에이터 명단)'],
             cellFormat: 'string',
             userLocale: 'ko',
             timeZone: 'Asia/Seoul'
-        } as any).all();
+        };
+        const records = await userTable.select(selectOptions as Record<string, unknown>).all();
 
         const channelNames = records
             .map((record) => {
@@ -193,7 +217,8 @@ export async function checkDuplicateApplication(
     campaignId: string
 ): Promise<boolean> {
     try {
-        const formula = `AND({크리에이터 채널명(프리미엄 협찬 신청)} = '${userRecordId}', {숙소 이름 (유료 오퍼)} = '${campaignId}')`;
+        // CHANGED: Formula Injection 방어
+        const formula = `AND({크리에이터 채널명(프리미엄 협찬 신청)} = '${escapeAirtableValue(userRecordId)}', {숙소 이름 (유료 오퍼)} = '${escapeAirtableValue(campaignId)}')`;
         const records = await applicationTable
             .select({ filterByFormula: formula, maxRecords: 1 })
             .firstPage();
@@ -291,8 +316,9 @@ export async function getUserApplications(channelName: string): Promise<Applicat
     try {
         // 필터링: 채널명 일치 & 예약 취소/변경 != '취소'
         // (입금내역은 캠페인 목록 필터용이므로 여기선 불필요)
+        // CHANGED: Formula Injection 방어
         const filterFormula = `AND(
-            {크리에이터 채널명} = '${channelName}',
+            {크리에이터 채널명} = '${escapeAirtableValue(channelName)}',
             {예약 취소/변경} != '취소'
         )`;
 
@@ -319,8 +345,9 @@ export async function getUserApplications(channelName: string): Promise<Applicat
                     const campRecord = await campaignTable.find(campaignId) as unknown as AirtableCampaignRecord;
                     accommodationName = campRecord.fields['숙소 이름을 적어주세요.'] || 'Unknown';
                     couponCode = campRecord.fields['쿠폰코드'] || '';
-                } catch (e) {
-                    // console.error('Failed to fetch campaign details', e);
+                } catch (campaignFetchError) {
+                    // CHANGED: 에러 삼킴 방지 — 캠페인 조회 실패 시 로깅 복구
+                    console.error('Failed to fetch campaign details for ID:', campaignId, campaignFetchError);
                 }
             }
 
@@ -353,15 +380,15 @@ export async function updateApplicationCheckin(
     checkInSite: string
 ): Promise<boolean> {
     try {
+        // CHANGED: Airtable REST API는 null로 필드를 초기화하지만, SDK FieldSet 타입은 null 미지원
+        // → unknown 경유 단언 (SDK 타입 한계, REST API에서는 null이 유효한 값)
+        const checkinFields = {
+            '입실일': checkInDate,
+            '입실 사이트': checkInSite,
+            '예약 취소/변경': null
+        } as unknown as Partial<FieldSet>;
         await applicationTable.update([
-            {
-                id: recordId,
-                fields: {
-                    '입실일': checkInDate,
-                    '입실 사이트': checkInSite,
-                    '예약 취소/변경': null as any // Single Select 필드 초기화
-                }
-            }
+            { id: recordId, fields: checkinFields }
         ]);
         return true;
     } catch (error) {
@@ -378,19 +405,16 @@ export async function updateApplicationStatus(
     status: '변경' | '취소'
 ): Promise<boolean> {
     try {
-        const updates: any = {
+        // CHANGED: Airtable REST API는 null로 필드를 초기화하지만, SDK FieldSet 타입은 null 미지원
+        // → unknown 경유 단언 (SDK 타입 한계, REST API에서는 null이 유효한 값)
+        const updates = {
             '예약 취소/변경': status,
-        };
-
-        // 변경 및 취소 시 입실 정보 초기화
-        updates['입실일'] = null;
-        updates['입실 사이트'] = null;
+            '입실일': null,
+            '입실 사이트': null,
+        } as unknown as Partial<FieldSet>;
 
         await applicationTable.update([
-            {
-                id: recordId,
-                fields: updates
-            }
+            { id: recordId, fields: updates }
         ]);
         return true;
     } catch (error) {
