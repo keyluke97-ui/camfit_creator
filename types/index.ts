@@ -29,6 +29,7 @@ export interface AirtableUserRecord {
   id: string;
   fields: {
     '크리에이터 채널명': string | string[];
+    '크리에이터 채널명 (크리에이터 명단)': string | string[]; // CHANGED: Link to Another Record 필드 추가
     '생년월일': string;
     '연락처': string;
     '등급화 (from 크리에이터 채널명 (크리에이터 명단))': TierLevel | TierLevel[];

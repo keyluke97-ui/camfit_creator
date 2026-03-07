@@ -76,9 +76,10 @@ export async function authenticateInfluencer(
     phoneLastFour: string
 ): Promise<Influencer | null> {
     try {
+        // CHANGED: '크리에이터 채널명' → '크리에이터 채널명 (크리에이터 명단)' Link to Another Record 필드로 변경
         const records = await userTable
             .select({
-                filterByFormula: `SEARCH("${channelName}", {크리에이터 채널명})`,
+                filterByFormula: `SEARCH("${channelName}", {크리에이터 채널명 (크리에이터 명단)})`,
                 maxRecords: 1
             })
             .firstPage();
@@ -99,11 +100,12 @@ export async function authenticateInfluencer(
         const tierLookup = fields['등급화 (from 크리에이터 채널명 (크리에이터 명단))'];
         const tier = (Array.isArray(tierLookup) ? tierLookup[0] : tierLookup) as TierLevel;
 
+        // CHANGED: '크리에이터 채널명' → '크리에이터 채널명 (크리에이터 명단)' Link to Another Record 필드로 변경
         return {
             id: record.id,
-            channelName: Array.isArray(fields['크리에이터 채널명'])
-                ? fields['크리에이터 채널명'][0]
-                : fields['크리에이터 채널명'],
+            channelName: Array.isArray(fields['크리에이터 채널명 (크리에이터 명단)'])
+                ? fields['크리에이터 채널명 (크리에이터 명단)'][0]
+                : fields['크리에이터 채널명 (크리에이터 명단)'],
             birthDate: fields['생년월일'],
             phone: fields['연락처'],
             tier
@@ -151,19 +153,20 @@ export async function getCampaigns(tier: TierLevel): Promise<Campaign[]> {
 }
 
 /**
- * 채널명 목록 조회
+ * 채널명 목록 조회 (Link to Another Record 필드 사용)
  */
 export async function getChannelNames(): Promise<string[]> {
     try {
+        // CHANGED: '크리에이터 채널명' → '크리에이터 채널명 (크리에이터 명단)' Link to Another Record 필드로 변경
         const records = await userTable.select({
-            fields: ['크리에이터 채널명'],
-            sort: [{ field: '크리에이터 채널명', direction: 'asc' }]
+            fields: ['크리에이터 채널명 (크리에이터 명단)'],
+            sort: [{ field: '크리에이터 채널명 (크리에이터 명단)', direction: 'asc' }]
         }).all();
 
         const channelNames = records
             .map((record) => {
                 const fields = (record as unknown as AirtableUserRecord).fields;
-                const name = fields['크리에이터 채널명'];
+                const name = fields['크리에이터 채널명 (크리에이터 명단)'];
                 if (!name) return null;
                 const cleanName = Array.isArray(name) ? name[0] : name;
                 return typeof cleanName === 'string' ? cleanName.trim() : null;
