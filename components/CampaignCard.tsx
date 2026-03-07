@@ -50,6 +50,20 @@ export default function CampaignCard({ campaign }: CampaignCardProps) {
                 <span className="text-base text-[#B0B0B0]">{campaign.location}</span>
             </div>
 
+            {/* CHANGED: 제공 가능한 사이트 종류 태그 추가 */}
+            {campaign.siteTypes && campaign.siteTypes.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                    {campaign.siteTypes.map((siteType) => (
+                        <span
+                            key={siteType}
+                            className="px-2.5 py-1 text-xs font-medium bg-[#01DF82]/15 text-[#01DF82] border border-[#01DF82]/30 rounded-full"
+                        >
+                            {siteType}
+                        </span>
+                    ))}
+                </div>
+            )}
+
             {/* 제작 기한 */}
             <div className="flex items-center gap-2 mb-4">
                 <span className="text-2xl">📅</span>

@@ -100,12 +100,10 @@ export async function authenticateInfluencer(
         const tierLookup = fields['등급화 (from 크리에이터 채널명 (크리에이터 명단))'];
         const tier = (Array.isArray(tierLookup) ? tierLookup[0] : tierLookup) as TierLevel;
 
-        // CHANGED: '크리에이터 채널명' → '크리에이터 채널명 (크리에이터 명단)' Link to Another Record 필드로 변경
+        // CHANGED: Link to Another Record 필드는 레코드 ID를 반환하므로, 입력 파라미터 channelName을 그대로 사용
         return {
             id: record.id,
-            channelName: Array.isArray(fields['크리에이터 채널명 (크리에이터 명단)'])
-                ? fields['크리에이터 채널명 (크리에이터 명단)'][0]
-                : fields['크리에이터 채널명 (크리에이터 명단)'],
+            channelName,
             birthDate: fields['생년월일'],
             phone: fields['연락처'],
             tier
@@ -135,6 +133,9 @@ export async function getCampaigns(tier: TierLevel): Promise<Campaign[]> {
             const totalCount = fields[tierFields.total as keyof typeof fields] as number || 0;
             const availableCount = fields[tierFields.available as keyof typeof fields] as number || 0;
 
+            // CHANGED: 제공 가능한 사이트 종류 매핑 추가
+            const siteTypes = fields['제공 가능한 사이트 종류'] || [];
+
             return {
                 id: rec.id,
                 accommodationName: fields['숙소 이름을 적어주세요.'] || '',
@@ -143,7 +144,8 @@ export async function getCampaigns(tier: TierLevel): Promise<Campaign[]> {
                 detailUrl: fields['숙소 링크 (캠핏 내 상세페이지만 삽입 가능)'] || '',
                 applicationUrl: fields['신청 링크'] || 'https://airtable.com/appEGM6qarNr9M7HN/pagwr9veED083h45f/form',
                 tierData: { price, totalCount, availableCount },
-                isClosed: isCampaignClosed(availableCount, price)
+                isClosed: isCampaignClosed(availableCount, price),
+                siteTypes
             };
         });
     } catch (error) {
@@ -157,19 +159,19 @@ export async function getCampaigns(tier: TierLevel): Promise<Campaign[]> {
  */
 export async function getChannelNames(): Promise<string[]> {
     try {
-        // CHANGED: '크리에이터 채널명' → '크리에이터 채널명 (크리에이터 명단)' Link to Another Record 필드로 변경
+        // CHANGED: cellFormat: 'string' 추가하여 Link to Another Record 필드의 display value(실제 채널명)를 반환받음
         const records = await userTable.select({
             fields: ['크리에이터 채널명 (크리에이터 명단)'],
-            sort: [{ field: '크리에이터 채널명 (크리에이터 명단)', direction: 'asc' }]
-        }).all();
+            sort: [{ field: '크리에이터 채널명 (크리에이터 명단)', direction: 'asc' }],
+            cellFormat: 'string'
+        } as any).all();
 
         const channelNames = records
             .map((record) => {
-                const fields = (record as unknown as AirtableUserRecord).fields;
-                const name = fields['크리에이터 채널명 (크리에이터 명단)'];
-                if (!name) return null;
-                const cleanName = Array.isArray(name) ? name[0] : name;
-                return typeof cleanName === 'string' ? cleanName.trim() : null;
+                // CHANGED: cellFormat: 'string'이면 값이 쉼표 구분 문자열로 반환됨
+                const rawValue = record.get('크리에이터 채널명 (크리에이터 명단)') as string | undefined;
+                if (!rawValue) return null;
+                return rawValue.trim();
             })
             .filter((name): name is string => !!name);
 

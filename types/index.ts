@@ -23,6 +23,7 @@ export interface Campaign {
   applicationUrl: string;
   tierData: CampaignTierData;
   isClosed: boolean;
+  siteTypes?: string[]; // CHANGED: 제공 가능한 사이트 종류 추가
 }
 
 export interface AirtableUserRecord {
@@ -61,6 +62,9 @@ export interface AirtableCampaignRecord {
     '🔥 협찬 제안 금액'?: number;
     '🔥 모집 인원'?: number;
     '🔥 신청 가능 인원'?: number;
+
+    // CHANGED: 사이트 종류 Multiple Select 필드 추가
+    '제공 가능한 사이트 종류'?: string[];
   };
 }
 
