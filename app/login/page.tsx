@@ -1,8 +1,11 @@
+// app/login/page.tsx - 크리에이터 로그인 페이지 (점진적 에러 안내 UX 포함)
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import SearchableSelect from '@/components/SearchableSelect';
+
+const KAKAO_CHANNEL_URL = 'http://pf.kakao.com/_fBxaQG';
 
 export default function LoginPage() {
     const router = useRouter();
@@ -14,21 +17,22 @@ export default function LoginPage() {
     });
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [failCount, setFailCount] = useState(0); // CHANGED: 로그인 실패 횟수 추적 추가
 
     // 채널명 목록 불러오기
     useEffect(() => {
         fetch('/api/channels')
-            .then(res => res.json())
+            .then(response => response.json())
             .then(data => {
                 if (data.channelNames) {
                     setChannelNames(data.channelNames);
                 }
             })
-            .catch(err => console.error('Failed to load channels:', err));
+            .catch(channelLoadError => console.error('Failed to load channels:', channelLoadError));
     }, []);
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleSubmit = async (event: React.FormEvent) => {
+        event.preventDefault();
         setError('');
         setLoading(true);
 
@@ -45,14 +49,17 @@ export default function LoginPage() {
 
             if (!response.ok) {
                 setError(data.error || '로그인에 실패했습니다.');
+                setFailCount(previous => previous + 1); // CHANGED: 실패 시 카운터 증가
                 setLoading(false);
                 return;
             }
 
             // 로그인 성공 - 대시보드로 이동
             router.push('/dashboard');
-        } catch (err) {
+        } catch (submitError) {
+            console.error('Login submit error:', submitError);
             setError('로그인 중 오류가 발생했습니다.');
+            setFailCount(previous => previous + 1); // CHANGED: 네트워크 에러도 실패 카운트
             setLoading(false);
         }
     };
@@ -69,6 +76,28 @@ export default function LoginPage() {
                         인플루언서 전용 프리미엄 협찬 플랫폼
                     </p>
                 </div>
+
+                {/* CHANGED: 3회 이상 실패 시 상단 경고 배너 */}
+                {failCount >= 3 && (
+                    <div className="mb-5 p-5 bg-amber-500/10 border border-amber-500/50 rounded-lg">
+                        <p className="text-amber-400 font-bold text-sm mb-2">
+                            여러 번 로그인에 실패했습니다
+                        </p>
+                        <p className="text-amber-300/80 text-sm mb-3">
+                            에어테이블 폼으로 재등록하지 마세요!<br />
+                            기존 정보가 꼬일 수 있습니다.<br />
+                            카카오톡 채널로 문의해주시면 등록 정보를 확인해드립니다.
+                        </p>
+                        <a
+                            href={KAKAO_CHANNEL_URL}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-center w-full h-12 bg-[#FEE500] text-[#3C1E1E] font-bold rounded-lg hover:bg-[#F5DC00] transition-colors text-sm"
+                        >
+                            카카오톡 채널로 문의하기
+                        </a>
+                    </div>
+                )}
 
                 {/* 로그인 폼 */}
                 <form onSubmit={handleSubmit} className="space-y-5">
@@ -96,8 +125,8 @@ export default function LoginPage() {
                             maxLength={6}
                             placeholder="YYMMDD (예: 240115)"
                             value={formData.birthDate}
-                            onChange={(e) => {
-                                const value = e.target.value.replace(/\D/g, '');
+                            onChange={(event) => {
+                                const value = event.target.value.replace(/\D/g, '');
                                 setFormData({ ...formData, birthDate: value });
                             }}
                             className="w-full h-12 px-4 bg-[#1E1E1E] text-white border border-[#333333] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#01DF82] focus:border-transparent"
@@ -120,8 +149,8 @@ export default function LoginPage() {
                             maxLength={4}
                             placeholder="1234"
                             value={formData.phoneLastFour}
-                            onChange={(e) => {
-                                const value = e.target.value.replace(/\D/g, '');
+                            onChange={(event) => {
+                                const value = event.target.value.replace(/\D/g, '');
                                 setFormData({ ...formData, phoneLastFour: value });
                             }}
                             className="w-full h-12 px-4 bg-[#1E1E1E] text-white border border-[#333333] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#01DF82] focus:border-transparent"
@@ -129,10 +158,40 @@ export default function LoginPage() {
                         />
                     </div>
 
-                    {/* 에러 메시지 */}
+                    {/* CHANGED: 점진적 에러 메시지 영역 */}
                     {error && (
-                        <div className="p-4 bg-red-500/10 border border-red-500/50 rounded-lg">
-                            <p className="text-red-400 text-sm">{error}</p>
+                        <div className="space-y-3">
+                            {/* 기본 에러 메시지 */}
+                            <div className="p-4 bg-red-500/10 border border-red-500/50 rounded-lg">
+                                <p className="text-red-400 text-sm">{error}</p>
+                                {/* 1회 이상 실패: 힌트 텍스트 */}
+                                {failCount >= 1 && (
+                                    <p className="text-red-400/70 text-xs mt-2">
+                                        프리미엄 크리에이터 등록 시 입력한 생년월일/연락처로 로그인해주세요.
+                                    </p>
+                                )}
+                            </div>
+
+                            {/* 2회 이상 실패: 카카오톡 안내 박스 */}
+                            {failCount >= 2 && (
+                                <div className="p-4 bg-[#FEE500]/10 border border-[#FEE500]/50 rounded-lg">
+                                    <p className="text-[#FEE500] font-bold text-sm mb-1">
+                                        로그인 정보가 기억나지 않으시나요?
+                                    </p>
+                                    <p className="text-[#B0B0B0] text-xs mb-3">
+                                        프리미엄 크리에이터 등록 시 입력한 정보와 다를 수 있습니다.<br />
+                                        재등록하시면 안 됩니다! 카카오톡으로 문의하시면 빠르게 확인 도와드립니다.
+                                    </p>
+                                    <a
+                                        href={KAKAO_CHANNEL_URL}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center justify-center w-full h-10 bg-[#FEE500] text-[#3C1E1E] font-bold rounded-lg hover:bg-[#F5DC00] transition-colors text-sm"
+                                    >
+                                        카카오톡 채널로 문의하기
+                                    </a>
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -146,11 +205,19 @@ export default function LoginPage() {
                     </button>
                 </form>
 
-                {/* 안내 메시지 */}
+                {/* CHANGED: 하단 안내 메시지 개선 */}
                 <div className="mt-6 p-4 bg-[#1E1E1E] border border-[#333333] rounded-lg">
                     <p className="text-sm text-[#B0B0B0] text-center">
-                        등록된 인플루언서만 로그인할 수 있습니다.<br />
-                        문의사항은 <a href="http://pf.kakao.com/_fBxaQG" target="_blank" rel="noreferrer" className="text-[#01DF82] hover:underline font-bold">캠핏 크리에이터 카카오톡 채널</a>로 연락주세요.
+                        프리미엄 크리에이터 등록 시 입력한 생년월일과 연락처로 로그인합니다.<br />
+                        로그인이 안 되시나요? <span className="text-red-400 font-bold">재등록하지 마시고</span>{' '}
+                        <a
+                            href={KAKAO_CHANNEL_URL}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[#01DF82] hover:underline font-bold"
+                        >
+                            캠핏 크리에이터 카카오톡 채널
+                        </a>로 문의해주세요.
                     </p>
                 </div>
             </div>
