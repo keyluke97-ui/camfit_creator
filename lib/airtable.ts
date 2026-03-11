@@ -157,6 +157,8 @@ export async function getCampaigns(tier: TierLevel): Promise<Campaign[]> {
 
             // CHANGED: 제공 가능한 사이트 종류 매핑 추가
             const siteTypes = fields['제공 가능한 사이트 종류'] || [];
+            // CHANGED: 숙소의 특장점 매핑 추가
+            const highlights = fields['숙소의 특장점'] || '';
 
             return {
                 id: rec.id,
@@ -167,7 +169,8 @@ export async function getCampaigns(tier: TierLevel): Promise<Campaign[]> {
                 applicationUrl: fields['신청 링크'] || 'https://airtable.com/appEGM6qarNr9M7HN/pagwr9veED083h45f/form',
                 tierData: { price, totalCount, availableCount },
                 isClosed: isCampaignClosed(availableCount, price),
-                siteTypes
+                siteTypes,
+                highlights: highlights || undefined
             };
         });
     } catch (error) {

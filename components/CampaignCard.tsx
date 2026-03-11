@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import type { Campaign } from '@/types';
 import ApplicationModal from './ApplicationModal';
+import HighlightsModal from './HighlightsModal';
 
 interface CampaignCardProps {
     campaign: Campaign;
@@ -10,6 +11,7 @@ interface CampaignCardProps {
 
 export default function CampaignCard({ campaign }: CampaignCardProps) {
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isHighlightsOpen, setIsHighlightsOpen] = useState(false);
 
     if (campaign.isClosed) {
         // 마감 상태
@@ -64,6 +66,22 @@ export default function CampaignCard({ campaign }: CampaignCardProps) {
                 </div>
             )}
 
+            {/* CHANGED: 숙소 특장점 1줄 미리보기 추가 */}
+            {campaign.highlights && (
+                <button
+                    onClick={() => setIsHighlightsOpen(true)}
+                    className="w-full text-left mb-3 px-3 py-2.5 bg-[#252525] border border-[#3A3A3A] rounded-lg hover:border-[#01DF82]/50 transition-colors group"
+                >
+                    <p className="text-xs text-[#9CA3AF] mb-0.5">숙소 특장점</p>
+                    <p className="text-sm text-[#D0D0D0] truncate group-hover:text-white transition-colors">
+                        {campaign.highlights}
+                    </p>
+                    <p className="text-xs text-[#01DF82] mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        자세히 보기 →
+                    </p>
+                </button>
+            )}
+
             {/* 제작 기한 */}
             <div className="flex items-center gap-2 mb-4">
                 <span className="text-2xl">📅</span>
@@ -115,6 +133,16 @@ export default function CampaignCard({ campaign }: CampaignCardProps) {
                 onClose={() => setIsModalOpen(false)}
                 campaign={campaign}
             />
+
+            {/* CHANGED: 숙소 특장점 상세 모달 추가 */}
+            {campaign.highlights && (
+                <HighlightsModal
+                    isOpen={isHighlightsOpen}
+                    onClose={() => setIsHighlightsOpen(false)}
+                    accommodationName={campaign.accommodationName}
+                    highlights={campaign.highlights}
+                />
+            )}
         </div>
     );
 }

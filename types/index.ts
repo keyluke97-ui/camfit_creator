@@ -24,6 +24,7 @@ export interface Campaign {
   tierData: CampaignTierData;
   isClosed: boolean;
   siteTypes?: string[]; // CHANGED: 제공 가능한 사이트 종류 추가
+  highlights?: string; // CHANGED: 숙소의 특장점 필드 추가
 }
 
 export interface AirtableUserRecord {
@@ -65,6 +66,8 @@ export interface AirtableCampaignRecord {
 
     // CHANGED: 사이트 종류 Multiple Select 필드 추가
     '제공 가능한 사이트 종류'?: string[];
+    // CHANGED: 숙소의 특장점 Long Text 필드 추가
+    '숙소의 특장점'?: string;
   };
 }
 
