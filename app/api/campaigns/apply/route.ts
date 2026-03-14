@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 import { applyCampaign } from '@/lib/airtable';
+import type { TierLevel } from '@/types';
 
 const JWT_SECRET = new TextEncoder().encode(
     process.env.NEXTAUTH_SECRET || 'your-secret-key-change-this'
@@ -31,6 +32,7 @@ export async function POST(req: NextRequest) {
 
         const userRecordId = payload.id as string;
         const channelName = payload.channelName as string;
+        const tier = payload.tier as TierLevel; // CHANGED: 잔여 인원 체크를 위해 tier 추출
 
         if (!userRecordId || !channelName) {
             return NextResponse.json(
@@ -55,7 +57,8 @@ export async function POST(req: NextRequest) {
             campaignId,
             channelName,
             userRecordId,
-            email
+            email,
+            tier // CHANGED: 잔여 인원 체크를 위해 tier 전달
         });
 
         // 4. 성공 응답
@@ -76,6 +79,14 @@ export async function POST(req: NextRequest) {
             return NextResponse.json(
                 { error: '쿠폰 코드를 찾을 수 없습니다. 관리자에게 문의해주세요.' },
                 { status: 404 }
+            );
+        }
+
+        // CHANGED: 모집 인원 초과 에러 처리
+        if (error.message === 'CAMPAIGN_FULL') {
+            return NextResponse.json(
+                { error: '해당 캠페인의 모집 인원이 마감되었습니다.' },
+                { status: 409 }
             );
         }
 

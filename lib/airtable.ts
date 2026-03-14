@@ -237,6 +237,7 @@ interface ApplyCampaignParams {
     channelName: string;
     userRecordId: string;
     email: string;
+    tier: TierLevel; // CHANGED: 잔여 인원 체크를 위해 등급 정보 추가
 }
 
 /**
@@ -246,7 +247,8 @@ export async function applyCampaign({
     campaignId,
     channelName,
     userRecordId,
-    email
+    email,
+    tier
 }: ApplyCampaignParams): Promise<{ success: boolean; couponCode: string }> {
     let createdApplicationId: string | null = null;
 
@@ -257,11 +259,18 @@ export async function applyCampaign({
             throw new Error('ALREADY_APPLIED');
         }
 
-        // 2. 쿠폰 코드 조회
+        // 2. 쿠폰 코드 조회 + 잔여 인원 사전 체크
         const campaignRecord = await campaignTable.find(campaignId) as unknown as AirtableCampaignRecord;
         const couponCode = campaignRecord.fields['쿠폰코드'];
         if (!couponCode) {
             throw new Error('COUPON_NOT_FOUND');
+        }
+
+        // CHANGED: 신청 전 잔여 인원 사전 체크 (1차 방어)
+        const tierFields = getTierFields(tier);
+        const availableCountBeforeApply = campaignRecord.fields[tierFields.available as keyof typeof campaignRecord.fields] as number || 0;
+        if (availableCountBeforeApply < 1) {
+            throw new Error('CAMPAIGN_FULL');
         }
 
         // 3. 유료 오퍼 신청 건 테이블에 레코드 생성
@@ -294,6 +303,30 @@ export async function applyCampaign({
                 }
             }
         ]);
+
+        // CHANGED: 사후 검증 (2차 방어) — 레코드 생성 후 잔여 인원 재확인
+        // Airtable에 트랜잭션이 없으므로, 동시 신청 시 availableCount가 음수가 될 수 있음
+        const updatedCampaignRecord = await campaignTable.find(campaignId) as unknown as AirtableCampaignRecord;
+        const availableCountAfterApply = updatedCampaignRecord.fields[tierFields.available as keyof typeof updatedCampaignRecord.fields] as number || 0;
+
+        if (availableCountAfterApply < 0) {
+            // 정원 초과 → 롤백: 신청 레코드 삭제 + 캠페인 링크 원복
+            console.error(`[Race Condition 감지] campaignId=${campaignId}, availableCount=${availableCountAfterApply} — 롤백 실행`);
+
+            const rollbackApplicants = updatedApplicants.filter((applicantId) => applicantId !== createdApplicationId);
+            await campaignTable.update([
+                {
+                    id: campaignId,
+                    fields: {
+                        '유료 오퍼 신청 인플루언서': rollbackApplicants
+                    }
+                }
+            ]);
+            await applicationTable.destroy(createdApplicationId);
+            createdApplicationId = null; // 롤백 완료, cleanup에서 중복 삭제 방지
+
+            throw new Error('CAMPAIGN_FULL');
+        }
 
         return { success: true, couponCode };
     } catch (error: any) {

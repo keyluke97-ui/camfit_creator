@@ -20,6 +20,8 @@ export default function ApplicationModal({ isOpen, onClose, campaign }: Applicat
     const [isCopied, setIsCopied] = useState(false);
 
     const modalRef = useRef<HTMLDivElement>(null);
+    // CHANGED: 더블클릭 방지용 동기적 잠금 (React state는 비동기라 race condition 발생 가능)
+    const isSubmittingRef = useRef(false);
 
     // 모달 외부 클릭 시 닫기 방지 (중요한 프로세스이므로)
 
@@ -32,6 +34,7 @@ export default function ApplicationModal({ isOpen, onClose, campaign }: Applicat
             setEmail('');
             setError('');
             setCouponCode('');
+            isSubmittingRef.current = false; // CHANGED: 모달 재오픈 시 잠금 해제
         }
     }, [isOpen]);
 
@@ -61,6 +64,10 @@ export default function ApplicationModal({ isOpen, onClose, campaign }: Applicat
                 return;
             }
 
+            // CHANGED: 동기적 잠금으로 더블클릭 차단 (React state보다 빠름)
+            if (isSubmittingRef.current) return;
+            isSubmittingRef.current = true;
+
             // API 호출
             setIsLoading(true);
             setError('');
@@ -78,6 +85,15 @@ export default function ApplicationModal({ isOpen, onClose, campaign }: Applicat
                 const data = await response.json();
 
                 if (!response.ok) {
+                    // CHANGED: 모집 마감 시 에러 표시 후 목록 갱신을 위해 새로고침
+                    if (response.status === 409 && data.error?.includes('마감')) {
+                        setError(data.error);
+                        setTimeout(() => {
+                            onClose();
+                            window.location.reload();
+                        }, 2000);
+                        return;
+                    }
                     throw new Error(data.error || '신청에 실패했습니다.');
                 }
 
@@ -85,6 +101,7 @@ export default function ApplicationModal({ isOpen, onClose, campaign }: Applicat
                 setStep(4);
             } catch (err: any) {
                 setError(err.message);
+                isSubmittingRef.current = false; // CHANGED: 에러 시 잠금 해제하여 재시도 가능
             } finally {
                 setIsLoading(false);
             }
