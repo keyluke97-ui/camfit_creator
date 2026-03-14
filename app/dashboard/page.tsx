@@ -17,6 +17,8 @@ export default function DashboardPage() {
     const [loading, setLoading] = useState(true);
     const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
     const [isCheckinModalOpen, setIsCheckinModalOpen] = useState(false);
+    // CHANGED: 에러 메시지 상태 추가 (console.error만 하던 것을 사용자에게도 표시)
+    const [errorMessage, setErrorMessage] = useState('');
 
     useEffect(() => {
         Promise.all([
@@ -25,13 +27,32 @@ export default function DashboardPage() {
         ]).finally(() => setLoading(false));
     }, []);
 
+    // CHANGED: 탭 복귀 시 캠페인 목록 자동 갱신 (stale 데이터 방지)
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                fetchCampaigns();
+            }
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }, []);
+
     const fetchCampaigns = async () => {
         try {
             const response = await fetch('/api/campaigns');
             const data = await response.json();
-            if (response.ok) setCampaigns(data.campaigns);
+            if (response.ok) {
+                setCampaigns(data.campaigns);
+                setErrorMessage(''); // CHANGED: 성공 시 에러 초기화
+            } else {
+                // CHANGED: 사용자에게 에러 표시
+                setErrorMessage('캠페인 목록을 불러오는 데 실패했습니다.');
+            }
         } catch (err) {
             console.error(err);
+            // CHANGED: 네트워크 에러도 사용자에게 표시
+            setErrorMessage('네트워크 오류가 발생했습니다. 페이지를 새로고침해주세요.');
         }
     };
 
@@ -113,6 +134,13 @@ export default function DashboardPage() {
                                 {campaigns.filter(c => !c.isClosed).length}개
                             </span>
                         </div>
+                    </div>
+                )}
+
+                {/* CHANGED: 에러 메시지 표시 영역 */}
+                {errorMessage && (
+                    <div className="mb-6 bg-red-500/10 border border-red-500/30 rounded-xl p-4">
+                        <p className="text-red-400 text-sm text-center font-medium">{errorMessage}</p>
                     </div>
                 )}
 

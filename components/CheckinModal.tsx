@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { Application } from '@/types';
 
 interface CheckinModalProps {
@@ -21,6 +21,13 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
     const [savingId, setSavingId] = useState<string | null>(null);
     const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
 
+    // CHANGED: 인라인 에러 메시지 (alert 대체)
+    const [errorMessage, setErrorMessage] = useState('');
+
+    // CHANGED: 더블클릭 방지용 동기적 잠금
+    const isSavingRef = useRef(false);
+    const isConfirmingRef = useRef(false);
+
     // 예약 변경/취소 플로우
     const [step, setStep] = useState(1); // 1: 리스트, 2: 확인, 3: 완료
     const [selectedApp, setSelectedApp] = useState<Application | null>(null);
@@ -39,6 +46,9 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
             setConfirmInput('');
             setCouponInfo(null);
             setSavedIds(new Set());
+            setErrorMessage(''); // CHANGED: 에러 메시지 초기화
+            isSavingRef.current = false; // CHANGED: 잠금 해제
+            isConfirmingRef.current = false; // CHANGED: 잠금 해제
         }
     }, [isOpen]);
 
@@ -83,10 +93,15 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
     const handleSave = async (appId: string) => {
         const data = formData[appId];
         if (!data?.date || !data?.site) {
-            return; // 유효성 검사 실패 시 무시
+            return;
         }
 
+        // CHANGED: 동기적 잠금으로 더블클릭 차단
+        if (isSavingRef.current) return;
+        isSavingRef.current = true;
+
         setSavingId(appId);
+        setErrorMessage(''); // CHANGED: 이전 에러 초기화
         try {
             const res = await fetch('/api/applications/checkin', {
                 method: 'PATCH',
@@ -99,7 +114,6 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
             });
 
             if (res.ok) {
-                // 로컬 상태 업데이트
                 setApplications(prev => prev.map(app =>
                     app.id === appId
                         ? { ...app, checkInDate: data.date, checkInSite: data.site }
@@ -108,12 +122,15 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
                 setSavedIds(prev => new Set(prev).add(appId));
             } else {
                 const errorData = await res.json();
-                alert(errorData.error || '저장에 실패했습니다.');
+                // CHANGED: alert → 인라인 에러 메시지
+                setErrorMessage(errorData.error || '저장에 실패했습니다.');
             }
         } catch (error) {
             console.error('Save failed', error);
+            setErrorMessage('네트워크 오류가 발생했습니다. 다시 시도해주세요.'); // CHANGED: catch에서도 인라인 에러
         } finally {
             setSavingId(null);
+            isSavingRef.current = false; // CHANGED: 잠금 해제
         }
     };
 
@@ -130,7 +147,12 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
         if (confirmInput !== '이해') return;
         if (!selectedApp || !actionType) return;
 
+        // CHANGED: 동기적 잠금으로 더블클릭 차단
+        if (isConfirmingRef.current) return;
+        isConfirmingRef.current = true;
+
         setIsProcessing(true);
+        setErrorMessage(''); // CHANGED: 이전 에러 초기화
         try {
             const res = await fetch('/api/applications/status', {
                 method: 'PATCH',
@@ -144,7 +166,6 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
             if (res.ok) {
                 if (actionType === 'change') {
                     setCouponInfo({ code: selectedApp.couponCode || '쿠폰코드 없음' });
-                    // 로컬 상태 업데이트
                     setApplications(prev => prev.map(app =>
                         app.id === selectedApp.id
                             ? { ...app, checkInDate: '', checkInSite: '', reservationStatus: '변경' }
@@ -155,18 +176,20 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
                         [selectedApp.id]: { date: '', site: '' }
                     }));
                 } else {
-                    // 취소 시 목록에서 제거
                     setApplications(prev => prev.filter(app => app.id !== selectedApp.id));
                 }
                 setStep(3);
             } else {
                 const errorData = await res.json();
-                alert(errorData.error || '요청 처리에 실패했습니다.');
+                // CHANGED: alert → 인라인 에러 메시지
+                setErrorMessage(errorData.error || '요청 처리에 실패했습니다.');
             }
         } catch (error) {
             console.error('Action failed', error);
+            setErrorMessage('네트워크 오류가 발생했습니다. 다시 시도해주세요.'); // CHANGED: catch에서도 인라인 에러
         } finally {
             setIsProcessing(false);
+            isConfirmingRef.current = false; // CHANGED: 잠금 해제
         }
     };
 
@@ -176,6 +199,7 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
         setActionType(null);
         setConfirmInput('');
         setCouponInfo(null);
+        setErrorMessage(''); // CHANGED: 목록으로 돌아갈 때 에러 초기화
     };
 
     if (!isOpen) return null;
@@ -386,6 +410,15 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
                         </div>
                     )}
                 </div>
+
+                {/* CHANGED: 인라인 에러 메시지 표시 (alert 대체) */}
+                {errorMessage && (
+                    <div className="px-5 pb-2">
+                        <p className="text-red-400 text-sm text-center font-medium animate-pulse">
+                            {errorMessage}
+                        </p>
+                    </div>
+                )}
 
                 {/* 푸터 버튼 */}
                 {step === 2 && (

@@ -29,7 +29,8 @@ function escapeAirtableValue(value: string): string {
     return value
         .replace(/\\/g, '\\\\')
         .replace(/"/g, '\\"')
-        .replace(/'/g, "\\'");
+        .replace(/'/g, "\\'")
+        ;
 }
 
 // Airtable 클라이언트 초기화
