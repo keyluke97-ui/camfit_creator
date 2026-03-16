@@ -1,0 +1,3 @@
+{
+  "buildCommand": "rm -rf src/pages && next build"
+}
