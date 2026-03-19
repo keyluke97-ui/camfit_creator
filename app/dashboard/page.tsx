@@ -19,6 +19,8 @@ export default function DashboardPage() {
     const [isCheckinModalOpen, setIsCheckinModalOpen] = useState(false);
     // CHANGED: 에러 메시지 상태 추가 (console.error만 하던 것을 사용자에게도 표시)
     const [errorMessage, setErrorMessage] = useState('');
+    // CHANGED: 마감 캠페인 접기/펼치기 토글 상태 (기본: 접힘)
+    const [showClosedCampaigns, setShowClosedCampaigns] = useState(false);
 
     useEffect(() => {
         Promise.all([
@@ -151,13 +153,54 @@ export default function DashboardPage() {
                     </div>
                 )}
 
-                {!loading && campaigns.length > 0 && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {campaigns.map((campaign) => (
-                            <CampaignCard key={campaign.id} campaign={campaign} />
-                        ))}
-                    </div>
-                )}
+                {/* CHANGED: 신청 가능 캠페인을 먼저 표시, 마감 캠페인은 접기/펼치기 토글로 분리 */}
+                {!loading && campaigns.length > 0 && (() => {
+                    const activeCampaigns = campaigns.filter(c => !c.isClosed);
+                    const closedCampaigns = campaigns.filter(c => c.isClosed);
+
+                    return (
+                        <>
+                            {/* 신청 가능 캠페인 */}
+                            {activeCampaigns.length > 0 && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {activeCampaigns.map((campaign) => (
+                                        <CampaignCard key={campaign.id} campaign={campaign} />
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* 마감 캠페인 토글 영역 */}
+                            {closedCampaigns.length > 0 && (
+                                <div className={activeCampaigns.length > 0 ? 'mt-8' : ''}>
+                                    <button
+                                        onClick={() => setShowClosedCampaigns(previous => !previous)}
+                                        className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-[#1E1E1E] border border-[#333333] rounded-xl text-[#888888] hover:text-white hover:border-[#555555] transition-colors"
+                                    >
+                                        <span className="text-sm font-medium">
+                                            마감 캠페인 {closedCampaigns.length}개 {showClosedCampaigns ? '접기' : '보기'}
+                                        </span>
+                                        <svg
+                                            className={`w-4 h-4 transition-transform duration-200 ${showClosedCampaigns ? 'rotate-180' : ''}`}
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                    </button>
+
+                                    {showClosedCampaigns && (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
+                                            {closedCampaigns.map((campaign) => (
+                                                <CampaignCard key={campaign.id} campaign={campaign} />
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </>
+                    );
+                })()}
             </main>
 
             <CheckinModal
