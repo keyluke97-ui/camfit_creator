@@ -36,6 +36,9 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
     const [isProcessing, setIsProcessing] = useState(false);
     const [couponInfo, setCouponInfo] = useState<{ code: string } | null>(null);
 
+    // CHANGED: 쿠폰 코드 복사 완료 피드백용 상태
+    const [copiedId, setCopiedId] = useState<string | null>(null);
+
     useEffect(() => {
         if (isOpen) {
             fetchApplications();
@@ -47,6 +50,7 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
             setCouponInfo(null);
             setSavedIds(new Set());
             setErrorMessage(''); // CHANGED: 에러 메시지 초기화
+            setCopiedId(null); // CHANGED: 복사 상태 초기화
             isSavingRef.current = false; // CHANGED: 잠금 해제
             isConfirmingRef.current = false; // CHANGED: 잠금 해제
         }
@@ -88,6 +92,13 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
                 [field]: value
             }
         }));
+    };
+
+    // CHANGED: 쿠폰 코드 복사 핸들러 (카드 리스트용)
+    const handleCopyCoupon = (applicationId: string, code: string) => {
+        navigator.clipboard.writeText(code);
+        setCopiedId(applicationId);
+        setTimeout(() => setCopiedId(null), 2000);
     };
 
     const handleSave = async (appId: string) => {
@@ -207,6 +218,44 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
     // 앱이 등록 완료 상태인지 확인
     const isRegistered = (app: Application) => !!(app.checkInDate && app.checkInSite);
 
+    // CHANGED: 쿠폰 코드 표시 섹션 (등록완료/미등록 양쪽에서 공통 사용)
+    const renderCouponSection = (app: Application) => {
+        if (!app.couponCode) return null;
+
+        const isCopied = copiedId === app.id;
+
+        return (
+            <div className="bg-[#1E1E1E] border border-[#333333] rounded-lg p-3 space-y-2">
+                <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-[#888888]">🎟️ 쿠폰 코드</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <span className="flex-1 text-sm font-mono font-bold text-[#01DF82] tracking-wider break-all">
+                        {app.couponCode}
+                    </span>
+                    <button
+                        onClick={() => handleCopyCoupon(app.id, app.couponCode || '')}
+                        className={`flex-shrink-0 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                            isCopied
+                                ? 'bg-[#01DF82]/20 text-[#01DF82] border border-[#01DF82]/30'
+                                : 'bg-[#2A2A2A] text-[#CCCCCC] border border-[#444444] hover:bg-[#333333]'
+                        }`}
+                    >
+                        {isCopied ? '✓ 복사됨' : '복사'}
+                    </button>
+                </div>
+                <a
+                    href="https://camfit.co.kr/mypage/coupon/register"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-xs text-[#01DF82] hover:underline"
+                >
+                    캠핏 쿠폰 등록하러 가기 →
+                </a>
+            </div>
+        );
+    };
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/80 backdrop-blur-sm">
             <div className="bg-[#1E1E1E] w-full max-w-lg rounded-2xl border border-[#333333] shadow-2xl relative max-h-[90vh] flex flex-col">
@@ -247,6 +296,9 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
                                     >
                                         {/* 캠핑장 이름 */}
                                         <h3 className="text-white font-bold text-lg">{app.accommodationName}</h3>
+
+                                        {/* CHANGED: 쿠폰 코드 섹션 — 등록완료/미등록 공통 표시 */}
+                                        {renderCouponSection(app)}
 
                                         {isRegistered(app) ? (
                                             /* 등록 완료 상태 */
@@ -348,7 +400,7 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
 
                             <div>
                                 <label className="block text-sm font-medium text-white mb-2">
-                                    위 내용을 이해하셨다면 <span className="text-[#01DF82]">'이해'</span>를 입력해주세요.
+                                    위 내용을 이해하셨다면 <span className="text-[#01DF82]">&apos;이해&apos;</span>를 입력해주세요.
                                 </label>
                                 <input
                                     type="text"
