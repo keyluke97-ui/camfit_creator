@@ -245,7 +245,7 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
                     </button>
                 </div>
                 <a
-                    href="https://camfit.co.kr/mypage/coupon/register"
+                    href="https://camfit.co.kr/mypage/coupon"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-1 text-xs text-[#01DF82] hover:underline"
@@ -438,7 +438,7 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
                                         </button>
                                     </div>
                                     <a
-                                        href="https://camfit.co.kr/mypage/coupon/register"
+                                        href="https://camfit.co.kr/mypage/coupon"
                                         rel="noreferrer"
                                         className="block w-full h-14 flex items-center justify-center bg-[#01DF82] text-black font-bold text-lg rounded-xl hover:bg-[#00C972] transition-colors"
                                     >
