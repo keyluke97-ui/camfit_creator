@@ -63,17 +63,6 @@ function DashboardContent() {
         window.history.replaceState(null, '', url);
     };
 
-    // CHANGED: 탭 복귀 시 캠페인 목록 자동 갱신 (stale 데이터 방지)
-    useEffect(() => {
-        const handleVisibilityChange = () => {
-            if (document.visibilityState === 'visible') {
-                fetchCampaigns();
-            }
-        };
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-    }, []);
-
     const fetchCampaigns = async () => {
         try {
             const response = await fetch('/api/campaigns');
