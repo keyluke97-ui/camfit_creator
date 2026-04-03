@@ -19,7 +19,7 @@ export interface AirtableCreatorRecord {
     '연락처': string;
     '채널 종류': string[];
     '등급화': number; // rating 1~3
-    '휴먼 상태'?: boolean;
+    '휴먼 상태 '?: boolean; // CHANGED: Airtable 필드명 끝에 공백 포함
     '프리미엄 협찬 신청 인플루언서'?: string[]; // multipleRecordLinks → tblDOC7jcmeuQzNJY
   };
 }

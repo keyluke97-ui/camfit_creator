@@ -142,7 +142,8 @@ export async function authenticateCreator(
         const fields = record.fields;
 
         // 휴먼 상태 체크 — true면 비활성 크리에이터, 로그인 차단
-        if (fields['휴먼 상태'] === true) return null;
+        // CHANGED: Airtable 필드명 끝에 공백 포함 ('휴먼 상태 ')
+        if (fields['휴먼 상태 '] === true) return null;
 
         // 연락처 뒤4자리 검증
         const phone = fields['연락처'] || '';
@@ -230,7 +231,7 @@ export async function getChannelNames(): Promise<string[]> {
         const records = await creatorTable()
             .select({
                 fields: ['크리에이터 채널명'],
-                filterByFormula: `NOT({휴먼 상태})`
+                filterByFormula: `NOT({휴먼 상태 })`
             })
             .all();
 
