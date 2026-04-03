@@ -187,9 +187,8 @@ export interface PremiumRegisterFormData {
   taxEmail: string;            // 사업자 선택 시
   businessNumber: string;      // 사업자 선택 시
   consentPrivacy: boolean;
-  consentTax: boolean;
   consentContent: boolean;
-  consentPayment: boolean;
+  consentPayment: boolean;     // CHANGED: 원천징수 동의(consentTax) 제거 — 지급 조건 동의에 통합
 }
 
 /** API 요청 시 JWT 자동 설정 필드 포함 */

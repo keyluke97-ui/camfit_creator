@@ -75,8 +75,9 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        // 7. 동의 체크박스 4개 전부 체크 확인
-        if (!body.consentPrivacy || !body.consentTax || !body.consentContent || !body.consentPayment) {
+        // 7. 동의 체크박스 3개 전부 체크 확인
+        // CHANGED: consentTax 제거 — 원천징수 동의는 지급 조건 동의에 통합
+        if (!body.consentPrivacy || !body.consentContent || !body.consentPayment) {
             return NextResponse.json(
                 { error: '모든 동의 항목에 체크해주세요.' },
                 { status: 400 }
