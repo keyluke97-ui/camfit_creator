@@ -35,27 +35,45 @@ function escapeAirtableValue(value: string): string {
     return value
         .replace(/\\/g, '\\\\')
         .replace(/"/g, '\\"')
-        .replace(/'/g, "\\'")
+        .replace(/'/g, "\\'");
 }
 
-// Airtable 클라이언트 초기화
-const airtable = new Airtable({
-    apiKey: process.env.AIRTABLE_ACCESS_TOKEN
-});
+// CHANGED: lazy 초기화 — 빌드 타임에 환경변수 미설정으로 인한 에러 방지
+// Next.js "Collecting page data" 단계에서 모듈이 평가되므로, 테이블 참조는 런타임에만 생성
+let _base: ReturnType<Airtable['base']> | null = null;
+function getBase() {
+    if (!_base) {
+        const airtable = new Airtable({
+            apiKey: process.env.AIRTABLE_ACCESS_TOKEN
+        });
+        _base = airtable.base(process.env.AIRTABLE_BASE_ID!);
+    }
+    return _base;
+}
 
-const base = airtable.base(process.env.AIRTABLE_BASE_ID!);
+// 테이블 getter — 최초 호출 시 초기화 (빌드 타임에는 실행되지 않음)
+function getTable(envKey: string) {
+    const tableId = process.env[envKey];
+    if (!tableId) {
+        throw new Error(`환경변수 ${envKey}가 설정되지 않았습니다.`);
+    }
+    return getBase()(tableId);
+}
 
-// 테이블 참조
-const userTable = base(process.env.AIRTABLE_USER_TABLE_ID!);
-const campaignTable = base(process.env.AIRTABLE_CAMPAIGN_TABLE_ID!);
-const applicationTable = base(process.env.AIRTABLE_APPLICATION_TABLE_ID!);
+// 캐시된 테이블 참조
+let _userTable: ReturnType<typeof getTable> | null = null;
+let _campaignTable: ReturnType<typeof getTable> | null = null;
+let _applicationTable: ReturnType<typeof getTable> | null = null;
+let _creatorTable: ReturnType<typeof getTable> | null = null;
+let _partnerCampaignTable: ReturnType<typeof getTable> | null = null;
+let _partnerApplicationTable: ReturnType<typeof getTable> | null = null;
 
-// CHANGED: 크리에이터 명단 테이블 추가 — 로그인 소스 전환
-const creatorTable = base(process.env.AIRTABLE_CREATOR_TABLE_ID!);
-
-// CHANGED: 파트너 협찬 테이블 참조 추가
-const partnerCampaignTable = base(process.env.AIRTABLE_PARTNER_CAMPAIGN_TABLE_ID!);
-const partnerApplicationTable = base(process.env.AIRTABLE_PARTNER_APPLICATION_TABLE_ID!);
+const userTable = () => (_userTable ??= getTable('AIRTABLE_USER_TABLE_ID'));
+const campaignTable = () => (_campaignTable ??= getTable('AIRTABLE_CAMPAIGN_TABLE_ID'));
+const applicationTable = () => (_applicationTable ??= getTable('AIRTABLE_APPLICATION_TABLE_ID'));
+const creatorTable = () => (_creatorTable ??= getTable('AIRTABLE_CREATOR_TABLE_ID'));
+const partnerCampaignTable = () => (_partnerCampaignTable ??= getTable('AIRTABLE_PARTNER_CAMPAIGN_TABLE_ID'));
+const partnerApplicationTable = () => (_partnerApplicationTable ??= getTable('AIRTABLE_PARTNER_APPLICATION_TABLE_ID'));
 
 /**
  * 등급별 필드명 매핑
@@ -114,7 +132,7 @@ export async function authenticateCreator(
 ): Promise<Influencer | null> {
     try {
         const formula = `{크리에이터 채널명} = "${escapeAirtableValue(channelName)}"`;
-        const records = await creatorTable
+        const records = await creatorTable()
             .select({ filterByFormula: formula, maxRecords: 1 })
             .firstPage();
 
@@ -164,7 +182,7 @@ export async function authenticateCreator(
 export async function getCampaigns(tier: TierLevel): Promise<Campaign[]> {
     try {
         // 입금내역 확인된 캠페인만 조회
-        const records = await campaignTable.select({
+        const records = await campaignTable().select({
             filterByFormula: '{입금내역 확인}'
         }).all();
         const tierFields = getTierFields(tier);
@@ -209,7 +227,7 @@ export async function getCampaigns(tier: TierLevel): Promise<Campaign[]> {
 export async function getChannelNames(): Promise<string[]> {
     try {
         // CHANGED: 크리에이터 명단 테이블로 전환 + 휴먼 상태 필터링
-        const records = await creatorTable
+        const records = await creatorTable()
             .select({
                 fields: ['크리에이터 채널명'],
                 filterByFormula: `NOT({휴먼 상태})`
@@ -244,7 +262,7 @@ export async function checkDuplicateApplication(
     try {
         // CHANGED: Formula Injection 방어
         const formula = `AND({크리에이터 채널명(프리미엄 협찬 신청)} = '${escapeAirtableValue(userRecordId)}', {숙소 이름 (유료 오퍼)} = '${escapeAirtableValue(campaignId)}')`;
-        const records = await applicationTable
+        const records = await applicationTable()
             .select({ filterByFormula: formula, maxRecords: 1 })
             .firstPage();
         return records.length > 0;
@@ -282,7 +300,7 @@ export async function applyCampaign({
         }
 
         // 2. 쿠폰 코드 조회 + 잔여 인원 사전 체크
-        const campaignRecord = await campaignTable.find(campaignId) as unknown as AirtableCampaignRecord;
+        const campaignRecord = await campaignTable().find(campaignId) as unknown as AirtableCampaignRecord;
         const couponCode = campaignRecord.fields['쿠폰코드'];
         if (!couponCode) {
             throw new Error('COUPON_NOT_FOUND');
@@ -296,7 +314,7 @@ export async function applyCampaign({
         }
 
         // 3. 유료 오퍼 신청 건 테이블에 레코드 생성
-        const createdRecords = await applicationTable.create([
+        const createdRecords = await applicationTable().create([
             {
                 fields: {
                     '크리에이터 채널명': channelName,
@@ -317,7 +335,7 @@ export async function applyCampaign({
         const existingApplicants = campaignRecord.fields['유료 오퍼 신청 인플루언서'] as string[] || [];
         const updatedApplicants = [...new Set([...existingApplicants, createdApplicationId])];
 
-        await campaignTable.update([
+        await campaignTable().update([
             {
                 id: campaignId,
                 fields: {
@@ -328,7 +346,7 @@ export async function applyCampaign({
 
         // CHANGED: 사후 검증 (2차 방어) — 레코드 생성 후 잔여 인원 재확인
         // Airtable에 트랜잭션이 없으므로, 동시 신청 시 availableCount가 음수가 될 수 있음
-        const updatedCampaignRecord = await campaignTable.find(campaignId) as unknown as AirtableCampaignRecord;
+        const updatedCampaignRecord = await campaignTable().find(campaignId) as unknown as AirtableCampaignRecord;
         const availableCountAfterApply = updatedCampaignRecord.fields[tierFields.available as keyof typeof updatedCampaignRecord.fields] as number || 0;
 
         if (availableCountAfterApply < 0) {
@@ -336,7 +354,7 @@ export async function applyCampaign({
             console.error(`[Race Condition 감지] campaignId=${campaignId}, availableCount=${availableCountAfterApply} — 롤백 실행`);
 
             const rollbackApplicants = updatedApplicants.filter((applicantId) => applicantId !== createdApplicationId);
-            await campaignTable.update([
+            await campaignTable().update([
                 {
                     id: campaignId,
                     fields: {
@@ -344,7 +362,7 @@ export async function applyCampaign({
                     }
                 }
             ]);
-            await applicationTable.destroy(createdApplicationId);
+            await applicationTable().destroy(createdApplicationId);
             createdApplicationId = null; // 롤백 완료, cleanup에서 중복 삭제 방지
 
             throw new Error('CAMPAIGN_FULL');
@@ -357,7 +375,7 @@ export async function applyCampaign({
         // [Cleanup] 캠페인 업데이트 실패 시 생성된 신청 레코드 삭제
         if (createdApplicationId) {
             try {
-                await applicationTable.destroy(createdApplicationId);
+                await applicationTable().destroy(createdApplicationId);
             } catch (cleanupError) {
                 console.error('Cleanup error:', cleanupError);
             }
@@ -380,7 +398,7 @@ export async function getUserApplications(channelName: string): Promise<Applicat
             {예약 취소/변경} != '취소'
         )`;
 
-        const records = await applicationTable
+        const records = await applicationTable()
             .select({
                 filterByFormula: filterFormula,
                 sort: [{ field: '입실일', direction: 'asc' }] // 가까운 날짜부터
@@ -400,7 +418,7 @@ export async function getUserApplications(channelName: string): Promise<Applicat
             if (fields['숙소 이름 (유료 오퍼)'] && fields['숙소 이름 (유료 오퍼)'].length > 0) {
                 campaignId = fields['숙소 이름 (유료 오퍼)'][0];
                 try {
-                    const campRecord = await campaignTable.find(campaignId) as unknown as AirtableCampaignRecord;
+                    const campRecord = await campaignTable().find(campaignId) as unknown as AirtableCampaignRecord;
                     accommodationName = campRecord.fields['숙소 이름을 적어주세요.'] || 'Unknown';
                     couponCode = campRecord.fields['쿠폰코드'] || '';
                 } catch (campaignFetchError) {
@@ -445,7 +463,7 @@ export async function updateApplicationCheckin(
             '입실 사이트': checkInSite,
             '예약 취소/변경': null
         } as unknown as Partial<FieldSet>;
-        await applicationTable.update([
+        await applicationTable().update([
             { id: recordId, fields: checkinFields }
         ]);
         return true;
@@ -471,7 +489,7 @@ export async function updateApplicationStatus(
             '입실 사이트': null,
         } as unknown as Partial<FieldSet>;
 
-        await applicationTable.update([
+        await applicationTable().update([
             { id: recordId, fields: updates }
         ]);
         return true;
@@ -512,7 +530,7 @@ export async function registerPremiumCreator(
 ): Promise<{ success: boolean; recordId: string }> {
     try {
         // 중복 등록 방지: 크리에이터 명단의 프리미엄 Link가 이미 있는지 확인
-        const creatorRecord = await creatorTable.find(params.creatorId);
+        const creatorRecord = await creatorTable().find(params.creatorId);
         const existingPremiumLinks = creatorRecord.get('프리미엄 협찬 신청 인플루언서') as string[] | undefined;
         if (Array.isArray(existingPremiumLinks) && existingPremiumLinks.length > 0) {
             throw new Error('ALREADY_REGISTERED');
@@ -553,7 +571,7 @@ export async function registerPremiumCreator(
             }
         }
 
-        const createdRecords = await userTable.create([
+        const createdRecords = await userTable().create([
             { fields: createFields as Partial<FieldSet> }
         ]);
 
@@ -619,7 +637,7 @@ function mapPartnerCampaignRecord(
  */
 export async function getPartnerCampaigns(): Promise<PartnerCampaign[]> {
     try {
-        const records = await partnerCampaignTable
+        const records = await partnerCampaignTable()
             .select({
                 filterByFormula: `{모집 상태} != '오픈전'`
             })
@@ -654,7 +672,7 @@ export async function checkPartnerDuplicateApplication(
 ): Promise<boolean> {
     try {
         const formula = `AND({크리에이터} = '${escapeAirtableValue(userRecordId)}', {캠페인} = '${escapeAirtableValue(campaignId)}', {예약 취소/변경} != '취소')`;
-        const records = await partnerApplicationTable
+        const records = await partnerApplicationTable()
             .select({ filterByFormula: formula, maxRecords: 1 })
             .firstPage();
         return records.length > 0;
@@ -690,7 +708,7 @@ export async function applyPartnerCampaign({
         }
 
         // 2. 잔여 인원 사전 체크 (1차 방어)
-        const campaignRecord = await partnerCampaignTable.find(campaignId) as unknown as AirtablePartnerCampaignRecord;
+        const campaignRecord = await partnerCampaignTable().find(campaignId) as unknown as AirtablePartnerCampaignRecord;
         const availableCountBefore = campaignRecord.fields['신청가능인원'] || 0;
         if (availableCountBefore < 1) {
             throw new Error('CAMPAIGN_FULL');
@@ -706,7 +724,7 @@ export async function applyPartnerCampaign({
         }
 
         // 3. 신청 레코드 생성
-        const createdRecords = await partnerApplicationTable.create([
+        const createdRecords = await partnerApplicationTable().create([
             {
                 fields: {
                     '크리에이터': [userRecordId],
@@ -726,20 +744,20 @@ export async function applyPartnerCampaign({
         createdApplicationId = createdRecords[0].id;
 
         // 4. 사후 검증 (2차 방어) — 잔여 인원 재확인
-        const updatedCampaign = await partnerCampaignTable.find(campaignId) as unknown as AirtablePartnerCampaignRecord;
+        const updatedCampaign = await partnerCampaignTable().find(campaignId) as unknown as AirtablePartnerCampaignRecord;
         const availableCountAfter = updatedCampaign.fields['신청가능인원'] || 0;
 
         if (availableCountAfter < 0) {
             // 정원 초과 → 롤백
             console.error(`[Partner Race Condition] campaignId=${campaignId}, availableCount=${availableCountAfter} — 롤백`);
-            await partnerApplicationTable.destroy(createdApplicationId);
+            await partnerApplicationTable().destroy(createdApplicationId);
             createdApplicationId = null;
             throw new Error('CAMPAIGN_FULL');
         }
 
         // 5. 자동 마감 전환: 잔여 인원 0이면 모집 상태 → 마감
         if (availableCountAfter === 0) {
-            await partnerCampaignTable.update([
+            await partnerCampaignTable().update([
                 {
                     id: campaignId,
                     fields: { '모집 상태': '마감' }
@@ -753,7 +771,7 @@ export async function applyPartnerCampaign({
 
         if (createdApplicationId) {
             try {
-                await partnerApplicationTable.destroy(createdApplicationId);
+                await partnerApplicationTable().destroy(createdApplicationId);
             } catch (cleanupError) {
                 console.error('Partner cleanup error:', cleanupError);
             }
@@ -775,7 +793,7 @@ export async function getPartnerApplications(
             {예약 취소/변경} != '취소'
         )`;
 
-        const records = await partnerApplicationTable
+        const records = await partnerApplicationTable()
             .select({ filterByFormula: filterFormula })
             .all();
 
@@ -831,7 +849,7 @@ export async function enrichPartnerApplications(
             .join(', ');
         const filterFormula = `OR(${orConditions})`;
 
-        const records = await partnerCampaignTable
+        const records = await partnerCampaignTable()
             .select({ filterByFormula: filterFormula })
             .all();
 
@@ -859,7 +877,7 @@ export async function verifyPartnerApplicationOwnership(
     userRecordId: string
 ): Promise<boolean> {
     try {
-        const record = await partnerApplicationTable.find(recordId) as unknown as AirtablePartnerApplicationRecord;
+        const record = await partnerApplicationTable().find(recordId) as unknown as AirtablePartnerApplicationRecord;
         const creatorIds = record.fields['크리에이터'] || [];
         return creatorIds.includes(userRecordId);
     } catch (error) {
@@ -883,7 +901,7 @@ export async function updatePartnerCheckin(
             '예약 취소/변경': null
         } as unknown as Partial<FieldSet>;
 
-        await partnerApplicationTable.update([
+        await partnerApplicationTable().update([
             { id: recordId, fields: checkinFields }
         ]);
         return true;
@@ -907,7 +925,7 @@ export async function updatePartnerApplicationStatus(
             '입실 사이트': null,
         } as unknown as Partial<FieldSet>;
 
-        await partnerApplicationTable.update([
+        await partnerApplicationTable().update([
             { id: recordId, fields: updates }
         ]);
         return true;
