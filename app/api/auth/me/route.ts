@@ -1,4 +1,4 @@
-
+// route.ts - 현재 로그인 사용자 정보 조회 API
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { jwtVerify } from 'jose';
@@ -20,13 +20,18 @@ export async function GET() {
 
         const { payload } = await jwtVerify(token, JWT_SECRET);
 
+        // CHANGED: creatorId/premiumId 분리 반환 (로그인 소스 전환)
         return NextResponse.json({
             user: {
+                creatorId: payload.creatorId,
                 channelName: payload.channelName,
-                tier: payload.tier
+                tier: payload.tier,
+                channelTypes: payload.channelTypes || [],
+                premiumId: payload.premiumId || null
             }
         });
     } catch (error) {
+        console.error('Auth me error:', error);
         return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 }

@@ -32,14 +32,15 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        const userRecordId = payload.id as string;
+        // CHANGED: payload.id → payload.premiumId (로그인 소스 전환)
+        const premiumId = payload.premiumId as string | null;
         const channelName = payload.channelName as string;
-        const tier = payload.tier as TierLevel; // CHANGED: 잔여 인원 체크를 위해 tier 추출
+        const tier = payload.tier as TierLevel;
 
-        if (!userRecordId || !channelName) {
+        if (!premiumId || !channelName) {
             return NextResponse.json(
-                { error: '세션 정보가 올바르지 않습니다.' },
-                { status: 401 }
+                { error: '프리미엄 협찬 등록이 필요합니다.' },
+                { status: 403 }
             );
         }
 
@@ -55,12 +56,13 @@ export async function POST(req: NextRequest) {
         }
 
         // 3. 에어테이블 로직 호출
+        // CHANGED: userRecordId → premiumId (프리미엄 테이블 record ID)
         const result = await applyCampaign({
             campaignId,
             channelName,
-            userRecordId,
+            userRecordId: premiumId,
             email,
-            tier // CHANGED: 잔여 인원 체크를 위해 tier 전달
+            tier
         });
 
         // 4. 성공 응답

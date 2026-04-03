@@ -26,6 +26,23 @@ export async function middleware(request: NextRequest) {
         if (pathname === '/login') return NextResponse.next();
     }
 
+    // CHANGED: 프리미엄 등록 페이지 — 로그인 필수 (JWT에서 creatorId 필요)
+    if (pathname.startsWith('/premium-register')) {
+        const token = request.cookies.get('auth-token')?.value;
+
+        if (!token) {
+            return NextResponse.redirect(new URL('/login', request.url));
+        }
+
+        try {
+            await jwtVerify(token, JWT_SECRET);
+            return NextResponse.next();
+        } catch (error) {
+            console.error('Token verification failed:', error);
+            return NextResponse.redirect(new URL('/login', request.url));
+        }
+    }
+
     // 대시보드는 인증 필요
     if (pathname.startsWith('/dashboard')) {
         const token = request.cookies.get('auth-token')?.value;
@@ -48,5 +65,6 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-    matcher: ['/dashboard/:path*', '/login']
+    // CHANGED: /premium-register 경로 보호 추가
+    matcher: ['/dashboard/:path*', '/premium-register', '/login']
 };

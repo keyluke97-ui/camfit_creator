@@ -1,5 +1,7 @@
+// route.ts - 크리에이터 로그인 API (크리에이터 명단 테이블 기반)
 import { NextRequest, NextResponse } from 'next/server';
-import { authenticateInfluencer } from '@/lib/airtable';
+// CHANGED: authenticateInfluencer → authenticateCreator (로그인 소스 전환)
+import { authenticateCreator } from '@/lib/airtable';
 import { SignJWT } from 'jose';
 
 // CHANGED: 폴백 값 제거 — 환경변수 미설정 시 서버 시작 단계에서 에러 발생하도록
@@ -10,20 +12,13 @@ const JWT_SECRET = new TextEncoder().encode(process.env.NEXTAUTH_SECRET);
 
 export async function POST(request: NextRequest) {
     try {
-        const { channelName, birthDate, phoneLastFour } = await request.json();
+        // CHANGED: 생년월일 제거 — 채널명 + 연락처 뒤4자리만으로 인증
+        const { channelName, phoneLastFour } = await request.json();
 
         // 입력 검증
-        if (!channelName || !birthDate || !phoneLastFour) {
+        if (!channelName || !phoneLastFour) {
             return NextResponse.json(
-                { error: '모든 필드를 입력해주세요.' },
-                { status: 400 }
-            );
-        }
-
-        // 생년월일 형식 검증 (6자리 숫자)
-        if (!/^\d{6}$/.test(birthDate)) {
-            return NextResponse.json(
-                { error: '생년월일은 6자리 숫자로 입력해주세요. (YYMMDD)' },
+                { error: '채널명과 연락처 뒤 4자리를 입력해주세요.' },
                 { status: 400 }
             );
         }
@@ -36,36 +31,36 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Airtable 인증
-        const influencer = await authenticateInfluencer(
-            channelName,
-            birthDate,
-            phoneLastFour
-        );
+        // CHANGED: 크리에이터 명단 테이블 기반 인증
+        const creator = await authenticateCreator(channelName, phoneLastFour);
 
-        if (!influencer) {
+        if (!creator) {
             return NextResponse.json(
-                { error: '채널명, 생년월일 또는 연락처가 일치하지 않습니다.' },
+                { error: '채널명 또는 연락처가 일치하지 않습니다.' },
                 { status: 401 }
             );
         }
 
-        // JWT 토큰 생성
+        // CHANGED: JWT payload에 creatorId/premiumId 분리
         const token = await new SignJWT({
-            id: influencer.id,
-            channelName: influencer.channelName,
-            tier: influencer.tier
+            creatorId: creator.creatorId,
+            channelName: creator.channelName,
+            tier: creator.tier,
+            channelTypes: creator.channelTypes,
+            premiumId: creator.premiumId
         })
             .setProtectedHeader({ alg: 'HS256' })
             .setExpirationTime('7d')
             .sign(JWT_SECRET);
 
-        // 쿠키에 토큰 저장
+        // CHANGED: 응답에 premiumId 포함
         const response = NextResponse.json({
             success: true,
-            influencer: {
-                channelName: influencer.channelName,
-                tier: influencer.tier
+            creator: {
+                channelName: creator.channelName,
+                tier: creator.tier,
+                channelTypes: creator.channelTypes,
+                premiumId: creator.premiumId
             }
         });
 

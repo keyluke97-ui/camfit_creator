@@ -24,6 +24,14 @@ export async function GET(request: NextRequest) {
         const { payload } = await jwtVerify(token, JWT_SECRET);
         const tier = payload.tier as TierLevel;
 
+        // CHANGED: premiumId 없으면 프리미엄 캠페인 접근 불가
+        if (!payload.premiumId) {
+            return NextResponse.json(
+                { error: '프리미엄 협찬 등록이 필요합니다.' },
+                { status: 403 }
+            );
+        }
+
         // 등급별 캠페인 목록 조회
         const campaigns = await getCampaigns(tier);
 

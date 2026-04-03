@@ -26,10 +26,11 @@ export async function GET() {
         const { payload } = await jwtVerify(token, JWT_SECRET);
         const channelName = payload.channelName as string;
 
-        if (!channelName) {
+        // CHANGED: premiumId 없으면 프리미엄 신청 내역 조회 불가
+        if (!channelName || !payload.premiumId) {
             return NextResponse.json(
-                { error: '유효하지 않은 사용자 정보입니다.' },
-                { status: 401 }
+                { error: '프리미엄 협찬 등록이 필요합니다.' },
+                { status: 403 }
             );
         }
 

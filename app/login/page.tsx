@@ -1,23 +1,28 @@
-// app/login/page.tsx - 크리에이터 로그인 페이지 (점진적 에러 안내 UX 포함)
+// page.tsx - 크리에이터 로그인 페이지 (크리에이터 명단 기반, 자동완성 UI)
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import SearchableSelect from '@/components/SearchableSelect';
 
 const KAKAO_CHANNEL_URL = 'http://pf.kakao.com/_fBxaQG';
+const MIN_SEARCH_LENGTH = 2;
 
 export default function LoginPage() {
     const router = useRouter();
-    const [channelNames, setChannelNames] = useState<string[]>([]);
+    const [allChannelNames, setAllChannelNames] = useState<string[]>([]);
+    const [filteredNames, setFilteredNames] = useState<string[]>([]);
+    const [showDropdown, setShowDropdown] = useState(false);
+    const [highlightIndex, setHighlightIndex] = useState(-1);
+    const dropdownReference = useRef<HTMLDivElement>(null);
+
+    // CHANGED: 생년월일 제거 — 채널명 + 연락처 뒤4자리만 사용
     const [formData, setFormData] = useState({
         channelName: '',
-        birthDate: '',
         phoneLastFour: ''
     });
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-    const [failCount, setFailCount] = useState(0); // CHANGED: 로그인 실패 횟수 추적 추가
+    const [failCount, setFailCount] = useState(0);
 
     // 채널명 목록 불러오기
     useEffect(() => {
@@ -25,10 +30,68 @@ export default function LoginPage() {
             .then(response => response.json())
             .then(data => {
                 if (data.channelNames) {
-                    setChannelNames(data.channelNames);
+                    setAllChannelNames(data.channelNames);
                 }
             })
             .catch(channelLoadError => console.error('Failed to load channels:', channelLoadError));
+    }, []);
+
+    // 채널명 입력 시 자동완성 필터링
+    function handleChannelNameChange(value: string) {
+        setFormData({ ...formData, channelName: value });
+        setHighlightIndex(-1);
+
+        if (value.length >= MIN_SEARCH_LENGTH) {
+            const lowerValue = value.toLowerCase();
+            const matched = allChannelNames.filter(
+                (name) => name.toLowerCase().includes(lowerValue)
+            );
+            setFilteredNames(matched.slice(0, 10));
+            setShowDropdown(matched.length > 0);
+        } else {
+            setFilteredNames([]);
+            setShowDropdown(false);
+        }
+    }
+
+    // 자동완성 항목 선택
+    function selectChannelName(name: string) {
+        setFormData({ ...formData, channelName: name });
+        setShowDropdown(false);
+        setFilteredNames([]);
+    }
+
+    // 키보드 네비게이션 (ArrowUp/Down/Enter/Escape)
+    function handleKeyDown(event: React.KeyboardEvent) {
+        if (!showDropdown || filteredNames.length === 0) return;
+
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            setHighlightIndex((previous) =>
+                previous < filteredNames.length - 1 ? previous + 1 : 0
+            );
+        } else if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            setHighlightIndex((previous) =>
+                previous > 0 ? previous - 1 : filteredNames.length - 1
+            );
+        } else if (event.key === 'Enter' && highlightIndex >= 0) {
+            event.preventDefault();
+            selectChannelName(filteredNames[highlightIndex]);
+        } else if (event.key === 'Escape') {
+            setShowDropdown(false);
+        }
+    }
+
+    // 드롭다운 외부 클릭 시 닫기
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (dropdownReference.current && !dropdownReference.current.contains(event.target as Node)) {
+                setShowDropdown(false);
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
     const handleSubmit = async (event: React.FormEvent) => {
@@ -39,27 +102,28 @@ export default function LoginPage() {
         try {
             const response = await fetch('/api/auth/login', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(formData)
+                headers: { 'Content-Type': 'application/json' },
+                // CHANGED: 생년월일 제거
+                body: JSON.stringify({
+                    channelName: formData.channelName,
+                    phoneLastFour: formData.phoneLastFour
+                })
             });
 
             const data = await response.json();
 
             if (!response.ok) {
                 setError(data.error || '로그인에 실패했습니다.');
-                setFailCount(previous => previous + 1); // CHANGED: 실패 시 카운터 증가
+                setFailCount(previous => previous + 1);
                 setLoading(false);
                 return;
             }
 
-            // 로그인 성공 - 대시보드로 이동
             router.push('/dashboard');
         } catch (submitError) {
             console.error('Login submit error:', submitError);
             setError('로그인 중 오류가 발생했습니다.');
-            setFailCount(previous => previous + 1); // CHANGED: 네트워크 에러도 실패 카운트
+            setFailCount(previous => previous + 1);
             setLoading(false);
         }
     };
@@ -73,19 +137,17 @@ export default function LoginPage() {
                         캠핏 협찬 포털
                     </h1>
                     <p className="text-[#B0B0B0]">
-                        인플루언서 전용 프리미엄 협찬 플랫폼
+                        크리에이터 전용 협찬 플랫폼
                     </p>
                 </div>
 
-                {/* CHANGED: 3회 이상 실패 시 상단 경고 배너 */}
+                {/* 3회 이상 실패 시 상단 경고 배너 */}
                 {failCount >= 3 && (
                     <div className="mb-5 p-5 bg-amber-500/10 border border-amber-500/50 rounded-lg">
                         <p className="text-amber-400 font-bold text-sm mb-2">
                             여러 번 로그인에 실패했습니다
                         </p>
                         <p className="text-amber-300/80 text-sm mb-3">
-                            에어테이블 폼으로 재등록하지 마세요!<br />
-                            기존 정보가 꼬일 수 있습니다.<br />
                             카카오톡 채널로 문의해주시면 등록 정보를 확인해드립니다.
                         </p>
                         <a
@@ -101,37 +163,49 @@ export default function LoginPage() {
 
                 {/* 로그인 폼 */}
                 <form onSubmit={handleSubmit} className="space-y-5">
-                    {/* 채널명 선택 */}
-                    <SearchableSelect
-                        label="크리에이터 채널명"
-                        options={channelNames}
-                        value={formData.channelName}
-                        onChange={(value) => setFormData({ ...formData, channelName: value })}
-                        placeholder="채널명을 검색하거나 선택하세요"
-                    />
-
-                    {/* 생년월일 입력 */}
-                    <div>
+                    {/* CHANGED: 채널명 텍스트 입력 + 자동완성 (기존 SearchableSelect 드롭다운 → autocomplete 전환) */}
+                    <div className="relative" ref={dropdownReference}>
                         <label
-                            htmlFor="birthDate"
+                            htmlFor="channelName"
                             className="block text-sm font-medium text-white mb-2"
                         >
-                            생년월일 (6자리)
+                            크리에이터 채널명
                         </label>
                         <input
-                            id="birthDate"
+                            id="channelName"
                             type="text"
-                            inputMode="numeric"
-                            maxLength={6}
-                            placeholder="YYMMDD (예: 240115)"
-                            value={formData.birthDate}
-                            onChange={(event) => {
-                                const value = event.target.value.replace(/\D/g, '');
-                                setFormData({ ...formData, birthDate: value });
+                            placeholder="채널명을 입력하세요 (2글자 이상)"
+                            value={formData.channelName}
+                            onChange={(event) => handleChannelNameChange(event.target.value)}
+                            onKeyDown={handleKeyDown}
+                            onFocus={() => {
+                                if (formData.channelName.length >= MIN_SEARCH_LENGTH && filteredNames.length > 0) {
+                                    setShowDropdown(true);
+                                }
                             }}
+                            autoComplete="off"
                             className="w-full h-12 px-4 bg-[#1E1E1E] text-white border border-[#333333] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#01DF82] focus:border-transparent"
                             required
                         />
+                        {/* 자동완성 드롭다운 */}
+                        {showDropdown && filteredNames.length > 0 && (
+                            <div className="absolute z-50 w-full mt-1 bg-[#1E1E1E] border border-[#333333] rounded-lg max-h-48 overflow-y-auto shadow-lg">
+                                {filteredNames.map((name, index) => (
+                                    <button
+                                        key={name}
+                                        type="button"
+                                        onClick={() => selectChannelName(name)}
+                                        className={`w-full px-4 py-3 text-left text-sm transition-colors ${
+                                            index === highlightIndex
+                                                ? 'bg-[#01DF82]/20 text-[#01DF82]'
+                                                : 'text-white hover:bg-[#2A2A2A]'
+                                        }`}
+                                    >
+                                        {name}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
                     {/* 연락처 뒷자리 입력 */}
@@ -158,29 +232,24 @@ export default function LoginPage() {
                         />
                     </div>
 
-                    {/* CHANGED: 점진적 에러 메시지 영역 */}
+                    {/* 점진적 에러 메시지 영역 */}
                     {error && (
                         <div className="space-y-3">
-                            {/* 기본 에러 메시지 */}
                             <div className="p-4 bg-red-500/10 border border-red-500/50 rounded-lg">
                                 <p className="text-red-400 text-sm">{error}</p>
-                                {/* 1회 이상 실패: 힌트 텍스트 */}
                                 {failCount >= 1 && (
                                     <p className="text-red-400/70 text-xs mt-2">
-                                        프리미엄 크리에이터 등록 시 입력한 생년월일/연락처로 로그인해주세요.
+                                        등록된 채널명과 연락처 뒤 4자리로 로그인해주세요.
                                     </p>
                                 )}
                             </div>
-
-                            {/* 2회 이상 실패: 카카오톡 안내 박스 */}
                             {failCount >= 2 && (
                                 <div className="p-4 bg-[#FEE500]/10 border border-[#FEE500]/50 rounded-lg">
                                     <p className="text-[#FEE500] font-bold text-sm mb-1">
                                         로그인 정보가 기억나지 않으시나요?
                                     </p>
                                     <p className="text-[#B0B0B0] text-xs mb-3">
-                                        프리미엄 크리에이터 등록 시 입력한 정보와 다를 수 있습니다.<br />
-                                        재등록하시면 안 됩니다! 카카오톡으로 문의하시면 빠르게 확인 도와드립니다.
+                                        카카오톡으로 문의하시면 빠르게 확인 도와드립니다.
                                     </p>
                                     <a
                                         href={KAKAO_CHANNEL_URL}
@@ -205,11 +274,11 @@ export default function LoginPage() {
                     </button>
                 </form>
 
-                {/* CHANGED: 하단 안내 메시지 개선 */}
+                {/* 하단 안내 메시지 */}
                 <div className="mt-6 p-4 bg-[#1E1E1E] border border-[#333333] rounded-lg">
                     <p className="text-sm text-[#B0B0B0] text-center">
-                        프리미엄 크리에이터 등록 시 입력한 생년월일과 연락처로 로그인합니다.<br />
-                        로그인이 안 되시나요? <span className="text-red-400 font-bold">재등록하지 마시고</span>{' '}
+                        채널명과 등록된 연락처 뒤 4자리로 로그인합니다.<br />
+                        로그인이 안 되시나요?{' '}
                         <a
                             href={KAKAO_CHANNEL_URL}
                             target="_blank"
