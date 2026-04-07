@@ -139,6 +139,7 @@ import ApplicationModal from './ApplicationModal';
 
 | 테이블 | 환경변수 | ID |
 |--------|---------|-----|
+| 크리에이터 명단 (로그인 소스) | `AIRTABLE_CREATOR_TABLE_ID` | `tblkuPln7nquA3dLA` |
 | 유저 (프리미엄 협찬 크리에이터) | `AIRTABLE_USER_TABLE_ID` | `tblDOC7jcmeuQzNJY` |
 | 캠페인 (캠지기 모집 폼) | `AIRTABLE_CAMPAIGN_TABLE_ID` | `tblt5o7BJFOXjfT3c` |
 | 신청 (Application) | `AIRTABLE_APPLICATION_TABLE_ID` | `tblIV8Wk4SLx2Hh91` |
@@ -256,9 +257,12 @@ const JWT_SECRET = new TextEncoder().encode(process.env.NEXTAUTH_SECRET);
 ## 7. Environment Variables
 
 ```bash
-# 프리미엄 협찬
+# Airtable 공통
 AIRTABLE_ACCESS_TOKEN=       # Airtable Personal Access Token
 AIRTABLE_BASE_ID=            # Airtable Base ID
+AIRTABLE_CREATOR_TABLE_ID=   # 크리에이터 명단 테이블 ID (tblkuPln7nquA3dLA) — 로그인 소스
+
+# 프리미엄 협찬
 AIRTABLE_USER_TABLE_ID=      # 유저 테이블 ID (tblDOC7jcmeuQzNJY)
 AIRTABLE_CAMPAIGN_TABLE_ID=  # 캠페인 테이블 ID (tblt5o7BJFOXjfT3c)
 AIRTABLE_APPLICATION_TABLE_ID= # 신청 테이블 ID (tblIV8Wk4SLx2Hh91)

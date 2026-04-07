@@ -131,7 +131,10 @@ export async function authenticateCreator(
     phoneLastFour: string
 ): Promise<Influencer | null> {
     try {
-        const formula = `{크리에이터 채널명} = "${escapeAirtableValue(channelName)}"`;
+        // CHANGED: TRIM으로 Airtable 데이터 앞뒤 공백 무시 (캠퍼스타 등 공백 포함 데이터 대응)
+        const trimmedName = channelName.trim();
+        const formula = `TRIM({크리에이터 채널명}) = "${escapeAirtableValue(trimmedName)}"`;
+
         const records = await creatorTable()
             .select({ filterByFormula: formula, maxRecords: 1 })
             .firstPage();
