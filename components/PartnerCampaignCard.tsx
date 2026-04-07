@@ -38,9 +38,9 @@ export default function PartnerCampaignCard({
 
     const stayConfig = STAY_TYPE_CONFIG[campaign.stayType] || STAY_TYPE_CONFIG['평일전용'];
 
-    // CHANGED: 1인당 팔로워 쿠폰 수 계산 (팔로워쿠폰수 / 총 모집인원, 정수 절삭)
-    const perPersonCoupon = campaign.availableCount > 0
-        ? Math.floor(campaign.followerCouponCount / campaign.availableCount)
+    // CHANGED: 1인당 팔로워 쿠폰 수 계산 (팔로워쿠폰수 / 총모집인원, 정수 절삭)
+    const perPersonCoupon = campaign.totalRecruitCount > 0
+        ? Math.floor(campaign.followerCouponCount / campaign.totalRecruitCount)
         : 0;
 
     if (campaign.isClosed) {

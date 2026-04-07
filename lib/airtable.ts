@@ -625,6 +625,7 @@ function mapPartnerCampaignRecord(
         holidayCouponApplied: fields['공휴일 쿠폰 적용'] || false,
         accommodationDescription: fields['숙소 소개'] || '',
         recruitmentStatus: recruitmentStatus as PartnerCampaign['recruitmentStatus'],
+        totalRecruitCount: fields['총모집인원'] || 0, // CHANGED: 총모집인원 매핑
         availableCount,
         followerCouponCount: fields['팔로워쿠폰수'] || 0,
         creatorCouponCode: fields['크리에이터 쿠폰 코드'] || '',

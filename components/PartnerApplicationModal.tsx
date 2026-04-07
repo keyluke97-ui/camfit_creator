@@ -172,9 +172,9 @@ export default function PartnerApplicationModal({
         }
     };
 
-    // CHANGED: 1인당 팔로워 쿠폰 수 계산
-    const perPersonCoupon = campaign.availableCount > 0
-        ? Math.floor(campaign.followerCouponCount / campaign.availableCount)
+    // CHANGED: 1인당 팔로워 쿠폰 수 계산 (팔로워쿠폰수 / 총모집인원, 정수 절삭)
+    const perPersonCoupon = campaign.totalRecruitCount > 0
+        ? Math.floor(campaign.followerCouponCount / campaign.totalRecruitCount)
         : 0;
 
     // CHANGED: 전체 정보 복사 핸들러

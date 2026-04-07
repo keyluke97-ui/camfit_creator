@@ -134,6 +134,7 @@ export interface PartnerCampaign {
   holidayCouponApplied: boolean;
   accommodationDescription: string;
   recruitmentStatus: PartnerRecruitmentStatus;
+  totalRecruitCount: number; // CHANGED: 총모집인원 필드 추가 (1인당 쿠폰 계산용)
   availableCount: number;
   followerCouponCount: number;
   creatorCouponCode: string;
@@ -211,6 +212,7 @@ export interface AirtablePartnerCampaignRecord {
     '공휴일 쿠폰 적용'?: boolean;
     '숙소 소개': string;
     '모집 상태': string;
+    '총모집인원'?: number; // CHANGED: 1인당 쿠폰 계산용
     '신청가능인원': number;
     '팔로워쿠폰수': number;
     '크리에이터 쿠폰 코드'?: string;
