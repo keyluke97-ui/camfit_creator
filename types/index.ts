@@ -126,6 +126,7 @@ export type PartnerStayType = '평일전용' | '평일+주말(금토)' | '평일
 export interface PartnerCampaign {
   id: string;
   accommodationName: string;
+  location: string; // CHANGED: 소재 권역 필드 추가 (A1-1)
   packageType: string;
   stayType: PartnerStayType;
   weekdayDiscount: number;
@@ -217,6 +218,7 @@ export interface AirtablePartnerCampaignRecord {
     '크리에이터 방문 가능 종료일': string;
     '쿠폰 유효 시작일': string;
     '쿠폰 유효 종료일': string;
+    '소재 권역'?: string; // CHANGED: 위치 태그용 필드 추가 (A1-1)
   };
 }
 

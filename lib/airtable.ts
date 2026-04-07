@@ -617,6 +617,7 @@ function mapPartnerCampaignRecord(
     return {
         id: record.id,
         accommodationName: fields['캠핑장명'] || '',
+        location: fields['소재 권역'] || '', // CHANGED: 소재 권역 매핑 추가 (A1-1)
         packageType: fields['패키지 유형'] || '',
         stayType: (fields['숙박 타입'] || '평일전용') as PartnerCampaign['stayType'],
         weekdayDiscount: fields['평일 할인 금액'] || 0,
@@ -701,7 +702,8 @@ export async function applyPartnerCampaign({
     userRecordId,
     checkInDate,
     checkInSite
-}: ApplyPartnerCampaignParams): Promise<{ success: boolean }> {
+// CHANGED: 반환 타입에 쿠폰 코드 추가 (A2-9)
+}: ApplyPartnerCampaignParams): Promise<{ success: boolean; creatorCouponCode: string; followerCouponCode: string }> {
     let createdApplicationId: string | null = null;
 
     try {
@@ -769,7 +771,12 @@ export async function applyPartnerCampaign({
             ]);
         }
 
-        return { success: true };
+        // CHANGED: 쿠폰 코드를 캠페인 레코드에서 읽어 반환 (A2-9)
+        return {
+            success: true,
+            creatorCouponCode: updatedCampaign.fields['크리에이터 쿠폰 코드'] || '',
+            followerCouponCode: updatedCampaign.fields['팔로워 쿠폰 코드'] || ''
+        };
     } catch (error) {
         console.error('Apply partner campaign error:', error);
 

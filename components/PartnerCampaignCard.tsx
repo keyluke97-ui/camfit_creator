@@ -4,6 +4,7 @@
 import { useState } from 'react';
 import type { PartnerCampaign } from '@/types';
 import PartnerApplicationModal from './PartnerApplicationModal';
+import HighlightsModal from './HighlightsModal'; // CHANGED: 숙소 소개 상세 모달 재사용 (A1-3)
 
 interface PartnerCampaignCardProps {
     campaign: PartnerCampaign;
@@ -31,6 +32,7 @@ export default function PartnerCampaignCard({
     onApplySuccess
 }: PartnerCampaignCardProps) {
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isHighlightsOpen, setIsHighlightsOpen] = useState(false); // CHANGED: 숙소 소개 모달 (A1-3)
 
     const stayConfig = STAY_TYPE_CONFIG[campaign.stayType] || STAY_TYPE_CONFIG['평일전용'];
 
@@ -54,6 +56,15 @@ export default function PartnerCampaignCard({
 
     return (
         <div className="bg-[#1E1E1E] border border-[#333333] rounded-lg p-5 hover:border-[#01DF82] transition-colors">
+            {/* CHANGED: 소재 권역 위치 태그 (A1-1) */}
+            {campaign.location && (
+                <div className="mb-2">
+                    <span className="text-xs text-[#9CA3AF]">
+                        📍 {campaign.location}
+                    </span>
+                </div>
+            )}
+
             {/* 캠핑장명 */}
             <h3 className="text-xl font-bold text-white mb-3 leading-tight">
                 {campaign.accommodationName}
@@ -127,6 +138,21 @@ export default function PartnerCampaignCard({
                 </div>
             </div>
 
+            {/* CHANGED: 숙소 소개 미리보기 + 자세히 보기 (A1-2) */}
+            {campaign.accommodationDescription && (
+                <div className="mb-4">
+                    <p className="text-sm text-[#B0B0B0] truncate">
+                        {campaign.accommodationDescription}
+                    </p>
+                    <button
+                        onClick={() => setIsHighlightsOpen(true)}
+                        className="text-xs text-[#01DF82] mt-1 hover:underline"
+                    >
+                        자세히 보기 →
+                    </button>
+                </div>
+            )}
+
             {/* 신청하기 버튼 */}
             <button
                 onClick={() => setIsModalOpen(true)}
@@ -142,6 +168,14 @@ export default function PartnerCampaignCard({
                 onClose={() => setIsModalOpen(false)}
                 campaign={campaign}
                 onApplySuccess={onApplySuccess}
+            />
+
+            {/* CHANGED: 숙소 소개 상세 모달 — HighlightsModal 재사용 (A1-3) */}
+            <HighlightsModal
+                isOpen={isHighlightsOpen}
+                onClose={() => setIsHighlightsOpen(false)}
+                accommodationName={campaign.accommodationName}
+                highlights={campaign.accommodationDescription}
             />
         </div>
     );
