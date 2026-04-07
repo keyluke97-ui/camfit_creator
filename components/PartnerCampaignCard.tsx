@@ -1,20 +1,22 @@
 // PartnerCampaignCard.tsx - 파트너 캠페인 카드 컴포넌트
+// CHANGED: 할인→팔로워쿠폰 명확화, 1인당 쿠폰수 계산, 캠핏링크, stayType 라벨 변경
 'use client';
 
 import { useState } from 'react';
 import type { PartnerCampaign } from '@/types';
 import PartnerApplicationModal from './PartnerApplicationModal';
-import HighlightsModal from './HighlightsModal'; // CHANGED: 숙소 소개 상세 모달 재사용 (A1-3)
+import HighlightsModal from './HighlightsModal';
 
 interface PartnerCampaignCardProps {
     campaign: PartnerCampaign;
     onApplySuccess: () => void;
 }
 
+// CHANGED: '전일' → 원래 값 그대로 표시하도록 라벨 변경
 const STAY_TYPE_CONFIG: Record<string, { label: string; color: string }> = {
     '평일전용': { label: '평일전용', color: 'bg-blue-500/15 text-blue-400 border-blue-500/30' },
-    '평일+주말(금토)': { label: '평일+주말', color: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30' },
-    '평일+주말+공휴일': { label: '전일', color: 'bg-teal-500/15 text-teal-400 border-teal-500/30' },
+    '평일+주말(금토)': { label: '평일+주말(금토)', color: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30' },
+    '평일+주말+공휴일': { label: '평일+주말+공휴일', color: 'bg-teal-500/15 text-teal-400 border-teal-500/30' },
 };
 
 /**
@@ -32,9 +34,14 @@ export default function PartnerCampaignCard({
     onApplySuccess
 }: PartnerCampaignCardProps) {
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [isHighlightsOpen, setIsHighlightsOpen] = useState(false); // CHANGED: 숙소 소개 모달 (A1-3)
+    const [isHighlightsOpen, setIsHighlightsOpen] = useState(false);
 
     const stayConfig = STAY_TYPE_CONFIG[campaign.stayType] || STAY_TYPE_CONFIG['평일전용'];
+
+    // CHANGED: 1인당 팔로워 쿠폰 수 계산 (팔로워쿠폰수 / 총 모집인원, 정수 절삭)
+    const perPersonCoupon = campaign.availableCount > 0
+        ? Math.floor(campaign.followerCouponCount / campaign.availableCount)
+        : 0;
 
     if (campaign.isClosed) {
         return (
@@ -56,7 +63,7 @@ export default function PartnerCampaignCard({
 
     return (
         <div className="bg-[#1E1E1E] border border-[#333333] rounded-lg p-5 hover:border-[#01DF82] transition-colors">
-            {/* CHANGED: 소재 권역 위치 태그 (A1-1) */}
+            {/* 소재 권역 위치 태그 */}
             {campaign.location && (
                 <div className="mb-2">
                     <span className="text-xs text-[#9CA3AF]">
@@ -82,9 +89,9 @@ export default function PartnerCampaignCard({
                 )}
             </div>
 
-            {/* 할인 금액 */}
+            {/* CHANGED: 팔로워 할인 쿠폰 — 크리에이터가 아닌 팔로워에게 제공됨을 명확화 */}
             <div className="bg-[#01DF82]/10 border border-[#01DF82] rounded-lg p-4 mb-4">
-                <p className="text-sm text-[#B0B0B0] mb-2">할인 금액</p>
+                <p className="text-sm text-[#B0B0B0] mb-2">팔로워 할인 쿠폰</p>
                 <div className="flex items-center gap-4">
                     <div>
                         <p className="text-xs text-[#9CA3AF]">평일</p>
@@ -122,12 +129,12 @@ export default function PartnerCampaignCard({
                 </div>
             </div>
 
-            {/* 팔로워 쿠폰 수량 + 모집 현황 */}
+            {/* CHANGED: 1인당 팔로워 쿠폰 수 + 모집 현황 */}
             <div className="flex items-center justify-between mb-4 pb-4 border-b border-[#333333]">
                 <div className="flex items-center gap-2">
-                    <span className="text-sm text-[#B0B0B0]">팔로워 쿠폰</span>
+                    <span className="text-sm text-[#B0B0B0]">1인당 팔로워 쿠폰</span>
                     <span className="text-sm font-semibold text-white">
-                        {campaign.followerCouponCount}장
+                        {perPersonCoupon}장
                     </span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -138,7 +145,7 @@ export default function PartnerCampaignCard({
                 </div>
             </div>
 
-            {/* CHANGED: 숙소 소개 미리보기 + 자세히 보기 (A1-2) */}
+            {/* 숙소 소개 미리보기 + 자세히 보기 */}
             {campaign.accommodationDescription && (
                 <div className="mb-4">
                     <p className="text-sm text-[#B0B0B0] truncate">
@@ -153,16 +160,27 @@ export default function PartnerCampaignCard({
                 </div>
             )}
 
-            {/* 신청하기 버튼 */}
-            <button
-                onClick={() => setIsModalOpen(true)}
-                className="w-full h-12 flex items-center justify-center bg-[#01DF82] text-black font-bold rounded-lg hover:bg-[#00C972] transition-colors"
-            >
-                신청하기
-            </button>
+            {/* CHANGED: 캠핑장 바로가기 + 신청하기 버튼 */}
+            <div className="space-y-2">
+                {campaign.camfitLink && (
+                    <a
+                        href={campaign.camfitLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full h-10 flex items-center justify-center bg-[#2A2A2A] text-white text-sm font-medium rounded-lg hover:bg-[#333333] transition-colors"
+                    >
+                        캠핑장 바로가기 →
+                    </a>
+                )}
+                <button
+                    onClick={() => setIsModalOpen(true)}
+                    className="w-full h-12 flex items-center justify-center bg-[#01DF82] text-black font-bold rounded-lg hover:bg-[#00C972] transition-colors"
+                >
+                    신청하기
+                </button>
+            </div>
 
             {/* 신청 모달 */}
-            {/* CHANGED: userRecordId 제거 — API에서 JWT로 사용자 식별 */}
             <PartnerApplicationModal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
@@ -170,7 +188,7 @@ export default function PartnerCampaignCard({
                 onApplySuccess={onApplySuccess}
             />
 
-            {/* CHANGED: 숙소 소개 상세 모달 — HighlightsModal 재사용 (A1-3) */}
+            {/* 숙소 소개 상세 모달 */}
             <HighlightsModal
                 isOpen={isHighlightsOpen}
                 onClose={() => setIsHighlightsOpen(false)}

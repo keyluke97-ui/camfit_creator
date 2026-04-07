@@ -142,6 +142,8 @@ export interface PartnerCampaign {
   visitEndDate: string;
   couponStartDate: string;
   couponEndDate: string;
+  camfitLink: string; // CHANGED: 캠핑장 바로가기 링크 추가
+  siteTypes: string[]; // CHANGED: 제공 가능한 사이트 종류 추가
   isClosed: boolean;
 }
 
@@ -219,6 +221,8 @@ export interface AirtablePartnerCampaignRecord {
     '쿠폰 유효 시작일': string;
     '쿠폰 유효 종료일': string;
     '소재 권역'?: string; // CHANGED: 위치 태그용 필드 추가 (A1-1)
+    '캠핏링크'?: string; // CHANGED: 캠핑장 바로가기 링크
+    '제공 가능한 사이트 종류'?: string[]; // CHANGED: 사이트 종류 MultipleSelect
   };
 }
 

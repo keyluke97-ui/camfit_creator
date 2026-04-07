@@ -31,11 +31,12 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        // CHANGED: checkInDate/checkInSite 선택으로 변경 — 신청 후 성공 화면에서 등록
         const { campaignId, checkInDate, checkInSite } = await request.json();
 
-        if (!campaignId || !checkInDate || !checkInSite) {
+        if (!campaignId) {
             return NextResponse.json(
-                { error: '캠페인 ID, 입실일, 입실 사이트를 모두 입력해주세요.' },
+                { error: '캠페인 ID를 입력해주세요.' },
                 { status: 400 }
             );
         }
@@ -46,8 +47,8 @@ export async function POST(request: NextRequest) {
         const result = await applyPartnerCampaign({
             campaignId,
             userRecordId,
-            checkInDate,
-            checkInSite
+            checkInDate: checkInDate || undefined,
+            checkInSite: checkInSite || undefined
         });
 
         return NextResponse.json(result);

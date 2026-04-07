@@ -633,6 +633,8 @@ function mapPartnerCampaignRecord(
         visitEndDate: fields['크리에이터 방문 가능 종료일'] || '',
         couponStartDate: fields['쿠폰 유효 시작일'] || '',
         couponEndDate: fields['쿠폰 유효 종료일'] || '',
+        camfitLink: fields['캠핏링크'] || '', // CHANGED: 캠핑장 바로가기 링크 매핑
+        siteTypes: fields['제공 가능한 사이트 종류'] || [], // CHANGED: 사이트 종류 매핑
         isClosed: isPartnerCampaignClosed(recruitmentStatus, availableCount)
     };
 }
@@ -687,11 +689,12 @@ export async function checkPartnerDuplicateApplication(
     }
 }
 
+// CHANGED: checkInDate/checkInSite 선택으로 변경 — 신청 후 성공 화면에서 등록
 interface ApplyPartnerCampaignParams {
     campaignId: string;
     userRecordId: string;
-    checkInDate: string;
-    checkInSite: string;
+    checkInDate?: string;
+    checkInSite?: string;
 }
 
 /**
@@ -720,27 +723,29 @@ export async function applyPartnerCampaign({
             throw new Error('CAMPAIGN_FULL');
         }
 
-        // CHANGED: 서버 사이드 날짜 범위 검증 — 프론트 우회 방어
-        const visitStart = campaignRecord.fields['크리에이터 방문 가능 시작일'] || '';
-        const visitEnd = campaignRecord.fields['크리에이터 방문 가능 종료일'] || '';
-        if (visitStart && visitEnd) {
-            if (checkInDate < visitStart || checkInDate > visitEnd) {
-                throw new Error('INVALID_DATE_RANGE');
+        // CHANGED: 서버 사이드 날짜 범위 검증 — 프론트 우회 방어 (checkInDate가 있을 때만)
+        if (checkInDate) {
+            const visitStart = campaignRecord.fields['크리에이터 방문 가능 시작일'] || '';
+            const visitEnd = campaignRecord.fields['크리에이터 방문 가능 종료일'] || '';
+            if (visitStart && visitEnd) {
+                if (checkInDate < visitStart || checkInDate > visitEnd) {
+                    throw new Error('INVALID_DATE_RANGE');
+                }
             }
         }
 
-        // 3. 신청 레코드 생성
+        // 3. 신청 레코드 생성 — CHANGED: checkInDate/checkInSite 선택
+        const applicationFields: Record<string, unknown> = {
+            '크리에이터': [userRecordId],
+            '캠페인': [campaignId],
+            '신청 상태': '신청완료',
+            '정책 확인 동의': true
+        };
+        if (checkInDate) applicationFields['입실일'] = checkInDate;
+        if (checkInSite) applicationFields['입실 사이트'] = checkInSite;
+
         const createdRecords = await partnerApplicationTable().create([
-            {
-                fields: {
-                    '크리에이터': [userRecordId],
-                    '캠페인': [campaignId],
-                    '신청 상태': '신청완료',
-                    '입실일': checkInDate,
-                    '입실 사이트': checkInSite,
-                    '정책 확인 동의': true
-                }
-            }
+            { fields: applicationFields as Partial<FieldSet> }
         ]);
 
         if (!createdRecords || createdRecords.length === 0) {
