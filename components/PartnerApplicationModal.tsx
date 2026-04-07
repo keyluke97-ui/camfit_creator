@@ -7,6 +7,23 @@ import type { PartnerCampaign } from '@/types';
 import PartnerCouponDisplay from './PartnerCouponDisplay';
 
 /**
+ * 팔로워 쿠폰 안내 정보를 복사용 텍스트로 생성
+ */
+function buildCouponInfoText(campaign: PartnerCampaign, perPersonCoupon: number): string {
+    const lines = [
+        `[${campaign.accommodationName} 팔로워 쿠폰 안내]`,
+        ``,
+        `🎫 쿠폰 유효기간: ${campaign.couponStartDate} ~ ${campaign.couponEndDate}`,
+        `🎟️ 1인당 팔로워 쿠폰: ${perPersonCoupon}장`,
+        `💰 할인 금액: 평일 ${campaign.weekdayDiscount.toLocaleString()}원${campaign.weekendDiscount > 0 ? ` / 주말 ${campaign.weekendDiscount.toLocaleString()}원` : ''}`,
+        `📅 적용 가능 요일: ${campaign.stayType}`,
+        ...(campaign.holidayCouponApplied ? [`✅ 공휴일에도 쿠폰 사용 가능`] : []),
+        ...(campaign.siteTypes.length > 0 ? [`🏕️ 적용 가능 존: ${campaign.siteTypes.join(', ')}`] : []),
+    ];
+    return lines.join('\n');
+}
+
+/**
  * 전체 협찬 정보를 카카오톡 복붙용 텍스트로 생성
  */
 function buildCopyText(campaign: PartnerCampaign, couponCodes: { creator: string; follower: string }, perPersonCoupon: number): string {
@@ -57,8 +74,9 @@ export default function PartnerApplicationModal({
     const isSubmittingRef = useRef(false);
     const [couponCodes, setCouponCodes] = useState({ creator: '', follower: '' });
     const [isClosedError, setIsClosedError] = useState(false);
-    // CHANGED: 전체 복사 버튼용 state
+    // CHANGED: 복사 버튼용 state
     const [allCopied, setAllCopied] = useState(false);
+    const [couponInfoCopied, setCouponInfoCopied] = useState(false);
 
     const resetModal = () => {
         setStep('policy1');
@@ -70,6 +88,7 @@ export default function PartnerApplicationModal({
         setCouponCodes({ creator: '', follower: '' });
         setIsClosedError(false);
         setAllCopied(false);
+        setCouponInfoCopied(false);
     };
 
     const handleClose = () => {
@@ -199,6 +218,27 @@ export default function PartnerApplicationModal({
         }
     }, [campaign, couponCodes, perPersonCoupon]);
 
+    // CHANGED: 팔로워 쿠폰 안내 복사 핸들러
+    const handleCopyCouponInfo = useCallback(async () => {
+        const text = buildCouponInfoText(campaign, perPersonCoupon);
+        try {
+            await navigator.clipboard.writeText(text);
+            setCouponInfoCopied(true);
+            setTimeout(() => setCouponInfoCopied(false), 2000);
+        } catch {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            setCouponInfoCopied(true);
+            setTimeout(() => setCouponInfoCopied(false), 2000);
+        }
+    }, [campaign, perPersonCoupon]);
+
     if (!isOpen) return null;
 
     return (
@@ -303,7 +343,18 @@ export default function PartnerApplicationModal({
                                 )}
                             </div>
 
-                            {/* CHANGED: 체크박스 → '가능' 텍스트 입력 */}
+                            {/* CHANGED: 쿠폰 정보 복사 버튼 */}
+                            <button
+                                onClick={handleCopyCouponInfo}
+                                className={`w-full h-10 flex items-center justify-center text-sm font-medium rounded-lg transition-colors ${
+                                    couponInfoCopied
+                                        ? 'bg-[#01DF82]/20 text-[#01DF82] border border-[#01DF82]/50'
+                                        : 'bg-[#2A2A2A] text-white border border-[#3A3A3A] hover:bg-[#333333]'
+                                }`}
+                            >
+                                {couponInfoCopied ? '복사 완료!' : '쿠폰 정보 복사하기'}
+                            </button>
+
                             <div>
                                 <label className="block text-sm text-[#9CA3AF] mb-1.5">
                                     팔로워 쿠폰 조건을 확인하셨으면 <span className="text-white font-semibold">&lsquo;가능&rsquo;</span>을 입력해주세요
