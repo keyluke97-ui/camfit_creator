@@ -693,6 +693,7 @@ export async function checkPartnerDuplicateApplication(
 interface ApplyPartnerCampaignParams {
     campaignId: string;
     userRecordId: string;
+    channelName: string; // CHANGED: 프라이머리 필드(크리에이터 채널명) 채우기용
     checkInDate?: string;
     checkInSite?: string;
 }
@@ -703,6 +704,7 @@ interface ApplyPartnerCampaignParams {
 export async function applyPartnerCampaign({
     campaignId,
     userRecordId,
+    channelName,
     checkInDate,
     checkInSite
 // CHANGED: 반환 타입에 쿠폰 코드 추가 (A2-9)
@@ -738,6 +740,7 @@ export async function applyPartnerCampaign({
         const applicationFields: Record<string, unknown> = {
             '크리에이터': [userRecordId],
             '캠페인': [campaignId],
+            '크리에이터 채널명': channelName, // CHANGED: 프라이머리 필드 채우기
             '신청 상태': '신청완료',
             '정책 확인 동의': true
         };

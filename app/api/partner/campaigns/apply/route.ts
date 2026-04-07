@@ -43,10 +43,12 @@ export async function POST(request: NextRequest) {
 
         // CHANGED: payload.id → payload.creatorId (로그인 소스 전환)
         const userRecordId = payload.creatorId as string;
+        const channelName = payload.channelName as string;
 
         const result = await applyPartnerCampaign({
             campaignId,
             userRecordId,
+            channelName, // CHANGED: 프라이머리 필드(크리에이터 채널명) 채우기용
             checkInDate: checkInDate || undefined,
             checkInSite: checkInSite || undefined
         });

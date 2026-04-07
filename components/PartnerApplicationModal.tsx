@@ -2,9 +2,32 @@
 // CHANGED: 체크박스→텍스트입력, 입실 정보를 성공 화면으로 이동, 쿠폰 조건/사이트 종류 표시
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import type { PartnerCampaign } from '@/types';
 import PartnerCouponDisplay from './PartnerCouponDisplay';
+
+/**
+ * 전체 협찬 정보를 카카오톡 복붙용 텍스트로 생성
+ */
+function buildCopyText(campaign: PartnerCampaign, couponCodes: { creator: string; follower: string }, perPersonCoupon: number): string {
+    const lines = [
+        `[캠핏 파트너 협찬 안내]`,
+        ``,
+        `📍 ${campaign.accommodationName}`,
+        `📦 패키지: ${campaign.packageType}`,
+        ``,
+        `🎫 크리에이터 쿠폰 코드: ${couponCodes.creator || '(운영팀 확인 후 발급)'}`,
+        ...(couponCodes.follower ? [`🎫 팔로워 쿠폰 코드: ${couponCodes.follower}`] : []),
+        ``,
+        `📅 방문 기간: ${campaign.visitStartDate} ~ ${campaign.visitEndDate}`,
+        `🎫 쿠폰 유효기간: ${campaign.couponStartDate} ~ ${campaign.couponEndDate}`,
+        `💰 팔로워 할인: 평일 ${campaign.weekdayDiscount.toLocaleString()}원${campaign.weekendDiscount > 0 ? ` / 주말 ${campaign.weekendDiscount.toLocaleString()}원` : ''}`,
+        `🎟️ 1인당 팔로워 쿠폰: ${perPersonCoupon}장`,
+        ``,
+        `👉 캠핏 쿠폰 등록: https://camfit.co.kr/mypage/coupon`,
+    ];
+    return lines.join('\n');
+}
 
 interface PartnerApplicationModalProps {
     isOpen: boolean;
@@ -34,6 +57,8 @@ export default function PartnerApplicationModal({
     const isSubmittingRef = useRef(false);
     const [couponCodes, setCouponCodes] = useState({ creator: '', follower: '' });
     const [isClosedError, setIsClosedError] = useState(false);
+    // CHANGED: 전체 복사 버튼용 state
+    const [allCopied, setAllCopied] = useState(false);
 
     const resetModal = () => {
         setStep('policy1');
@@ -44,6 +69,7 @@ export default function PartnerApplicationModal({
         isSubmittingRef.current = false;
         setCouponCodes({ creator: '', follower: '' });
         setIsClosedError(false);
+        setAllCopied(false);
     };
 
     const handleClose = () => {
@@ -150,6 +176,28 @@ export default function PartnerApplicationModal({
     const perPersonCoupon = campaign.availableCount > 0
         ? Math.floor(campaign.followerCouponCount / campaign.availableCount)
         : 0;
+
+    // CHANGED: 전체 정보 복사 핸들러
+    const handleCopyAll = useCallback(async () => {
+        const text = buildCopyText(campaign, couponCodes, perPersonCoupon);
+        try {
+            await navigator.clipboard.writeText(text);
+            setAllCopied(true);
+            setTimeout(() => setAllCopied(false), 2000);
+        } catch {
+            // fallback: textarea 방식
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            setAllCopied(true);
+            setTimeout(() => setAllCopied(false), 2000);
+        }
+    }, [campaign, couponCodes, perPersonCoupon]);
 
     if (!isOpen) return null;
 
@@ -398,6 +446,27 @@ export default function PartnerApplicationModal({
                                 />
                             )}
 
+                            {/* CHANGED: 전체 복사 버튼 + 카카오톡 안내 */}
+                            <button
+                                onClick={handleCopyAll}
+                                className={`w-full h-12 flex items-center justify-center font-bold rounded-lg transition-colors ${
+                                    allCopied
+                                        ? 'bg-[#01DF82]/20 text-[#01DF82] border border-[#01DF82]/50'
+                                        : 'bg-[#2A2A2A] text-white border border-[#3A3A3A] hover:bg-[#333333]'
+                                }`}
+                            >
+                                {allCopied ? '복사 완료!' : '전체 정보 복사하기'}
+                            </button>
+
+                            <div className="bg-[#252525] border border-[#3A3A3A] rounded-lg p-3 space-y-1">
+                                <p className="text-xs text-[#B0B0B0]">
+                                    💬 메모장, 카톡 나에게 보내기로 저장해두시면 편해요!
+                                </p>
+                                <p className="text-xs text-[#666666]">
+                                    이메일로도 관련 내용이 전송됩니다.
+                                </p>
+                            </div>
+
                             {/* 캠핏 쿠폰 등록 CTA */}
                             {couponCodes.creator && (
                                 <a
@@ -410,7 +479,7 @@ export default function PartnerApplicationModal({
                                 </a>
                             )}
 
-                            {/* CHANGED: 입실 일정 등록 안내 + 버튼 */}
+                            {/* 입실 일정 등록 안내 + 버튼 */}
                             <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
                                 <p className="text-sm text-blue-400">
                                     📢 예약 완료 후 꼭 입실일 등록을 해주셔야 정산이 가능합니다.
