@@ -27,7 +27,8 @@ export async function GET() {
         const channelName = payload.channelName as string;
 
         // CHANGED: premiumId 없으면 프리미엄 신청 내역 조회 불가
-        if (!channelName || !payload.premiumId) {
+        // CHANGED: 기존 JWT 호환 — 구 JWT는 payload.id에 premiumId가 있음
+        if (!channelName || (!payload.premiumId && !payload.id)) {
             return NextResponse.json(
                 { error: '프리미엄 협찬 등록이 필요합니다.' },
                 { status: 403 }

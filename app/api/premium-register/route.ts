@@ -33,7 +33,8 @@ export async function POST(request: NextRequest) {
         }
 
         // 2. 이미 프리미엄 등록된 경우 차단
-        const premiumId = payload.premiumId as string | null;
+        // CHANGED: 기존 JWT 호환 — 구 JWT는 payload.id에 premiumId가 있음
+        const premiumId = (payload.premiumId || payload.id) as string | null;
         if (premiumId) {
             return NextResponse.json({ error: '이미 프리미엄 협찬에 등록되어 있습니다.' }, { status: 409 });
         }

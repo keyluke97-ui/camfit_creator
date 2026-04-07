@@ -21,13 +21,14 @@ export async function GET() {
         const { payload } = await jwtVerify(token, JWT_SECRET);
 
         // CHANGED: creatorId/premiumId 분리 반환 (로그인 소스 전환)
+        // CHANGED: 기존 JWT 호환 — 구 JWT는 payload.id에 premiumId가 있고 creatorId 없음
         return NextResponse.json({
             user: {
-                creatorId: payload.creatorId,
+                creatorId: payload.creatorId || null,
                 channelName: payload.channelName,
                 tier: payload.tier,
                 channelTypes: payload.channelTypes || [],
-                premiumId: payload.premiumId || null
+                premiumId: payload.premiumId || payload.id || null
             }
         });
     } catch (error) {

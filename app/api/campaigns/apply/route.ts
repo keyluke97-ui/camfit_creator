@@ -33,7 +33,8 @@ export async function POST(req: NextRequest) {
         }
 
         // CHANGED: payload.id → payload.premiumId (로그인 소스 전환)
-        const premiumId = payload.premiumId as string | null;
+        // CHANGED: 기존 JWT 호환 — 구 JWT는 payload.id에 premiumId가 있음 (7일 내 자연 만료)
+        const premiumId = (payload.premiumId || payload.id) as string | null;
         const channelName = payload.channelName as string;
         const tier = payload.tier as TierLevel;
 

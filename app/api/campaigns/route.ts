@@ -25,7 +25,8 @@ export async function GET(request: NextRequest) {
         const tier = payload.tier as TierLevel;
 
         // CHANGED: premiumId 없으면 프리미엄 캠페인 접근 불가
-        if (!payload.premiumId) {
+        // CHANGED: 기존 JWT 호환 — 구 JWT는 payload.id에 premiumId가 있음
+        if (!payload.premiumId && !payload.id) {
             return NextResponse.json(
                 { error: '프리미엄 협찬 등록이 필요합니다.' },
                 { status: 403 }
