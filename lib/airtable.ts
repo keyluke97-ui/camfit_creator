@@ -597,10 +597,12 @@ export async function registerPremiumCreator(
 /**
  * 파트너 캠페인 마감 여부 판단
  */
+// CHANGED: 마감 상태여도 availableCount >= 1이면 자동 복구 판단
 function isPartnerCampaignClosed(
     recruitmentStatus: string,
     availableCount: number
 ): boolean {
+    if (availableCount >= 1 && recruitmentStatus === '마감') return false;
     return recruitmentStatus === '마감' || availableCount < 1;
 }
 
@@ -655,6 +657,20 @@ export async function getPartnerCampaigns(): Promise<PartnerCampaign[]> {
             const rec = record as unknown as AirtablePartnerCampaignRecord;
             return mapPartnerCampaignRecord(rec);
         });
+
+        // CHANGED: 마감인데 잔여 인원 >= 1이면 Airtable 모집 상태 자동 복구 (비동기, 응답 대기 안 함)
+        const campaignsToReopen = records.filter((record) => {
+            const rec = record as unknown as AirtablePartnerCampaignRecord;
+            return rec.fields['모집 상태'] === '마감' && (rec.fields['신청가능인원'] || 0) >= 1;
+        });
+        if (campaignsToReopen.length > 0) {
+            partnerCampaignTable().update(
+                campaignsToReopen.map((record) => ({
+                    id: record.id,
+                    fields: { '모집 상태': '모집중' }
+                }))
+            ).catch((error) => console.error('Auto-reopen partner campaigns error:', error));
+        }
 
         // 모집중 우선, 그 다음 마감 → 각 그룹 내에서는 ID 역순(최신)
         campaigns.sort((a, b) => {
