@@ -658,18 +658,23 @@ export async function getPartnerCampaigns(): Promise<PartnerCampaign[]> {
             return mapPartnerCampaignRecord(rec);
         });
 
-        // CHANGED: 마감인데 잔여 인원 >= 1이면 Airtable 모집 상태 자동 복구 (비동기, 응답 대기 안 함)
+        // CHANGED: 모집 상태 자동 동기화 (비동기, 응답 대기 안 함)
+        // 참고 필드: 신청가능인원(fldeEDkih4Aev5fLR), 모집 상태(fld9jtF3iTETssFUi)
         const campaignsToReopen = records.filter((record) => {
             const rec = record as unknown as AirtablePartnerCampaignRecord;
             return rec.fields['모집 상태'] === '마감' && (rec.fields['신청가능인원'] || 0) >= 1;
         });
-        if (campaignsToReopen.length > 0) {
-            partnerCampaignTable().update(
-                campaignsToReopen.map((record) => ({
-                    id: record.id,
-                    fields: { '모집 상태': '모집중' }
-                }))
-            ).catch((error) => console.error('Auto-reopen partner campaigns error:', error));
+        const campaignsToClose = records.filter((record) => {
+            const rec = record as unknown as AirtablePartnerCampaignRecord;
+            return rec.fields['모집 상태'] === '모집중' && (rec.fields['신청가능인원'] || 0) < 1;
+        });
+        const statusUpdates = [
+            ...campaignsToReopen.map((record) => ({ id: record.id, fields: { '모집 상태': '모집중' } })),
+            ...campaignsToClose.map((record) => ({ id: record.id, fields: { '모집 상태': '마감' } }))
+        ];
+        if (statusUpdates.length > 0) {
+            partnerCampaignTable().update(statusUpdates)
+                .catch((error) => console.error('Auto-sync partner campaign status error:', error));
         }
 
         // 모집중 우선, 그 다음 마감 → 각 그룹 내에서는 ID 역순(최신)
