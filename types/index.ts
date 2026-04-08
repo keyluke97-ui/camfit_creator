@@ -162,6 +162,15 @@ export interface PartnerApplication {
   visitEndDate: string;
   couponStartDate: string;
   couponEndDate: string;
+  // CHANGED: 캠페인 상세 조인 (체크인 모달 쿠폰 정보 복사용)
+  weekdayDiscount: number;
+  weekendDiscount: number;
+  stayType: string;
+  holidayCouponApplied: boolean;
+  siteTypes: string[];
+  accommodationDescription: string;
+  followerCouponCount: number;
+  totalRecruitCount: number;
 }
 
 // ──────────────────────────────────────────────

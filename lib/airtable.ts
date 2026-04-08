@@ -827,18 +827,26 @@ export async function getPartnerApplications(
             return {
                 id: r.id,
                 campaignId: campaignIds[0] || '',
-                accommodationName: '', // 캠페인 정보는 별도 조회 또는 Lookup으로 해결
+                accommodationName: '', // enrichPartnerApplications에서 채워짐
                 checkInDate: fields['입실일'] || '',
                 checkInSite: fields['입실 사이트'] || '',
                 applicationStatus: fields['신청 상태'] || '',
                 reservationStatus: fields['예약 취소/변경'] || '',
-                // CHANGED: Lookup 필드명을 실제 Airtable 필드명과 일치시킴
                 creatorCouponCode: (fields['크리에이터 쿠폰 코드 (from 캠페인)'] || [])[0] || '',
                 followerCouponCode: (fields['팔로워 쿠폰 코드 (from 캠페인)'] || [])[0] || '',
                 visitStartDate: (fields['방문 가능 시작일 (from 캠페인)'] || [])[0] || '',
                 visitEndDate: (fields['방문 가능 종료일 (from 캠페인)'] || [])[0] || '',
                 couponStartDate: (fields['쿠폰 유효 시작일 (from 캠페인)'] || [])[0] || '',
-                couponEndDate: (fields['쿠폰 유효 종료일 (from 캠페인)'] || [])[0] || ''
+                couponEndDate: (fields['쿠폰 유효 종료일 (from 캠페인)'] || [])[0] || '',
+                // CHANGED: 캠페인 상세 기본값 — enrichPartnerApplications에서 조인
+                weekdayDiscount: 0,
+                weekendDiscount: 0,
+                stayType: '',
+                holidayCouponApplied: false,
+                siteTypes: [],
+                accommodationDescription: '',
+                followerCouponCount: 0,
+                totalRecruitCount: 0
             };
         });
     } catch (error) {
@@ -848,8 +856,8 @@ export async function getPartnerApplications(
 }
 
 /**
- * 파트너 신청 내역에 캠핑장명을 채워주는 유틸 함수
- * CHANGED: N+1 쿼리 해소 — 개별 find() 루프 → OR 수식으로 일괄 조회
+ * 파트너 신청 내역에 캠페인 상세 정보를 조인하는 유틸 함수
+ * CHANGED: 캠핑장명뿐 아니라 할인금액/사이트종류/숙소소개 등 전체 캠페인 데이터 조인
  */
 export async function enrichPartnerApplications(
     applications: PartnerApplication[]
@@ -861,8 +869,6 @@ export async function enrichPartnerApplications(
 
         if (campaignIds.length === 0) return applications;
 
-        const campaignNameMap = new Map<string, string>();
-
         // 일괄 조회: OR(RECORD_ID() = 'id1', RECORD_ID() = 'id2', ...)
         const orConditions = campaignIds
             .map((id) => `RECORD_ID() = '${escapeAirtableValue(id)}'`)
@@ -873,15 +879,30 @@ export async function enrichPartnerApplications(
             .select({ filterByFormula: filterFormula })
             .all();
 
+        // CHANGED: campaign 전체 데이터를 Map에 저장
+        const campaignMap = new Map<string, PartnerCampaign>();
         for (const record of records) {
             const rec = record as unknown as AirtablePartnerCampaignRecord;
-            campaignNameMap.set(rec.id, rec.fields['캠핑장명'] || '');
+            campaignMap.set(rec.id, mapPartnerCampaignRecord(rec));
         }
 
-        return applications.map((application) => ({
-            ...application,
-            accommodationName: campaignNameMap.get(application.campaignId) || ''
-        }));
+        return applications.map((application) => {
+            const campaign = campaignMap.get(application.campaignId);
+            if (!campaign) return application;
+
+            return {
+                ...application,
+                accommodationName: campaign.accommodationName,
+                weekdayDiscount: campaign.weekdayDiscount,
+                weekendDiscount: campaign.weekendDiscount,
+                stayType: campaign.stayType,
+                holidayCouponApplied: campaign.holidayCouponApplied,
+                siteTypes: campaign.siteTypes,
+                accommodationDescription: campaign.accommodationDescription,
+                followerCouponCount: campaign.followerCouponCount,
+                totalRecruitCount: campaign.totalRecruitCount
+            };
+        });
     } catch (error) {
         console.error('Enrich partner applications error:', error);
         return applications;

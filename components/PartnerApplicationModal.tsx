@@ -26,12 +26,12 @@ function buildCouponInfoText(campaign: PartnerCampaign, perPersonCoupon: number)
 /**
  * 전체 협찬 정보를 카카오톡 복붙용 텍스트로 생성
  */
+// CHANGED: 패키지 제거, 숙소소개·사이트종류·적용요일 추가
 function buildCopyText(campaign: PartnerCampaign, couponCodes: { creator: string; follower: string }, perPersonCoupon: number): string {
     const lines = [
         `[캠핏 파트너 협찬 안내]`,
         ``,
         `📍 ${campaign.accommodationName}`,
-        `📦 패키지: ${campaign.packageType}`,
         ``,
         `🎫 크리에이터 쿠폰 코드: ${couponCodes.creator || '(운영팀 확인 후 발급)'}`,
         ...(couponCodes.follower ? [`🎫 팔로워 쿠폰 코드: ${couponCodes.follower}`] : []),
@@ -40,6 +40,10 @@ function buildCopyText(campaign: PartnerCampaign, couponCodes: { creator: string
         `🎫 쿠폰 유효기간: ${campaign.couponStartDate} ~ ${campaign.couponEndDate}`,
         `💰 팔로워 할인: 평일 ${campaign.weekdayDiscount.toLocaleString()}원${campaign.weekendDiscount > 0 ? ` / 주말 ${campaign.weekendDiscount.toLocaleString()}원` : ''}`,
         `🎟️ 1인당 팔로워 쿠폰: ${perPersonCoupon}장`,
+        `📅 적용 가능 요일: ${campaign.stayType}`,
+        ...(campaign.holidayCouponApplied ? [`✅ 공휴일에도 쿠폰 사용 가능`] : []),
+        ...(campaign.siteTypes.length > 0 ? [`🏕️ 적용 가능 존: ${campaign.siteTypes.join(', ')}`] : []),
+        ...(campaign.accommodationDescription ? [``, `📝 숙소 소개:`, campaign.accommodationDescription] : []),
         ``,
         `👉 캠핏 쿠폰 등록: https://camfit.co.kr/mypage/coupon`,
     ];
@@ -377,8 +381,8 @@ export default function PartnerApplicationModal({
                         </div>
                     )}
 
-                    {/* Step 3: 취소/변경 + 노쇼 + 콘텐츠 + 저작권 정책 */}
-                    {/* CHANGED: '캠지기는~' 문구 삭제, 체크박스 → '동의' 텍스트 입력 */}
+                    {/* Step 3: 정책 동의 — 문구 디벨롭 */}
+                    {/* CHANGED: 취소/변경, 콘텐츠 의무, 저작권, 입실 등록 안내 4섹션 */}
                     {step === 'policy3' && (
                         <div className="space-y-4">
                             <div className="bg-[#252525] border border-[#3A3A3A] rounded-lg p-4 space-y-2">
@@ -387,23 +391,47 @@ export default function PartnerApplicationModal({
                                     방문일 전까지 취소/변경이 가능합니다.
                                 </p>
                                 <p className="text-sm text-[#B0B0B0]">
-                                    취소 시 해당 일정 예약 불가로 인해 캠핑장 사업주에게 <span className="text-yellow-400 font-medium">실질적인 금전적 손해</span>가 발생합니다.
+                                    취소 시 해당 일정의 예약이 불가해지며, 캠핑장에 <span className="text-yellow-400 font-medium">직접적인 금전적 손해</span>가 발생합니다.
                                 </p>
                                 <p className="text-sm text-[#B0B0B0]">
-                                    노쇼(No-show) 또는 당일 취소 시 협찬은 무효 처리되며, 재방문 또는 보상은 제공되지 않습니다.
+                                    잦은 취소는 향후 파트너 협찬 참여가 제한될 수 있습니다.
+                                </p>
+                                <p className="text-sm text-[#B0B0B0]">
+                                    노쇼(No-show) 또는 당일 취소 시 협찬은 무효 처리되며, 재방문이나 보상은 제공되지 않습니다.
                                 </p>
                             </div>
 
                             <div className="bg-[#252525] border border-[#3A3A3A] rounded-lg p-4 space-y-2">
-                                <p className="text-sm font-semibold text-white">콘텐츠 제작 및 저작권</p>
+                                <p className="text-sm font-semibold text-white">콘텐츠 제작 의무</p>
                                 <p className="text-sm text-[#B0B0B0]">
-                                    안내된 기한 내 콘텐츠 미제출 또는 반복 지연 시 향후 파트너 협찬 참여가 제한됩니다.
+                                    방문 후 안내된 기한 내에 콘텐츠를 제출해야 합니다. 미제출 또는 반복 지연 시 향후 참여가 제한됩니다.
                                 </p>
                                 <p className="text-sm text-[#B0B0B0]">
-                                    제작된 콘텐츠가 캠핏 및 해당 캠핑장의 홍보 목적으로 활용되는 것에 동의합니다. 활용 기간은 업로드일 기준 12개월입니다.
+                                    콘텐츠에 해당 캠핑장 관련 태그 또는 언급을 포함해야 합니다.
                                 </p>
                                 <p className="text-sm text-[#B0B0B0]">
-                                    기간이 지난 과거 게시물에 대해 특별한 협의 없는 임의 삭제는 불가합니다.
+                                    제공받은 팔로워 쿠폰 코드는 콘텐츠를 통해 배포해야 합니다.
+                                </p>
+                            </div>
+
+                            <div className="bg-[#252525] border border-[#3A3A3A] rounded-lg p-4 space-y-2">
+                                <p className="text-sm font-semibold text-white">저작권 및 활용</p>
+                                <p className="text-sm text-[#B0B0B0]">
+                                    제작된 콘텐츠는 캠핏 및 해당 캠핑장의 홍보 목적으로 업로드일로부터 12개월간 활용될 수 있습니다.
+                                </p>
+                                <p className="text-sm text-[#B0B0B0]">
+                                    게시된 콘텐츠는 사전 협의 없이 임의로 삭제할 수 없습니다.
+                                </p>
+                            </div>
+
+                            {/* CHANGED: 입실 등록 안내 섹션 추가 */}
+                            <div className="bg-[#252525] border border-[#3A3A3A] rounded-lg p-4 space-y-2">
+                                <p className="text-sm font-semibold text-white">입실 등록 안내</p>
+                                <p className="text-sm text-[#B0B0B0]">
+                                    쿠폰 발급 후 캠핑장에 직접 예약하시고, 반드시 입실일과 입실 사이트를 포털에 등록해주세요.
+                                </p>
+                                <p className="text-sm text-[#B0B0B0]">
+                                    입실 정보 미등록 시 협찬 진행 확인이 어렵습니다.
                                 </p>
                             </div>
 
@@ -440,9 +468,9 @@ export default function PartnerApplicationModal({
                     {/* CHANGED: 최종 리뷰 — 입실 정보 입력 제거 */}
                     {step === 'review' && (
                         <div className="space-y-4">
+                            {/* CHANGED: 패키지 행 제거 (크리에이터에게 불필요) */}
                             <div className="bg-[#252525] border border-[#3A3A3A] rounded-lg p-4 space-y-3">
                                 <ReviewRow label="캠핑장" value={campaign.accommodationName} />
-                                <ReviewRow label="패키지" value={campaign.packageType} />
                                 <ReviewRow label="팔로워 쿠폰 (평일)" value={`${campaign.weekdayDiscount.toLocaleString()}원`} />
                                 {campaign.weekendDiscount > 0 && (
                                     <ReviewRow label="팔로워 쿠폰 (주말)" value={`${campaign.weekendDiscount.toLocaleString()}원`} />
@@ -452,9 +480,10 @@ export default function PartnerApplicationModal({
                                 <ReviewRow label="1인당 팔로워 쿠폰" value={`${perPersonCoupon}장`} />
                             </div>
 
+                            {/* CHANGED: 정산 문구 제거 — 파트너 협찬에 정산 없음 */}
                             <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3">
                                 <p className="text-xs text-yellow-400">
-                                    입실일, 입실 사이트가 등록되지 않을 경우 일반 협찬으로 간주되어 원고료 지급이 어려울 수 있습니다.
+                                    입실일과 입실 사이트를 꼭 등록해주세요. 미등록 시 협찬 진행 확인이 어렵습니다.
                                 </p>
                             </div>
 
@@ -530,10 +559,10 @@ export default function PartnerApplicationModal({
                                 </a>
                             )}
 
-                            {/* 입실 일정 등록 안내 + 버튼 */}
+                            {/* CHANGED: 정산→협찬 문구 변경 */}
                             <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
                                 <p className="text-sm text-blue-400">
-                                    📢 예약 완료 후 꼭 입실일 등록을 해주셔야 정산이 가능합니다.
+                                    📢 예약 완료 후 꼭 입실일과 입실 사이트를 등록해주세요. 미등록 시 협찬 진행 확인이 어렵습니다.
                                 </p>
                             </div>
 
