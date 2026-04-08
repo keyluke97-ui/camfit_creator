@@ -13,7 +13,7 @@ function buildCouponInfoText(campaign: PartnerCampaign, perPersonCoupon: number)
     const lines = [
         `[${campaign.accommodationName} 팔로워 쿠폰 안내]`,
         ``,
-        `🎫 쿠폰 유효기간: ${campaign.couponStartDate} ~ ${campaign.couponEndDate}`,
+        `🎫 팔로워 쿠폰 입실 가능: ${campaign.couponStartDate} ~ ${campaign.couponEndDate}`,
         `🎟️ 1인당 팔로워 쿠폰: ${perPersonCoupon}장`,
         `💰 할인 금액: 평일 ${campaign.weekdayDiscount.toLocaleString()}원${campaign.weekendDiscount > 0 ? ` / 주말 ${campaign.weekendDiscount.toLocaleString()}원` : ''}`,
         `📅 적용 가능 요일: ${campaign.stayType}`,
@@ -36,14 +36,14 @@ function buildCopyText(campaign: PartnerCampaign, couponCodes: { creator: string
         `🎫 크리에이터 쿠폰 코드: ${couponCodes.creator || '(운영팀 확인 후 발급)'}`,
         ...(couponCodes.follower ? [`🎫 팔로워 쿠폰 코드: ${couponCodes.follower}`] : []),
         ``,
-        `📅 방문 기간: ${campaign.visitStartDate} ~ ${campaign.visitEndDate}`,
-        `🎫 쿠폰 유효기간: ${campaign.couponStartDate} ~ ${campaign.couponEndDate}`,
+        `📅 크리에이터 방문 가능: ${campaign.visitStartDate} ~ ${campaign.visitEndDate}`,
+        `🎫 팔로워 쿠폰 입실 가능: ${campaign.couponStartDate} ~ ${campaign.couponEndDate}`,
         `💰 팔로워 할인: 평일 ${campaign.weekdayDiscount.toLocaleString()}원${campaign.weekendDiscount > 0 ? ` / 주말 ${campaign.weekendDiscount.toLocaleString()}원` : ''}`,
         `🎟️ 1인당 팔로워 쿠폰: ${perPersonCoupon}장`,
         `📅 적용 가능 요일: ${campaign.stayType}`,
         ...(campaign.holidayCouponApplied ? [`✅ 공휴일에도 쿠폰 사용 가능`] : []),
         ...(campaign.siteTypes.length > 0 ? [`🏕️ 적용 가능 존: ${campaign.siteTypes.join(', ')}`] : []),
-        ...(campaign.accommodationDescription ? [``, `📝 숙소 소개:`, campaign.accommodationDescription] : []),
+        ...(campaign.accommodationDescription ? [``, `📢 캠핑장 추천 포인트:`, campaign.accommodationDescription] : []),
         ``,
         `👉 캠핏 쿠폰 등록: https://camfit.co.kr/mypage/coupon`,
     ];
@@ -309,7 +309,7 @@ export default function PartnerApplicationModal({
                             <div className="bg-[#252525] border border-[#3A3A3A] rounded-lg p-4 space-y-3">
                                 <p className="text-sm font-semibold text-white">팔로워 쿠폰 안내</p>
                                 <div>
-                                    <p className="text-xs text-[#9CA3AF] mb-0.5">쿠폰 유효기간</p>
+                                    <p className="text-xs text-[#9CA3AF] mb-0.5">팔로워 쿠폰 입실 가능 기간</p>
                                     <p className="text-sm font-semibold text-white">
                                         {campaign.couponStartDate} ~ {campaign.couponEndDate}
                                     </p>
@@ -356,7 +356,7 @@ export default function PartnerApplicationModal({
                                         : 'bg-[#2A2A2A] text-white border border-[#3A3A3A] hover:bg-[#333333]'
                                 }`}
                             >
-                                {couponInfoCopied ? '복사 완료!' : '쿠폰 정보 복사하기'}
+                                {couponInfoCopied ? '복사 완료!' : '팔로워 쿠폰 조건 복사하기'}
                             </button>
 
                             <div>
@@ -475,8 +475,8 @@ export default function PartnerApplicationModal({
                                 {campaign.weekendDiscount > 0 && (
                                     <ReviewRow label="팔로워 쿠폰 (주말)" value={`${campaign.weekendDiscount.toLocaleString()}원`} />
                                 )}
-                                <ReviewRow label="방문 기간" value={`${campaign.visitStartDate} ~ ${campaign.visitEndDate}`} />
-                                <ReviewRow label="쿠폰 유효기간" value={`${campaign.couponStartDate} ~ ${campaign.couponEndDate}`} />
+                                <ReviewRow label="크리에이터 방문 가능" value={`${campaign.visitStartDate} ~ ${campaign.visitEndDate}`} />
+                                <ReviewRow label="팔로워 쿠폰 입실 가능" value={`${campaign.couponStartDate} ~ ${campaign.couponEndDate}`} />
                                 <ReviewRow label="1인당 팔로워 쿠폰" value={`${perPersonCoupon}장`} />
                             </div>
 

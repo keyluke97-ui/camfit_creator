@@ -41,9 +41,10 @@ function buildCheckinCopyText(application: PartnerApplication): string {
         ...(application.stayType ? [`📅 적용 가능 요일: ${application.stayType}`] : []),
         ...(application.holidayCouponApplied ? [`✅ 공휴일에도 쿠폰 사용 가능`] : []),
         ...(application.siteTypes.length > 0 ? [`🏕️ 적용 가능 존: ${application.siteTypes.join(', ')}`] : []),
-        `📅 방문 기간: ${application.visitStartDate} ~ ${application.visitEndDate}`,
-        `🎫 쿠폰 유효기간: ${application.couponStartDate} ~ ${application.couponEndDate}`,
-        ...(application.accommodationDescription ? [``, `📝 숙소 소개:`, application.accommodationDescription] : []),
+        // CHANGED: 빈값 방어 + 라벨 명확화
+        ...(application.visitStartDate ? [`📅 크리에이터 방문 가능: ${application.visitStartDate} ~ ${application.visitEndDate}`] : []),
+        ...(application.couponStartDate ? [`🎫 팔로워 쿠폰 입실 가능: ${application.couponStartDate} ~ ${application.couponEndDate}`] : []),
+        ...(application.accommodationDescription ? [``, `📢 캠핑장 추천 포인트:`, application.accommodationDescription] : []),
         ``,
         `👉 캠핏 쿠폰 등록: ${CAMFIT_COUPON_URL}`,
     ];
@@ -301,8 +302,12 @@ export default function PartnerCheckinModal({
                                                 : 'bg-[#1E1E1E] text-[#9CA3AF] border border-[#3A3A3A] hover:bg-[#333333]'
                                         }`}
                                     >
-                                        {copiedId === application.id ? '복사 완료!' : '쿠폰 정보 복사하기'}
+                                        {copiedId === application.id ? '복사 완료!' : '협찬 정보 복사하기'}
                                     </button>
+                                    {/* CHANGED: 복사 안내 문구 */}
+                                    <p className="text-xs text-[#666666] text-center mb-1">
+                                        💬 카톡 나에게 보내기로 저장하면 콘텐츠 만들 때 도움돼요!
+                                    </p>
 
                                     {/* CHANGED: 미등록/등록 분기 — 프리미엄 CheckinModal 패턴 */}
                                     {isRegistered(application) ? (

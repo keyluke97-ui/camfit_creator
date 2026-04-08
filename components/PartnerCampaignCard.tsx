@@ -118,13 +118,13 @@ export default function PartnerCampaignCard({
                 <div className="flex items-center gap-2">
                     <span className="text-lg">📅</span>
                     <span className="text-sm text-[#B0B0B0]">
-                        방문: {campaign.visitStartDate} ~ {campaign.visitEndDate}
+                        크리에이터 방문 가능: {campaign.visitStartDate} ~ {campaign.visitEndDate}
                     </span>
                 </div>
                 <div className="flex items-center gap-2">
                     <span className="text-lg">🎫</span>
                     <span className="text-sm text-[#B0B0B0]">
-                        쿠폰: {campaign.couponStartDate} ~ {campaign.couponEndDate}
+                        팔로워 쿠폰 입실 가능: {campaign.couponStartDate} ~ {campaign.couponEndDate}
                     </span>
                 </div>
             </div>
