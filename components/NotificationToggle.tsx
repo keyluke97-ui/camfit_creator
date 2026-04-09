@@ -15,7 +15,7 @@ export default function NotificationToggle({ enabled, onToggle }: NotificationTo
     const handleClick = () => {
         const next = !enabled;
         onToggle(next);
-        setToast(next ? '새 캠페인 알림이 켜졌습니다' : '새 캠페인 알림이 꺼졌습니다');
+        setToast(next ? '새 캠페인 이메일 알림 ON' : '새 캠페인 이메일 알림 OFF');
         setTimeout(() => setToast(null), 2000);
     };
 
@@ -28,13 +28,14 @@ export default function NotificationToggle({ enabled, onToggle }: NotificationTo
                 } hover:text-white`}
                 aria-label={enabled ? '알림 켜짐' : '알림 꺼짐'}
             >
+                {/* CHANGED: 벨 → 이메일 아이콘으로 변경 — 이메일 알림임을 직관적으로 표현 */}
                 {enabled ? (
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z" />
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0l-9.75 6.5-9.75-6.5" />
                     </svg>
                 ) : (
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z" opacity="0.4" />
+                    <svg className="w-5 h-5" viewBox="0 0 24 24" strokeWidth={2}>
+                        <path fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0l-9.75 6.5-9.75-6.5" opacity="0.4" />
                         <line x1="3" y1="3" x2="21" y2="21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                     </svg>
                 )}
