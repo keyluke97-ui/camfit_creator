@@ -869,7 +869,8 @@ export async function getPartnerApplications(
                 siteTypes: [],
                 accommodationDescription: '',
                 followerCouponCount: 0,
-                totalRecruitCount: 0
+                totalRecruitCount: 0,
+                creatorStayNights: 2 // CHANGED: 기본값 — enrichPartnerApplications에서 실제 값으로 교체됨
             };
         });
     } catch (error) {
