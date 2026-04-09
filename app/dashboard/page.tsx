@@ -429,8 +429,8 @@ function DashboardContent() {
                             </div>
                         )}
 
-                        {/* CHANGED: 파트너 빈 상태 개선 — 이모지 아이콘 + 카카오톡 CTA 추가 */}
-                        {partnerCampaigns.length === 0 && (
+                        {/* CHANGED: 로딩 완료 후에만 빈 상태 표시 — 로딩 중 깜빡임 방지 */}
+                        {!loading && partnerCampaigns.length === 0 && (
                             <div className="flex flex-col items-center justify-center py-16 gap-6">
                                 <div className="w-16 h-16 bg-[#01DF82]/10 rounded-full flex items-center justify-center">
                                     <span className="text-3xl">🏕️</span>

@@ -97,9 +97,14 @@ export default function PartnerApplicationModal({
         setCouponInfoCopied(false);
     };
 
+    // CHANGED: 모달 닫을 때 캠페인 목록 갱신 — 성공 화면 중 갱신으로 모달 사라지는 문제 방지
     const handleClose = () => {
+        const wasSuccess = step === 'success' || step === 'checkin' || step === 'checkinSuccess';
         resetModal();
         onClose();
+        if (wasSuccess) {
+            onApplySuccess();
+        }
     };
 
     // 마감 에러 자동 새로고침 (A2-10)
@@ -135,7 +140,9 @@ export default function PartnerApplicationModal({
                     follower: data.followerCouponCode || ''
                 });
                 setStep('success');
-                onApplySuccess();
+                // CHANGED: onApplySuccess()를 여기서 호출하지 않음 — 성공 화면이 보이는 동안
+                // 캠페인 목록 갱신으로 마감 처리되면 모달이 사라지는 문제 방지
+                // 모달 닫기(handleClose) 시점에 갱신하도록 이동
             } else {
                 if (response.status === 409 && data.error?.includes('마감')) {
                     setErrorMessage('파트너 협찬이 마감되었습니다.');
