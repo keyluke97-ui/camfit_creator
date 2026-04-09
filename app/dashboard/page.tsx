@@ -414,14 +414,6 @@ function DashboardContent() {
                                 조금만 기다려주세요.
                             </p>
                         </div>
-                        <a
-                            href={KAKAO_CHANNEL_URL}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center justify-center w-full max-w-xs h-12 bg-[#FEE500] text-[#3C1E1E] font-bold rounded-lg hover:bg-[#F5DC00] transition-colors text-sm"
-                        >
-                            카카오톡에서 오픈 소식 받기
-                        </a>
                     </div>
                 )}
                 {!loading && effectiveTab === 'partner' && !PARTNER_COMING_SOON && (
