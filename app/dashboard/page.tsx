@@ -1,11 +1,13 @@
 // page.tsx - 대시보드 메인 페이지 (프리미엄 + 파트너 탭 통합)
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import CampaignCard from '@/components/CampaignCard';
 import CheckinModal from '@/components/CheckinModal';
 import DashboardTabs from '@/components/DashboardTabs';
+import LocationFilter from '@/components/LocationFilter';
+import NotificationToggle from '@/components/NotificationToggle';
 import PartnerCampaignCard from '@/components/PartnerCampaignCard';
 import PartnerCheckinModal from '@/components/PartnerCheckinModal';
 import type { Campaign, PartnerCampaign, TierLevel, ChannelType } from '@/types';
@@ -15,12 +17,14 @@ import { hasPartnerEligibleChannel, KAKAO_CHANNEL_URL } from '@/lib/constants';
 type TabType = 'premium' | 'partner';
 
 // CHANGED: premiumId 추가 — 프리미엄 탭 활성/비활성 분기용
+// CHANGED: notificationEnabled 추가 — 알림 토글 상태
 interface UserInfo {
     creatorId: string;
     channelName: string;
     tier: TierLevel;
     channelTypes: ChannelType[];
     premiumId: string | null;
+    notificationEnabled: boolean;
 }
 
 // CHANGED: Suspense boundary 필수 — useSearchParams() 사용 시 Next.js 16 요구사항
@@ -53,12 +57,18 @@ function DashboardContent() {
     const [isPartnerCheckinModalOpen, setIsPartnerCheckinModalOpen] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
     const [showClosedCampaigns, setShowClosedCampaigns] = useState(false);
+    // CHANGED: 위치 필터 state 추가
+    const [selectedLocation, setSelectedLocation] = useState<string>('전체');
+    // CHANGED: 알림 토글 state 추가
+    const [notificationEnabled, setNotificationEnabled] = useState(true);
 
     // 함수 정의를 useEffect 위에 배치 (lint: 선언 전 접근 방지)
     const handleTabChange = (tab: TabType) => {
         setActiveTab(tab);
         // CHANGED: 탭 전환 시 마감 캠페인 접힘 상태 리셋 — 탭 간 상태 혼동 방지
         setShowClosedCampaigns(false);
+        // CHANGED: 탭 전환 시 위치 필터 리셋
+        setSelectedLocation('전체');
         const url = tab === 'partner' ? '/dashboard?tab=partner' : '/dashboard';
         window.history.replaceState(null, '', url);
     };
@@ -101,6 +111,8 @@ function DashboardContent() {
             const data = await response.json();
             if (response.ok) {
                 setUserInfo(data.user);
+                // CHANGED: 알림 토글 초기값 설정
+                setNotificationEnabled(data.user.notificationEnabled !== false);
             }
         } catch (error) {
             console.error(error);
@@ -121,6 +133,37 @@ function DashboardContent() {
 
     // CHANGED: 블로거가 partner 탭에 접근 시 premium으로 폴백 (setState 대신 computed)
     const effectiveTab: TabType = (activeTab === 'partner' && !canAccessPartner) ? 'premium' : activeTab;
+
+    // CHANGED: 위치 필터용 location 목록 추출
+    const availableLocations = useMemo(() => {
+        const source = effectiveTab === 'premium' ? campaigns : partnerCampaigns;
+        const locations = [...new Set(source.map(c => c.location).filter(Boolean))];
+        locations.sort((a, b) => a.localeCompare(b, 'ko'));
+        return locations;
+    }, [effectiveTab, campaigns, partnerCampaigns]);
+
+    // CHANGED: 위치 필터 적용
+    const filteredCampaigns = selectedLocation === '전체'
+        ? campaigns
+        : campaigns.filter(c => c.location === selectedLocation);
+    const filteredPartnerCampaigns = selectedLocation === '전체'
+        ? partnerCampaigns
+        : partnerCampaigns.filter(c => c.location === selectedLocation);
+
+    // CHANGED: 알림 토글 핸들러
+    const handleNotificationToggle = async (enabled: boolean) => {
+        setNotificationEnabled(enabled);
+        try {
+            const response = await fetch('/api/notifications/toggle', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ enabled })
+            });
+            if (!response.ok) setNotificationEnabled(!enabled);
+        } catch {
+            setNotificationEnabled(!enabled);
+        }
+    };
 
     // CHANGED: effectiveTab 기반 데이터 패칭 — premiumId 없으면 프리미엄 캠페인 스킵
     useEffect(() => {
@@ -184,15 +227,22 @@ function DashboardContent() {
                             <p className="text-xs text-[#888888]">오늘도 즐거운 캠핑 되세요! ⛺️</p>
                         </div>
 
-                        <button
-                            onClick={handleLogout}
-                            className="p-2 text-[#666666] hover:text-white transition-colors"
-                            aria-label="로그아웃"
-                        >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                            </svg>
-                        </button>
+                        {/* CHANGED: 알림 토글을 헤더로 이동 — 설정성 액션은 상단에 */}
+                        <div className="flex items-center gap-2">
+                            <NotificationToggle
+                                enabled={notificationEnabled}
+                                onToggle={handleNotificationToggle}
+                            />
+                            <button
+                                onClick={handleLogout}
+                                className="p-2 text-[#666666] hover:text-white transition-colors"
+                                aria-label="로그아웃"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                </svg>
+                            </button>
+                        </div>
                     </div>
 
                     {/* CHANGED: 입실 일정 등록 버튼 — 프리미엄 탭에서 premiumId 없으면 숨김 */}
@@ -276,7 +326,7 @@ function DashboardContent() {
                     <>
                         {/* Stats Bar */}
                         {campaigns.length > 0 && (
-                            <div className="flex gap-3 mb-8 overflow-x-auto pb-1 scrollbar-hide">
+                            <div className="flex gap-3 mb-4 overflow-x-auto pb-1 scrollbar-hide">
                                 <div className="flex-1 min-w-[140px] bg-[#1E1E1E] border border-[#333333] rounded-xl p-4 flex flex-col justify-center">
                                     <span className="text-xs text-[#888888] mb-1">전체 캠페인</span>
                                     <span className="text-xl font-bold text-white">{campaigns.length}개</span>
@@ -290,9 +340,20 @@ function DashboardContent() {
                             </div>
                         )}
 
-                        {campaigns.length > 0 && (() => {
-                            const activeCampaigns = campaigns.filter(c => !c.isClosed);
-                            const closedCampaigns = campaigns.filter(c => c.isClosed);
+                        {/* CHANGED: 알림 토글은 헤더로 이동, 위치 필터만 여기 유지 */}
+                        {availableLocations.length > 0 && (
+                            <div className="mb-6">
+                                <LocationFilter
+                                    locations={availableLocations}
+                                    selectedLocation={selectedLocation}
+                                    onLocationChange={setSelectedLocation}
+                                />
+                            </div>
+                        )}
+
+                        {filteredCampaigns.length > 0 && (() => {
+                            const activeCampaigns = filteredCampaigns.filter(c => !c.isClosed);
+                            const closedCampaigns = filteredCampaigns.filter(c => c.isClosed);
 
                             return (
                                 <>
@@ -343,7 +404,7 @@ function DashboardContent() {
                     <>
                         {/* Stats Bar */}
                         {partnerCampaigns.length > 0 && (
-                            <div className="flex gap-3 mb-8 overflow-x-auto pb-1 scrollbar-hide">
+                            <div className="flex gap-3 mb-4 overflow-x-auto pb-1 scrollbar-hide">
                                 <div className="flex-1 min-w-[140px] bg-[#1E1E1E] border border-[#333333] rounded-xl p-4 flex flex-col justify-center">
                                     <span className="text-xs text-[#888888] mb-1">전체 캠페인</span>
                                     <span className="text-xl font-bold text-white">{partnerCampaigns.length}개</span>
@@ -357,15 +418,43 @@ function DashboardContent() {
                             </div>
                         )}
 
-                        {partnerCampaigns.length === 0 && (
-                            <div className="text-center py-20">
-                                <p className="text-[#666666] text-sm">현재 진행 중인 파트너 협찬이 없습니다.</p>
+                        {/* CHANGED: 알림 토글은 헤더로 이동, 위치 필터만 여기 유지 */}
+                        {partnerCampaigns.length > 0 && availableLocations.length > 0 && (
+                            <div className="mb-6">
+                                <LocationFilter
+                                    locations={availableLocations}
+                                    selectedLocation={selectedLocation}
+                                    onLocationChange={setSelectedLocation}
+                                />
                             </div>
                         )}
 
-                        {partnerCampaigns.length > 0 && (() => {
-                            const activeCampaigns = partnerCampaigns.filter(c => !c.isClosed);
-                            const closedCampaigns = partnerCampaigns.filter(c => c.isClosed);
+                        {/* CHANGED: 파트너 빈 상태 개선 — 이모지 아이콘 + 카카오톡 CTA 추가 */}
+                        {partnerCampaigns.length === 0 && (
+                            <div className="flex flex-col items-center justify-center py-16 gap-6">
+                                <div className="w-16 h-16 bg-[#01DF82]/10 rounded-full flex items-center justify-center">
+                                    <span className="text-3xl">🏕️</span>
+                                </div>
+                                <div className="text-center">
+                                    <h3 className="text-lg font-bold text-white mb-2">현재 진행 중인 파트너 협찬이 없습니다</h3>
+                                    <p className="text-sm text-[#888888] leading-relaxed">
+                                        새로운 캠페인이 오픈되면 알려드릴게요
+                                    </p>
+                                </div>
+                                <a
+                                    href="http://pf.kakao.com/_fBxaQG"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center justify-center w-full max-w-xs h-12 bg-[#FEE500] text-[#3C1E1E] font-bold rounded-lg hover:bg-[#F5DC00] transition-colors text-sm"
+                                >
+                                    카카오톡 채널에서 소식 받기
+                                </a>
+                            </div>
+                        )}
+
+                        {filteredPartnerCampaigns.length > 0 && (() => {
+                            const activeCampaigns = filteredPartnerCampaigns.filter(c => !c.isClosed);
+                            const closedCampaigns = filteredPartnerCampaigns.filter(c => c.isClosed);
 
                             return (
                                 <>

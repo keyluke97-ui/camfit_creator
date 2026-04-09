@@ -4,6 +4,8 @@ import { useState } from 'react';
 import type { Campaign } from '@/types';
 import ApplicationModal from './ApplicationModal';
 import HighlightsModal from './HighlightsModal';
+// CHANGED: 모집현황 텍스트 → 프로그레스 바로 교체
+import RecruitmentProgressBar from './RecruitmentProgressBar';
 
 interface CampaignCardProps {
     campaign: Campaign;
@@ -98,12 +100,12 @@ export default function CampaignCard({ campaign }: CampaignCardProps) {
                 </p>
             </div>
 
-            {/* 모집 인원 */}
-            <div className="flex items-center justify-between mb-4 pb-4 border-b border-[#333333]">
-                <span className="text-sm text-[#B0B0B0]">신청 가능</span>
-                <span className="text-base font-semibold text-white">
-                    {campaign.tierData.availableCount} / {campaign.tierData.totalCount}명
-                </span>
+            {/* CHANGED: 모집현황 텍스트 → 프로그레스 바로 교체 */}
+            <div className="mb-4 pb-4 border-b border-[#333333]">
+                <RecruitmentProgressBar
+                    totalCount={campaign.tierData.totalCount}
+                    availableCount={campaign.tierData.availableCount}
+                />
             </div>
 
             {/* 버튼 그룹 */}

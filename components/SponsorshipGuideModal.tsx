@@ -6,37 +6,18 @@ interface SponsorshipGuideModalProps {
     onClose: () => void;
 }
 
+// CHANGED: 수익구조/콘텐츠의무/예약방식/등록필요 삭제, 문구 개선
 /** 비교 항목 데이터 */
 const COMPARISON_ROWS = [
     {
         label: '협찬 방식',
-        premium: '출장비 포함 협찬',
-        partner: '할인 쿠폰 제공'
+        premium: '출장비 받고 가는 협찬',
+        partner: '팔로워 대상 할인 쿠폰 제공'
     },
     {
         label: '대상',
         premium: '프리미엄 등록 크리에이터',
         partner: '인스타·유튜브 크리에이터'
-    },
-    {
-        label: '수익 구조',
-        premium: '협찬 금액 직접 지급',
-        partner: '크리에이터 쿠폰 + 팔로워 쿠폰'
-    },
-    {
-        label: '콘텐츠 의무',
-        premium: '기한 내 콘텐츠 제작 필수',
-        partner: '방문 후 콘텐츠 제작'
-    },
-    {
-        label: '예약 방식',
-        premium: '포털에서 캠페인 신청',
-        partner: '포털에서 캠페인 신청'
-    },
-    {
-        label: '등록 필요',
-        premium: '프리미엄 협찬 별도 등록',
-        partner: '별도 등록 없이 이용 가능'
     }
 ];
 
@@ -66,9 +47,9 @@ export default function SponsorshipGuideModal({ isOpen, onClose }: SponsorshipGu
                                 <span className="text-lg">💎</span>
                                 <span className="text-sm font-bold text-white">프리미엄 협찬</span>
                             </div>
+                            {/* CHANGED: 크리에이터 직접 지급 명시, 등급별 문구 삭제 */}
                             <p className="text-xs text-[#B0B0B0] leading-relaxed">
-                                캠핑장 방문 후 콘텐츠를 제작하면 협찬 금액을 직접 지급받습니다.
-                                별도 등록이 필요하며, 등급별로 협찬 금액이 다릅니다.
+                                캠핑장 방문 후 콘텐츠를 제작하면 크리에이터에게 협찬 금액을 직접 지급합니다.
                             </p>
                         </div>
 

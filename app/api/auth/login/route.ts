@@ -42,12 +42,14 @@ export async function POST(request: NextRequest) {
         }
 
         // CHANGED: JWT payload에 creatorId/premiumId 분리
+        // CHANGED: notificationEnabled 추가 — 알림 토글 상태
         const token = await new SignJWT({
             creatorId: creator.creatorId,
             channelName: creator.channelName,
             tier: creator.tier,
             channelTypes: creator.channelTypes,
-            premiumId: creator.premiumId
+            premiumId: creator.premiumId,
+            notificationEnabled: creator.notificationEnabled
         })
             .setProtectedHeader({ alg: 'HS256' })
             .setExpirationTime('7d')

@@ -9,6 +9,7 @@ export interface Influencer {
   tier: TierLevel;
   channelTypes: ChannelType[];
   premiumId: string | null; // 프리미엄 협찬 신청 테이블 record ID (미등록이면 null)
+  notificationEnabled: boolean; // CHANGED: 캠페인 알림 상태 추가
 }
 
 // CHANGED: 크리에이터 명단 테이블(tblkuPln7nquA3dLA) Airtable 레코드 타입
@@ -21,6 +22,7 @@ export interface AirtableCreatorRecord {
     '등급화': number; // rating 1~3
     '휴먼 상태 '?: boolean; // CHANGED: Airtable 필드명 끝에 공백 포함
     '프리미엄 협찬 신청 인플루언서'?: string[]; // multipleRecordLinks → tblDOC7jcmeuQzNJY
+    '캠페인 알림'?: boolean; // CHANGED: 캠페인 알림 토글 필드 추가
   };
 }
 
@@ -145,6 +147,7 @@ export interface PartnerCampaign {
   couponEndDate: string;
   camfitLink: string; // CHANGED: 캠핑장 바로가기 링크 추가
   siteTypes: string[]; // CHANGED: 제공 가능한 사이트 종류 추가
+  creatorStayNights: number; // CHANGED: 크리에이터 쿠폰 숙박 박수 (Airtable 디폴트 2)
   isClosed: boolean;
 }
 
@@ -171,6 +174,7 @@ export interface PartnerApplication {
   accommodationDescription: string;
   followerCouponCount: number;
   totalRecruitCount: number;
+  creatorStayNights: number; // CHANGED: 크리에이터 숙박 박수
 }
 
 // ──────────────────────────────────────────────
@@ -234,6 +238,7 @@ export interface AirtablePartnerCampaignRecord {
     '소재 권역'?: string; // CHANGED: 위치 태그용 필드 추가 (A1-1)
     '캠핏링크'?: string; // CHANGED: 캠핑장 바로가기 링크
     '제공 가능한 사이트 종류'?: string[]; // CHANGED: 사이트 종류 MultipleSelect
+    '숙박박수(크리에이터 사이드)'?: number; // CHANGED: 크리에이터 쿠폰 숙박 박수 (디폴트 2)
   };
 }
 

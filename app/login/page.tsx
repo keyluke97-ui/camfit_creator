@@ -141,25 +141,7 @@ export default function LoginPage() {
                     </p>
                 </div>
 
-                {/* 3회 이상 실패 시 상단 경고 배너 */}
-                {failCount >= 3 && (
-                    <div className="mb-5 p-5 bg-amber-500/10 border border-amber-500/50 rounded-lg">
-                        <p className="text-amber-400 font-bold text-sm mb-2">
-                            여러 번 로그인에 실패했습니다
-                        </p>
-                        <p className="text-amber-300/80 text-sm mb-3">
-                            카카오톡 채널로 문의해주시면 등록 정보를 확인해드립니다.
-                        </p>
-                        <a
-                            href={KAKAO_CHANNEL_URL}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center justify-center w-full h-12 bg-[#FEE500] text-[#3C1E1E] font-bold rounded-lg hover:bg-[#F5DC00] transition-colors text-sm"
-                        >
-                            카카오톡 채널로 문의하기
-                        </a>
-                    </div>
-                )}
+                {/* CHANGED: 상단 중복 배너 제거 — 인라인 카카오톡 안내(failCount >= 2)로 통합 */}
 
                 {/* 로그인 폼 */}
                 <form onSubmit={handleSubmit} className="space-y-5">
@@ -246,7 +228,7 @@ export default function LoginPage() {
                             {failCount >= 2 && (
                                 <div className="p-4 bg-[#FEE500]/10 border border-[#FEE500]/50 rounded-lg">
                                     <p className="text-[#FEE500] font-bold text-sm mb-1">
-                                        로그인 정보가 기억나지 않으시나요?
+                                        여러 번 로그인에 실패했습니다
                                     </p>
                                     <p className="text-[#B0B0B0] text-xs mb-3">
                                         카카오톡으로 문의하시면 빠르게 확인 도와드립니다.

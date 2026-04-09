@@ -6,6 +6,8 @@ import { useState } from 'react';
 import type { PartnerCampaign } from '@/types';
 import PartnerApplicationModal from './PartnerApplicationModal';
 import HighlightsModal from './HighlightsModal';
+// CHANGED: 모집현황 텍스트 → 프로그레스 바로 교체
+import RecruitmentProgressBar from './RecruitmentProgressBar';
 
 interface PartnerCampaignCardProps {
     campaign: PartnerCampaign;
@@ -77,22 +79,16 @@ export default function PartnerCampaignCard({
                 {campaign.accommodationName}
             </h3>
 
-            {/* 숙박 타입 뱃지 */}
-            <div className="flex flex-wrap gap-1.5 mb-3">
-                <span className={`px-2.5 py-1 text-xs font-medium border rounded-full ${stayConfig.color}`}>
-                    {stayConfig.label}
-                </span>
-                {campaign.holidayCouponApplied && (
-                    <span className="px-2.5 py-1 text-xs font-medium bg-orange-500/15 text-orange-400 border border-orange-500/30 rounded-full">
-                        공휴일 적용
-                    </span>
-                )}
-            </div>
+            {/* CHANGED: 핵심 혜택 1줄 요약 — 카드 상단에서 즉시 인지 */}
+            <p className="text-base font-bold text-[#01DF82] mb-3">
+                평일 {formatDiscount(campaign.weekdayDiscount)}
+                {campaign.weekendDiscount > 0 && ` / 주말 ${formatDiscount(campaign.weekendDiscount)}`} 할인
+            </p>
 
-            {/* CHANGED: 팔로워 할인 쿠폰 — 크리에이터가 아닌 팔로워에게 제공됨을 명확화 */}
+            {/* CHANGED: 팔로워 쿠폰 관련 정보를 하나의 박스로 통합 (입실기간, 적용요일, 쿠폰수 포함) */}
             <div className="bg-[#01DF82]/10 border border-[#01DF82] rounded-lg p-4 mb-4">
                 <p className="text-sm text-[#B0B0B0] mb-2">팔로워 할인 쿠폰</p>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 mb-3">
                     <div>
                         <p className="text-xs text-[#9CA3AF]">평일</p>
                         <p className="text-2xl font-bold text-[#01DF82]">
@@ -111,9 +107,28 @@ export default function PartnerCampaignCard({
                         </>
                     )}
                 </div>
+                <div className="border-t border-[#01DF82]/30 pt-2 space-y-2">
+                    {/* CHANGED: 공휴일 적용 뱃지 제거 — stayType에 이미 포함됨 */}
+                    <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-[#9CA3AF]">적용 요일</span>
+                        <span className={`px-2.5 py-1 text-xs font-medium border rounded-full ${stayConfig.color}`}>
+                            {stayConfig.label}
+                        </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-[#9CA3AF]">입실 가능</span>
+                        <span className="text-xs text-[#D0D0D0]">
+                            {campaign.couponStartDate} ~ {campaign.couponEndDate}
+                        </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-[#9CA3AF]">1인당 쿠폰</span>
+                        <span className="text-xs font-semibold text-white">{perPersonCoupon}장</span>
+                    </div>
+                </div>
             </div>
 
-            {/* 방문 기간 + 쿠폰 유효기간 */}
+            {/* 크리에이터 방문 기간 + 잔여 인원 */}
             <div className="space-y-2 mb-4">
                 <div className="flex items-center gap-2">
                     <span className="text-lg">📅</span>
@@ -121,28 +136,14 @@ export default function PartnerCampaignCard({
                         크리에이터 방문 가능: {campaign.visitStartDate} ~ {campaign.visitEndDate}
                     </span>
                 </div>
-                <div className="flex items-center gap-2">
-                    <span className="text-lg">🎫</span>
-                    <span className="text-sm text-[#B0B0B0]">
-                        팔로워 쿠폰 입실 가능: {campaign.couponStartDate} ~ {campaign.couponEndDate}
-                    </span>
-                </div>
             </div>
 
-            {/* CHANGED: 1인당 팔로워 쿠폰 수 + 모집 현황 */}
-            <div className="flex items-center justify-between mb-4 pb-4 border-b border-[#333333]">
-                <div className="flex items-center gap-2">
-                    <span className="text-sm text-[#B0B0B0]">1인당 팔로워 쿠폰</span>
-                    <span className="text-sm font-semibold text-white">
-                        {perPersonCoupon}장
-                    </span>
-                </div>
-                <div className="flex items-center gap-2">
-                    <span className="text-sm text-[#B0B0B0]">잔여</span>
-                    <span className="text-sm font-semibold text-white">
-                        {campaign.availableCount}명
-                    </span>
-                </div>
+            {/* CHANGED: 잔여 인원 텍스트 → 프로그레스 바로 교체 */}
+            <div className="mb-4 pb-4 border-b border-[#333333]">
+                <RecruitmentProgressBar
+                    totalCount={campaign.totalRecruitCount}
+                    availableCount={campaign.availableCount}
+                />
             </div>
 
             {/* 숙소 소개 미리보기 + 자세히 보기 */}

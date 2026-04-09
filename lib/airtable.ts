@@ -172,7 +172,8 @@ export async function authenticateCreator(
             channelName,
             tier,
             channelTypes,
-            premiumId
+            premiumId,
+            notificationEnabled: fields['캠페인 알림'] !== false // CHANGED: 알림 상태 반환 (기본 true)
         };
     } catch (error) {
         console.error('Creator authentication error:', error);
@@ -638,6 +639,7 @@ function mapPartnerCampaignRecord(
         couponEndDate: fields['쿠폰 유효 종료일'] || '',
         camfitLink: fields['캠핏링크'] || '', // CHANGED: 캠핑장 바로가기 링크 매핑
         siteTypes: fields['제공 가능한 사이트 종류'] || [], // CHANGED: 사이트 종류 매핑
+        creatorStayNights: fields['숙박박수(크리에이터 사이드)'] || 2, // CHANGED: 크리에이터 숙박 박수 매핑 (디폴트 2)
         isClosed: isPartnerCampaignClosed(recruitmentStatus, availableCount)
     };
 }
@@ -921,7 +923,8 @@ export async function enrichPartnerApplications(
                 siteTypes: campaign.siteTypes,
                 accommodationDescription: campaign.accommodationDescription,
                 followerCouponCount: campaign.followerCouponCount,
-                totalRecruitCount: campaign.totalRecruitCount
+                totalRecruitCount: campaign.totalRecruitCount,
+                creatorStayNights: campaign.creatorStayNights
             };
         });
     } catch (error) {
@@ -993,6 +996,19 @@ export async function updatePartnerApplicationStatus(
         return true;
     } catch (error) {
         console.error('Update partner application status error:', error);
+        throw error;
+    }
+}
+
+// CHANGED: 캠페인 알림 토글 함수 추가
+export async function updateCreatorNotification(recordId: string, enabled: boolean): Promise<boolean> {
+    try {
+        await creatorTable().update(recordId, {
+            '캠페인 알림': enabled
+        } as unknown as Partial<FieldSet>);
+        return true;
+    } catch (error) {
+        console.error('Update notification error:', error);
         throw error;
     }
 }
