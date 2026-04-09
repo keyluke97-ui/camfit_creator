@@ -16,6 +16,9 @@ import { hasPartnerEligibleChannel, KAKAO_CHANNEL_URL } from '@/lib/constants';
 
 type TabType = 'premium' | 'partner';
 
+// CHANGED: 파트너 오픈 준비중 플래그 — 오픈 시 false로 변경하면 정상 노출
+const PARTNER_COMING_SOON = true;
+
 // CHANGED: premiumId 추가 — 프리미엄 탭 활성/비활성 분기용
 // CHANGED: notificationEnabled 추가 — 알림 토글 상태
 interface UserInfo {
@@ -218,12 +221,10 @@ function DashboardContent() {
                     {/* Top Row */}
                     <div className="flex items-center justify-between mb-4">
                         <div className="flex flex-col gap-1">
-                            <div className="flex items-center gap-2">
-                                <h1 className="text-xl font-bold text-white truncate max-w-[200px]">
-                                    {userInfo?.channelName || '로딩 중...'}
-                                </h1>
-                                {userInfo && getTierBadge(userInfo.tier)}
-                            </div>
+                            {/* CHANGED: 크리에이터 등급 뱃지 일시 삭제 */}
+                            <h1 className="text-xl font-bold text-white truncate max-w-[200px]">
+                                {userInfo?.channelName || '로딩 중...'}
+                            </h1>
                             <p className="text-xs text-[#888888]">오늘도 즐거운 캠핑 되세요! ⛺️</p>
                         </div>
 
@@ -400,7 +401,30 @@ function DashboardContent() {
                 )}
 
                 {/* ──── 파트너 탭 콘텐츠 ──── */}
-                {!loading && effectiveTab === 'partner' && (
+                {/* CHANGED: 파트너 오픈 준비중 플래그 — false로 바꾸면 정상 노출 */}
+                {!loading && effectiveTab === 'partner' && PARTNER_COMING_SOON && (
+                    <div className="flex flex-col items-center justify-center py-20 gap-6">
+                        <div className="w-20 h-20 bg-[#01DF82]/10 rounded-full flex items-center justify-center">
+                            <span className="text-4xl">🚀</span>
+                        </div>
+                        <div className="text-center">
+                            <h3 className="text-lg font-bold text-white mb-2">파트너 협찬 오픈 준비중</h3>
+                            <p className="text-sm text-[#888888] leading-relaxed">
+                                곧 다양한 캠핑장 파트너 협찬이 오픈됩니다!<br />
+                                조금만 기다려주세요.
+                            </p>
+                        </div>
+                        <a
+                            href={KAKAO_CHANNEL_URL}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-center w-full max-w-xs h-12 bg-[#FEE500] text-[#3C1E1E] font-bold rounded-lg hover:bg-[#F5DC00] transition-colors text-sm"
+                        >
+                            카카오톡에서 오픈 소식 받기
+                        </a>
+                    </div>
+                )}
+                {!loading && effectiveTab === 'partner' && !PARTNER_COMING_SOON && (
                     <>
                         {/* Stats Bar */}
                         {partnerCampaigns.length > 0 && (

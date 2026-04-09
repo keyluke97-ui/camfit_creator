@@ -66,7 +66,7 @@ export default function DashboardTabs({
                             : 'text-[#888888] hover:text-white'
                     }`}
                 >
-                    캠핏 파트너
+                    파트너 협찬
                 </button>
             </div>
 
