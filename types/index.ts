@@ -43,6 +43,7 @@ export interface Campaign {
   isClosed: boolean;
   siteTypes?: string[]; // CHANGED: 제공 가능한 사이트 종류 추가
   highlights?: string; // CHANGED: 숙소의 특장점 필드 추가
+  hostInstagram?: string; // CHANGED: 캠지기 인스타그램 계정 필드 추가
 }
 
 export interface AirtableUserRecord {
@@ -87,6 +88,8 @@ export interface AirtableCampaignRecord {
     '제공 가능한 사이트 종류'?: string[];
     // CHANGED: 숙소의 특장점 Long Text 필드 추가
     '숙소의 특장점'?: string;
+    // CHANGED: 캠지기 인스타그램 계정 필드 추가
+    '캠지기인스타그램'?: string;
   };
 }
 
@@ -116,6 +119,9 @@ export interface Application {
   couponCode?: string;     // New
   reservationStatus?: string; // New
   isDepositConfirmed?: boolean; // New
+  detailUrl?: string; // CHANGED: 협찬 조건 복사용 숙소 링크
+  highlights?: string; // CHANGED: 협찬 조건 복사용 캠지기 포인트
+  deadline?: string; // CHANGED: 제작 기한
 }
 
 // ──────────────────────────────────────────────
@@ -212,6 +218,42 @@ export interface PremiumRegisterFormData {
 export interface PremiumRegisterPayload extends PremiumRegisterFormData {
   creatorId: string;
   channelName: string;
+}
+
+// ──────────────────────────────────────────────
+// 콘텐츠 업로드 타입
+// ──────────────────────────────────────────────
+
+// CHANGED: 콘텐츠 전달 탭 — 협찬 종류 (캠핑 용품 제외)
+export type SponsorshipType = '캠핑장 예약' | '프리미엄 협찬';
+
+// CHANGED: 콘텐츠 제출 요청 페이로드
+export interface ContentSubmitPayload {
+    creatorListRecordId: string;          // 크리에이터 명단 linked record (로그인 자동)
+    sponsorshipType: SponsorshipType;
+    uploadDate: string;
+    contentLink: string;
+    // 숙소 협찬 (캠핑장 예약)
+    accommodationRecordId?: string;       // 캠핑장목록 linked record
+    camfitLoungeUrl?: string;             // 캠핏 라운지 콘텐츠 업로드 URL
+    officialCollabRequest?: boolean;      // 캠핏 오피셜 공동작업 요청
+    // 프리미엄 협찬
+    premiumCampaignRecordId?: string;     // 캠지기 모집 폼 linked record
+    premiumRegistrationRecordId?: string; // 프리미엄 협찬 신청 인플루언서 linked record (premiumId 자동)
+}
+
+// CHANGED: 콘텐츠 업로드 조회 도메인 타입
+export interface ContentUpload {
+    id: string;
+    channelName: string;                  // 크리에이터 채널명 (lookup)
+    sponsorshipType: string;
+    uploadDate: string;
+    contentLink: string;
+    accommodationName?: string;
+    camfitLoungeUrl?: string;
+    officialCollabRequest?: boolean;
+    premiumCampaignName?: string;
+    createdAt: string;
 }
 
 export interface AirtablePartnerCampaignRecord {

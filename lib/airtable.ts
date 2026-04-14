@@ -13,7 +13,9 @@ import type {
     PartnerCampaign,
     PartnerApplication,
     AirtablePartnerCampaignRecord,
-    AirtablePartnerApplicationRecord
+    AirtablePartnerApplicationRecord,
+    ContentSubmitPayload,
+    ContentUpload
 } from '@/types';
 
 /**
@@ -67,6 +69,9 @@ let _applicationTable: ReturnType<typeof getTable> | null = null;
 let _creatorTable: ReturnType<typeof getTable> | null = null;
 let _partnerCampaignTable: ReturnType<typeof getTable> | null = null;
 let _partnerApplicationTable: ReturnType<typeof getTable> | null = null;
+// CHANGED: 콘텐츠 업로드 + 캠핑장목록 테이블 추가
+let _contentUploadTable: ReturnType<typeof getTable> | null = null;
+let _accommodationTable: ReturnType<typeof getTable> | null = null;
 
 const userTable = () => (_userTable ??= getTable('AIRTABLE_USER_TABLE_ID'));
 const campaignTable = () => (_campaignTable ??= getTable('AIRTABLE_CAMPAIGN_TABLE_ID'));
@@ -74,6 +79,9 @@ const applicationTable = () => (_applicationTable ??= getTable('AIRTABLE_APPLICA
 const creatorTable = () => (_creatorTable ??= getTable('AIRTABLE_CREATOR_TABLE_ID'));
 const partnerCampaignTable = () => (_partnerCampaignTable ??= getTable('AIRTABLE_PARTNER_CAMPAIGN_TABLE_ID'));
 const partnerApplicationTable = () => (_partnerApplicationTable ??= getTable('AIRTABLE_PARTNER_APPLICATION_TABLE_ID'));
+// CHANGED: 콘텐츠 업로드 + 캠핑장목록 테이블 getter
+const contentUploadTable = () => (_contentUploadTable ??= getTable('AIRTABLE_CONTENT_UPLOAD_TABLE_ID'));
+const accommodationTable = () => (_accommodationTable ??= getTable('AIRTABLE_ACCOMMODATION_TABLE_ID'));
 
 /**
  * 등급별 필드명 매핑
@@ -204,6 +212,8 @@ export async function getCampaigns(tier: TierLevel): Promise<Campaign[]> {
             const siteTypes = fields['제공 가능한 사이트 종류'] || [];
             // CHANGED: 숙소의 특장점 매핑 추가
             const highlights = fields['숙소의 특장점'] || '';
+            // CHANGED: 캠지기 인스타그램 계정 매핑 추가
+            const hostInstagram = fields['캠지기인스타그램'] || '';
 
             return {
                 id: rec.id,
@@ -215,7 +225,8 @@ export async function getCampaigns(tier: TierLevel): Promise<Campaign[]> {
                 tierData: { price, totalCount, availableCount },
                 isClosed: isCampaignClosed(availableCount, price),
                 siteTypes,
-                highlights: highlights || undefined
+                highlights: highlights || undefined,
+                hostInstagram: hostInstagram || undefined
             };
         });
     } catch (error) {
@@ -419,6 +430,10 @@ export async function getUserApplications(channelName: string): Promise<Applicat
             let accommodationName = 'Unknown';
             let couponCode = '';
             let campaignId = '';
+            // CHANGED: 협찬 조건 복사용 추가 필드
+            let detailUrl = '';
+            let highlights = '';
+            let deadline = '';
 
             if (fields['숙소 이름 (유료 오퍼)'] && fields['숙소 이름 (유료 오퍼)'].length > 0) {
                 campaignId = fields['숙소 이름 (유료 오퍼)'][0];
@@ -426,6 +441,10 @@ export async function getUserApplications(channelName: string): Promise<Applicat
                     const campRecord = await campaignTable().find(campaignId) as unknown as AirtableCampaignRecord;
                     accommodationName = campRecord.fields['숙소 이름을 적어주세요.'] || 'Unknown';
                     couponCode = campRecord.fields['쿠폰코드'] || '';
+                    // CHANGED: 협찬 조건 복사용 필드 매핑
+                    detailUrl = campRecord.fields['숙소 링크 (캠핏 내 상세페이지만 삽입 가능)'] || '';
+                    highlights = campRecord.fields['숙소의 특장점'] || '';
+                    deadline = campRecord.fields['⏰ 콘텐츠 제작 기한'] || '';
                 } catch (campaignFetchError) {
                     // CHANGED: 에러 삼킴 방지 — 캠페인 조회 실패 시 로깅 복구
                     console.error('Failed to fetch campaign details for ID:', campaignId, campaignFetchError);
@@ -441,7 +460,10 @@ export async function getUserApplications(channelName: string): Promise<Applicat
                 status: fields['Status'] || '',
                 couponCode,
                 reservationStatus: fields['예약 취소/변경'] || '',
-                isDepositConfirmed: fields['입금내역 확인'] || false
+                isDepositConfirmed: fields['입금내역 확인'] || false,
+                detailUrl: detailUrl || undefined,
+                highlights: highlights || undefined,
+                deadline: deadline || undefined
             };
         }));
 
@@ -1011,5 +1033,240 @@ export async function updateCreatorNotification(recordId: string, enabled: boole
     } catch (error) {
         console.error('Update notification error:', error);
         throw error;
+    }
+}
+
+// ──────────────────────────────────────────────
+// 콘텐츠 업로드 함수
+// ──────────────────────────────────────────────
+
+// CHANGED: 캠핑장목록 검색 — 콘텐츠 제출 시 숙소 선택 드롭다운용
+export async function searchAccommodations(query?: string): Promise<{ id: string; name: string }[]> {
+    try {
+        const options: AirtableSelectOptionsWithCellFormat = {
+            fields: ['캠핑장명'],
+            maxRecords: 50
+        };
+
+        if (query && query.trim()) {
+            options.filterByFormula = `SEARCH(LOWER("${escapeAirtableValue(query.trim())}"), LOWER({캠핑장명}))`;
+        }
+
+        const records = await accommodationTable()
+            .select(options as Record<string, unknown>)
+            .all();
+
+        const results = records
+            .map((record) => ({
+                id: record.id,
+                name: (record.get('캠핑장명') as string) || ''
+            }))
+            .filter((item) => item.name.length > 0);
+
+        // CHANGED: 이름 기준 중복 제거 (같은 캠핑장명이 여러 레코드로 존재할 수 있음)
+        const seen = new Set<string>();
+        const deduplicated = results.filter((item) => {
+            if (seen.has(item.name)) return false;
+            seen.add(item.name);
+            return true;
+        });
+
+        return deduplicated.sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+    } catch (error) {
+        console.error('Search accommodations error:', error);
+        return [];
+    }
+}
+
+// CHANGED: 프리미엄 캠페인 검색 — 크리에이터의 신청 내역 기반으로 본인이 신청한 캠페인만 반환
+export async function searchCreatorPremiumCampaigns(
+    channelName: string,
+    creatorRecordId: string,
+    query?: string
+): Promise<{ id: string; name: string }[]> {
+    try {
+        // 1단계: 크리에이터의 프리미엄 신청 내역에서 캠페인 ID + 입실일 추출
+        const formula = `{크리에이터 채널명} = "${escapeAirtableValue(channelName)}"`;
+        const applicationRecords = await applicationTable()
+            .select({
+                filterByFormula: formula,
+                fields: ['숙소 이름 (유료 오퍼)', '크리에이터 채널명', '입실일']
+            } as Record<string, unknown>)
+            .all();
+
+        // linked record에서 캠페인 ID + 입실일 매핑
+        const campaignMap = new Map<string, string>(); // campaignId → 입실일
+        for (const record of applicationRecords) {
+            const linkedCampaigns = record.get('숙소 이름 (유료 오퍼)') as string[] | undefined;
+            const checkInDate = (record.get('입실일') as string) || '';
+            if (Array.isArray(linkedCampaigns)) {
+                linkedCampaigns.forEach((id) => {
+                    // 입실일이 있는 신청건을 우선 보존
+                    if (!campaignMap.has(id) || checkInDate) {
+                        campaignMap.set(id, checkInDate);
+                    }
+                });
+            }
+        }
+
+        if (campaignMap.size === 0) return [];
+
+        // 2단계: 콘텐츠 업로드 테이블에서 이미 제출된 캠페인 ID 추출
+        const submittedCampaignIds = new Set<string>();
+        try {
+            const creatorFormula = `FIND("${escapeAirtableValue(creatorRecordId)}", ARRAYJOIN({크리에이터 명단}))`;
+            const contentRecords = await contentUploadTable()
+                .select({
+                    filterByFormula: creatorFormula
+                } as Record<string, unknown>)
+                .all();
+
+            for (const record of contentRecords) {
+                const sponsorshipType = record.get('협찬의 종류를 골라주세요') as string;
+                if (sponsorshipType !== '프리미엄 협찬') continue;
+
+                const premiumCampaignLinks = record.get('프리미엄 협찬 캠핑장 이름') as string[] | undefined;
+                if (Array.isArray(premiumCampaignLinks)) {
+                    premiumCampaignLinks.forEach((id) => submittedCampaignIds.add(id));
+                }
+            }
+        } catch {
+            // 콘텐츠 업로드 조회 실패 시 필터링 없이 진행
+        }
+
+        // 이미 제출된 캠페인 제외
+        for (const campaignId of submittedCampaignIds) {
+            campaignMap.delete(campaignId);
+        }
+
+        if (campaignMap.size === 0) return [];
+
+        // 3단계: 해당 캠페인들의 숙소 이름 조회 + 입실일로 같은 캠핑장 구분
+        const campaignResults: { id: string; name: string }[] = [];
+        for (const [campaignId, checkInDate] of campaignMap) {
+            try {
+                const record = await campaignTable().find(campaignId);
+                const accommodationName = (record.get('숙소 이름을 적어주세요.') as string) || '';
+                if (accommodationName) {
+                    // CHANGED: 입실일로 같은 캠핑장의 다른 신청건 구분 (크리에이터가 아는 정보)
+                    const displayName = checkInDate
+                        ? `${accommodationName} (입실: ${checkInDate})`
+                        : accommodationName;
+                    campaignResults.push({ id: campaignId, name: displayName });
+                }
+            } catch {
+                // 삭제된 캠페인 무시
+            }
+        }
+
+        // 3단계: 검색어 필터링
+        let filtered = campaignResults;
+        if (query && query.trim()) {
+            const lowerQuery = query.trim().toLowerCase();
+            // CHANGED: deduplicated → campaignResults (올바른 변수 참조)
+            filtered = campaignResults.filter((item) =>
+                item.name.toLowerCase().includes(lowerQuery)
+            );
+        }
+
+        return filtered.sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+    } catch (error) {
+        console.error('Search creator premium campaigns error:', error);
+        return [];
+    }
+}
+
+// CHANGED: 콘텐츠 제출 — 인플루언서 컨텐츠 업로드 테이블에 레코드 생성
+export async function submitContentUpload(payload: ContentSubmitPayload): Promise<{ recordId: string }> {
+    try {
+        const fields: Record<string, unknown> = {
+            '크리에이터 명단': [payload.creatorListRecordId],
+            '협찬의 종류를 골라주세요': payload.sponsorshipType,
+            '업로드 날짜': payload.uploadDate,
+            '콘텐츠 링크': payload.contentLink,
+        };
+
+        // 숙소 협찬 (캠핑장 예약)
+        if (payload.accommodationRecordId) {
+            fields['캠핑장 이름 OR 캠핑 용품 이름'] = [payload.accommodationRecordId];
+        }
+        if (payload.camfitLoungeUrl) {
+            fields['캠핏 라운지 콘텐츠 업로드'] = payload.camfitLoungeUrl;
+        }
+        if (payload.officialCollabRequest) {
+            fields['캠핏 오피셜 계정 공동작업 요청'] = true;
+        }
+
+        // 프리미엄 협찬
+        if (payload.premiumCampaignRecordId) {
+            fields['프리미엄 협찬 캠핑장 이름'] = [payload.premiumCampaignRecordId];
+        }
+        if (payload.premiumRegistrationRecordId) {
+            fields['프리미엄 협찬을 신청했나요?'] = [payload.premiumRegistrationRecordId];
+        }
+
+        const record = await contentUploadTable().create(fields as unknown as Partial<FieldSet>);
+        return { recordId: record.id };
+    } catch (error) {
+        console.error('Submit content upload error:', error);
+        throw error;
+    }
+}
+
+// CHANGED: 내 콘텐츠 조회 — ARRAYJOIN({크리에이터 명단})은 primary field(채널명)를 반환하므로 channelName으로 필터링
+export async function getCreatorContentUploads(channelName: string): Promise<ContentUpload[]> {
+    try {
+        const formula = `FIND("${escapeAirtableValue(channelName)}", ARRAYJOIN({크리에이터 명단}))`;
+
+        const records = await contentUploadTable()
+            .select({
+                filterByFormula: formula
+            } as Record<string, unknown>)
+            .all();
+
+        const uploads: ContentUpload[] = records.map((record) => {
+            // lookup 필드에서 캠핑장명 추출
+            const accommodationNames = record.get('캠핑장명 (from 캠핑장 이름 OR 캠핑 용품 이름)') as string[] | undefined;
+            const accommodationName = Array.isArray(accommodationNames) && accommodationNames.length > 0
+                ? accommodationNames[0]
+                : undefined;
+
+            // lookup 필드에서 프리미엄 캠페인명 추출
+            const premiumNames = record.get('숙소 이름을 적어주세요. (from 캠지기 모집 폼)') as string[] | undefined;
+            const premiumCampaignName = Array.isArray(premiumNames) && premiumNames.length > 0
+                ? premiumNames[0]
+                : undefined;
+
+            // lookup 필드에서 크리에이터 채널명 추출
+            const channelNames = record.get('크리에이터 채널명 (from 크리에이터 명단)') as string[] | undefined;
+            const channelName = Array.isArray(channelNames) && channelNames.length > 0
+                ? channelNames[0]
+                : '';
+
+            return {
+                id: record.id,
+                channelName,
+                sponsorshipType: (record.get('협찬의 종류를 골라주세요') as string) || '',
+                uploadDate: (record.get('업로드 날짜') as string) || '',
+                contentLink: (record.get('콘텐츠 링크') as string) || '',
+                accommodationName,
+                camfitLoungeUrl: (record.get('캠핏 라운지 콘텐츠 업로드') as string) || undefined,
+                officialCollabRequest: (record.get('캠핏 오피셜 계정 공동작업 요청') as boolean) || false,
+                premiumCampaignName,
+                createdAt: (record.get('Created') as string) || ''
+            };
+        });
+
+        // 업로드 날짜 내림차순 정렬 (cellFormat: 'string' 미사용이므로 직접 비교)
+        uploads.sort((a, b) => {
+            if (!a.uploadDate) return 1;
+            if (!b.uploadDate) return -1;
+            return b.uploadDate.localeCompare(a.uploadDate);
+        });
+
+        return uploads;
+    } catch (error) {
+        console.error('Get creator content uploads error:', error);
+        return [];
     }
 }

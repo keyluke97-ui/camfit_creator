@@ -23,6 +23,8 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
 
     // CHANGED: 인라인 에러 메시지 (alert 대체)
     const [errorMessage, setErrorMessage] = useState('');
+    // CHANGED: 협찬 조건 복사 피드백
+    const [copiedAppId, setCopiedAppId] = useState<string | null>(null);
 
     // CHANGED: 더블클릭 방지용 동기적 잠금
     const isSavingRef = useRef(false);
@@ -202,10 +204,64 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
         setErrorMessage(''); // CHANGED: 목록으로 돌아갈 때 에러 초기화
     };
 
+    // CHANGED: 협찬 조건 복사
+    const handleCopyConditions = async (app: Application) => {
+        const lines: string[] = [];
+        lines.push(`📌 숙소: ${app.accommodationName}`);
+        if (app.couponCode) lines.push(`📌 쿠폰 코드: ${app.couponCode}`);
+        if (app.deadline) lines.push(`📌 제작 기한: ${app.deadline}`);
+        if (app.highlights) {
+            lines.push('');
+            lines.push('✨ 캠지기님이 자랑하고 싶은 포인트');
+            lines.push(app.highlights);
+        }
+        if (app.detailUrl) {
+            lines.push('');
+            lines.push('📌 콘텐츠 제작 시 필수 사항');
+            lines.push(`• 캡션/더보기란에 숙소 링크 포함: ${app.detailUrl}`);
+        }
+        const text = lines.join('\n');
+        try {
+            await navigator.clipboard.writeText(text);
+        } catch {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+        }
+        setCopiedAppId(app.id);
+        setTimeout(() => setCopiedAppId(null), 2000);
+    };
+
     if (!isOpen) return null;
 
     // 앱이 등록 완료 상태인지 확인
     const isRegistered = (app: Application) => !!(app.checkInDate && app.checkInSite);
+
+    // CHANGED: 입실일 지난 캠페인 분리 + 정렬
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const isPast = (app: Application) => isRegistered(app) && app.checkInDate < today;
+
+    const activeApps = applications
+        .filter(app => !isPast(app))
+        .sort((a, b) => {
+            // 미등록이 가장 위
+            const aRegistered = isRegistered(a);
+            const bRegistered = isRegistered(b);
+            if (!aRegistered && bRegistered) return -1;
+            if (aRegistered && !bRegistered) return 1;
+            // 등록된 것끼리는 입실일 가까운 순
+            if (a.checkInDate && b.checkInDate) return a.checkInDate.localeCompare(b.checkInDate);
+            return 0;
+        });
+
+    const completedApps = applications
+        .filter(app => isPast(app))
+        .sort((a, b) => b.checkInDate.localeCompare(a.checkInDate)); // 최근 완료 순
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/80 backdrop-blur-sm">
@@ -240,16 +296,15 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
                             </div>
                         ) : (
                             <div className="space-y-4">
-                                {applications.map(app => (
+                                {/* CHANGED: 활성 캠페인 (미등록 우선 + 입실일 가까운 순) */}
+                                {activeApps.map(app => (
                                     <div
                                         key={app.id}
                                         className="bg-[#111111] border border-[#333333] rounded-xl p-4 space-y-4"
                                     >
-                                        {/* 캠핑장 이름 */}
                                         <h3 className="text-white font-bold text-lg">{app.accommodationName}</h3>
 
                                         {isRegistered(app) ? (
-                                            /* 등록 완료 상태 */
                                             <div className="space-y-3">
                                                 <div className="flex gap-4">
                                                     <div className="flex-1">
@@ -261,12 +316,21 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
                                                         <p className="text-white font-medium">{app.checkInSite}</p>
                                                     </div>
                                                 </div>
-
-                                                {/* 저장 완료 메시지 */}
                                                 <p className="text-sm text-[#01DF82] font-medium">✨ 예약 정보가 저장되었습니다.</p>
 
-                                                {/* 변경/취소 버튼 */}
-                                                <div className="grid grid-cols-2 gap-2 pt-2">
+                                                {/* CHANGED: 협찬 조건 복사 버튼 */}
+                                                <button
+                                                    onClick={() => handleCopyConditions(app)}
+                                                    className="w-full h-9 bg-[#2A2A2A] border border-[#444] text-[#D0D0D0] rounded-lg text-xs hover:bg-[#333] transition-colors flex items-center justify-center gap-1.5"
+                                                >
+                                                    {copiedAppId === app.id ? (
+                                                        <><svg className="w-3.5 h-3.5 text-[#01DF82]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>복사 완료!</>
+                                                    ) : (
+                                                        <><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>협찬 조건 복사</>
+                                                    )}
+                                                </button>
+
+                                                <div className="grid grid-cols-2 gap-2 pt-1">
                                                     <button
                                                         onClick={() => handleActionStart(app, 'change')}
                                                         className="h-10 border border-[#444444] text-[#CCCCCC] rounded-lg text-sm hover:bg-[#2A2A2A] transition-colors"
@@ -282,7 +346,6 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
                                                 </div>
                                             </div>
                                         ) : (
-                                            /* 미등록 상태 - 입력 폼 */
                                             <div className="space-y-3">
                                                 <div className="flex gap-3">
                                                     <div className="flex-1">
@@ -306,6 +369,18 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
                                                     </div>
                                                 </div>
 
+                                                {/* CHANGED: 협찬 조건 복사 버튼 (미등록 상태에서도 표시) */}
+                                                <button
+                                                    onClick={() => handleCopyConditions(app)}
+                                                    className="w-full h-9 bg-[#2A2A2A] border border-[#444] text-[#D0D0D0] rounded-lg text-xs hover:bg-[#333] transition-colors flex items-center justify-center gap-1.5"
+                                                >
+                                                    {copiedAppId === app.id ? (
+                                                        <><svg className="w-3.5 h-3.5 text-[#01DF82]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>복사 완료!</>
+                                                    ) : (
+                                                        <><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>협찬 조건 복사</>
+                                                    )}
+                                                </button>
+
                                                 <button
                                                     onClick={() => handleSave(app.id)}
                                                     disabled={savingId === app.id || !formData[app.id]?.date || !formData[app.id]?.site}
@@ -321,6 +396,34 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
                                         )}
                                     </div>
                                 ))}
+
+                                {/* CHANGED: 완료된 캠페인 (입실일 지난 것) */}
+                                {completedApps.length > 0 && (
+                                    <div className="space-y-3 pt-4 border-t border-[#333333]">
+                                        <p className="text-xs text-[#888888] font-medium">완료된 캠페인</p>
+                                        {completedApps.map(app => (
+                                            <div
+                                                key={app.id}
+                                                className="bg-[#111111] border border-[#333333] rounded-xl p-4 opacity-60"
+                                            >
+                                                <div className="flex items-center justify-between">
+                                                    <h3 className="text-white font-bold">{app.accommodationName}</h3>
+                                                    <span className="text-xs text-[#888888] bg-[#2A2A2A] px-2 py-0.5 rounded-full">완료</span>
+                                                </div>
+                                                <div className="flex gap-4 mt-2">
+                                                    <div className="flex-1">
+                                                        <span className="text-xs text-[#888888]">입실일</span>
+                                                        <p className="text-[#B0B0B0] text-sm">{app.checkInDate}</p>
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <span className="text-xs text-[#888888]">입실 사이트</span>
+                                                        <p className="text-[#B0B0B0] text-sm">{app.checkInSite}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         )
                     ) : step === 2 ? (

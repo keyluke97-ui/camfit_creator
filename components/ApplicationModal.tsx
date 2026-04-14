@@ -1,15 +1,16 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import type { Campaign } from '@/types';
+import type { Campaign, ChannelType } from '@/types';
 
 interface ApplicationModalProps {
     isOpen: boolean;
     onClose: () => void;
     campaign: Campaign;
+    channelTypes?: ChannelType[]; // CHANGED: 콘텐츠 제작 필수사항 표시용
 }
 
-export default function ApplicationModal({ isOpen, onClose, campaign }: ApplicationModalProps) {
+export default function ApplicationModal({ isOpen, onClose, campaign, channelTypes }: ApplicationModalProps) {
     const [step, setStep] = useState(1);
     const [inputValue, setInputValue] = useState('');
     const [inputValues2, setInputValues2] = useState({ understand: '', agree: '' });
@@ -18,6 +19,7 @@ export default function ApplicationModal({ isOpen, onClose, campaign }: Applicat
     const [error, setError] = useState('');
     const [couponCode, setCouponCode] = useState('');
     const [isCopied, setIsCopied] = useState(false);
+    const [isHighlightsExpanded, setIsHighlightsExpanded] = useState(false); // CHANGED: Step 3 캠지기 포인트 접기/펼치기
 
     const modalRef = useRef<HTMLDivElement>(null);
     // CHANGED: 더블클릭 방지용 동기적 잠금 (React state는 비동기라 race condition 발생 가능)
@@ -44,18 +46,11 @@ export default function ApplicationModal({ isOpen, onClose, campaign }: Applicat
     };
 
     const handleNext = async () => {
+        // CHANGED: Step 1/2는 입력 없이 버튼 클릭으로 바로 진행
         if (step === 1) {
-            if (inputValue !== '이해') {
-                setError("'이해'라고 정확히 입력해주세요.");
-                return;
-            }
             setStep(2);
             setError('');
         } else if (step === 2) {
-            if (inputValues2.understand !== '이해' || inputValues2.agree !== '동의') {
-                setError("'이해'와 '동의'를 모두 정확히 입력해주세요.");
-                return;
-            }
             setStep(3);
             setError('');
         } else if (step === 3) {
@@ -118,6 +113,48 @@ export default function ApplicationModal({ isOpen, onClose, campaign }: Applicat
         }
     };
 
+    // CHANGED: 쿠폰 코드 + 캠지기 포인트 + 콘텐츠 필수사항 한번에 복사
+    const [isAllCopied, setIsAllCopied] = useState(false);
+    const [isContentExpanded, setIsContentExpanded] = useState(false);
+    const handleCopyAll = async () => {
+        const lines: string[] = [];
+        lines.push(`📌 쿠폰 코드: ${couponCode}`);
+        lines.push(`📌 숙소: ${campaign.accommodationName}`);
+        if (campaign.highlights) {
+            lines.push('');
+            lines.push(`✨ 캠지기님이 자랑하고 싶은 포인트`);
+            lines.push(campaign.highlights);
+        }
+        lines.push('');
+        lines.push('📌 콘텐츠 제작 시 필수 사항');
+        if (channelTypes?.includes('인스타')) {
+            lines.push('• 인스타그램: @camfit_official 태그');
+            // CHANGED: 캠지기 인스타 태그 안내 추가
+            if (campaign.hostInstagram) {
+                lines.push(`• 캠핑장 인스타그램: @${campaign.hostInstagram} 태그`);
+            }
+        }
+        lines.push(`• 캡션/더보기란에 숙소 링크 포함: ${campaign.detailUrl}`);
+        const text = lines.join('\n');
+        try {
+            await navigator.clipboard.writeText(text);
+            setIsAllCopied(true);
+            setTimeout(() => setIsAllCopied(false), 2000);
+        } catch {
+            // CHANGED: Clipboard API 미지원/권한 없을 때 fallback
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            setIsAllCopied(true);
+            setTimeout(() => setIsAllCopied(false), 2000);
+        }
+    };
+
     if (!isOpen) return null;
 
     return (
@@ -154,18 +191,7 @@ export default function ApplicationModal({ isOpen, onClose, campaign }: Applicat
                                 </div>
                             </div>
 
-                            <div className="pt-4">
-                                <label className="block text-sm font-medium text-white mb-2">
-                                    이 정책을 이해하셨다면 <span className="text-[#01DF82]">'이해'</span>를 입력해주세요.
-                                </label>
-                                <input
-                                    type="text"
-                                    value={inputValue}
-                                    onChange={(e) => setInputValue(e.target.value)}
-                                    placeholder="이해"
-                                    className="w-full h-12 px-4 bg-[#111] border border-[#333] rounded-lg text-white focus:border-[#01DF82] focus:outline-none transition-colors"
-                                />
-                            </div>
+                            {/* CHANGED: 입력란 제거, 버튼으로 확인 */}
                         </div>
                     )}
 
@@ -221,32 +247,7 @@ export default function ApplicationModal({ isOpen, onClose, campaign }: Applicat
                                 </p>
                             </div>
 
-                            <div className="pt-4 space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-white mb-2">
-                                        위 내용을 <span className="text-[#01DF82]">'이해'</span> 하였으며,
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={inputValues2.understand}
-                                        onChange={(e) => setInputValues2(prev => ({ ...prev, understand: e.target.value }))}
-                                        placeholder="이해"
-                                        className="w-full h-12 px-4 bg-[#111] border border-[#333] rounded-lg text-white focus:border-[#01DF82] focus:outline-none transition-colors"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-white mb-2">
-                                        이에 <span className="text-[#01DF82]">'동의'</span> 합니다.
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={inputValues2.agree}
-                                        onChange={(e) => setInputValues2(prev => ({ ...prev, agree: e.target.value }))}
-                                        placeholder="동의"
-                                        className="w-full h-12 px-4 bg-[#111] border border-[#333] rounded-lg text-white focus:border-[#01DF82] focus:outline-none transition-colors"
-                                    />
-                                </div>
-                            </div>
+                            {/* CHANGED: 입력란 제거, 버튼으로 확인 */}
                         </div>
                     )}
 
@@ -267,6 +268,71 @@ export default function ApplicationModal({ isOpen, onClose, campaign }: Applicat
                                 </p>
                                 <p className="text-sm text-[#B0B0B0]">
                                     입실일, 입실 사이트가 등록되지 않을 경우 <span className="text-white font-bold underline">일반 협찬으로 간주되어 원고료 지급이 어려울 수 있습니다.</span> 번거로우시더라도 <strong>정산 불이익이 없도록 반드시 작성 부탁드립니다.</strong>
+                                </p>
+                            </div>
+
+                            {/* CHANGED: 캠지기님이 자랑하고 싶은 포인트 — 3줄 접기/펼치기 */}
+                            {campaign.highlights && (
+                                <div className="bg-[#2A2A2A] p-4 rounded-lg space-y-2">
+                                    <div className="flex items-center gap-2">
+                                        <p className="text-sm font-bold text-[#01DF82]">✨ 캠지기님이 자랑하고 싶은 포인트!</p>
+                                        <span className="text-xs text-[#888888]">(필수 X)</span>
+                                    </div>
+                                    <div className="relative">
+                                        <p className={`text-sm text-[#D0D0D0] whitespace-pre-line leading-relaxed ${!isHighlightsExpanded ? 'line-clamp-3' : ''}`}>
+                                            {campaign.highlights}
+                                        </p>
+                                        {!isHighlightsExpanded && (
+                                            <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-[#2A2A2A] to-transparent" />
+                                        )}
+                                    </div>
+                                    <button
+                                        onClick={() => setIsHighlightsExpanded(prev => !prev)}
+                                        className="text-[#01DF82] text-xs font-medium hover:underline"
+                                    >
+                                        {isHighlightsExpanded ? '접기 ▲' : '전체 보기 ▼'}
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* CHANGED: 콘텐츠 제작 필수사항 안내 */}
+                            <div className="bg-[#2A2A2A] p-4 rounded-lg space-y-3">
+                                <p className="text-sm font-bold text-[#01DF82]">📌 콘텐츠 제작 시 필수 사항</p>
+                                {channelTypes?.includes('인스타') && (
+                                    <div className="flex items-start gap-2 text-sm text-[#D0D0D0]">
+                                        <span className="text-[#01DF82] mt-0.5 shrink-0">•</span>
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            <span className="text-xs bg-[#E4405F]/15 text-[#E4405F] border border-[#E4405F]/30 rounded-full px-2 py-0.5 font-medium">인스타그램 운영 시</span>
+                                            <p>콘텐츠에 <strong className="text-white">@camfit_official</strong> 태그 필수</p>
+                                        </div>
+                                    </div>
+                                )}
+                                {/* CHANGED: 캠지기 인스타그램 태그 안내 — 인스타 운영 + hostInstagram 존재 시 */}
+                                {channelTypes?.includes('인스타') && campaign.hostInstagram && (
+                                    <div className="flex items-start gap-2 text-sm text-[#D0D0D0]">
+                                        <span className="text-[#01DF82] mt-0.5 shrink-0">•</span>
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            <span className="text-xs bg-[#E4405F]/15 text-[#E4405F] border border-[#E4405F]/30 rounded-full px-2 py-0.5 font-medium">캠핑장 태그</span>
+                                            <p>캠핑장 인스타 <strong className="text-white">@{campaign.hostInstagram}</strong> 태그</p>
+                                        </div>
+                                    </div>
+                                )}
+                                <div className="flex items-start gap-2 text-sm text-[#D0D0D0]">
+                                    <span className="text-[#01DF82] mt-0.5 shrink-0">•</span>
+                                    <div>
+                                        <p>콘텐츠 캡션/더보기란에 아래 숙소 링크를 반드시 포함해주세요</p>
+                                        <a
+                                            href={campaign.detailUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-[#01DF82] underline break-all text-xs mt-1 block"
+                                        >
+                                            {campaign.detailUrl}
+                                        </a>
+                                    </div>
+                                </div>
+                                <p className="text-xs text-[#888888]">
+                                    ※ 영상 콘텐츠의 경우 영상 내부가 아닌 캡션/더보기란에 링크를 넣어주세요.
                                 </p>
                             </div>
 
@@ -348,8 +414,75 @@ export default function ApplicationModal({ isOpen, onClose, campaign }: Applicat
                                 <p className="text-sm font-bold text-white mb-1">📢 잊지 마세요!</p>
                                 <p className="text-sm text-[#B0B0B0]">
                                     예약 완료 후 꼭 다시 돌아와서 <br />
-                                    <strong>"입실일 등록"</strong>을 해주셔야 정산이 가능합니다.
+                                    <strong>&quot;입실일 등록&quot;</strong>을 해주셔야 정산이 가능합니다.
                                 </p>
+                            </div>
+
+                            {/* CHANGED: 모든 조건 한번에 저장하기 — 통합 복사 */}
+                            <div className="bg-[#2A2A2A] border border-[#333] p-4 rounded-lg text-left space-y-3">
+                                <p className="text-sm font-bold text-white">📋 모든 조건 한번에 저장하기</p>
+                                <p className="text-xs text-[#888888]">
+                                    카카오톡 나에게 보내기 또는 메모장에 적어놓으세요!
+                                </p>
+
+                                <div className="bg-[#111] p-3 rounded-lg text-xs text-[#D0D0D0] relative">
+                                    <div className={`space-y-2 ${!isContentExpanded ? 'max-h-20 overflow-hidden' : ''}`}>
+                                        <p><span className="text-[#01DF82]">📌 쿠폰 코드:</span> <span className="font-mono text-white">{couponCode}</span></p>
+                                        <p><span className="text-[#01DF82]">📌 숙소:</span> {campaign.accommodationName}</p>
+
+                                        {campaign.highlights && (
+                                            <>
+                                                <div className="border-t border-[#333] my-1" />
+                                                <p className="text-[#01DF82]">✨ 캠지기님이 자랑하고 싶은 포인트</p>
+                                                <p className="whitespace-pre-line">{campaign.highlights}</p>
+                                            </>
+                                        )}
+
+                                        <div className="border-t border-[#333] my-1" />
+                                        <p className="text-[#01DF82]">📌 콘텐츠 제작 시 필수 사항</p>
+                                        {channelTypes?.includes('인스타') && (
+                                            <>
+                                                <p>• 인스타그램: <strong className="text-white">@camfit_official</strong> 태그</p>
+                                                {/* CHANGED: 캠지기 인스타 태그 미리보기 */}
+                                                {campaign.hostInstagram && (
+                                                    <p>• 캠핑장 인스타: <strong className="text-white">@{campaign.hostInstagram}</strong> 태그</p>
+                                                )}
+                                            </>
+                                        )}
+                                        <p>• 캡션/더보기란에 숙소 링크 포함:</p>
+                                        <p className="text-[#01DF82] break-all">{campaign.detailUrl}</p>
+                                    </div>
+                                    {!isContentExpanded && (
+                                        <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-[#111] to-transparent rounded-b-lg" />
+                                    )}
+                                    <button
+                                        onClick={() => setIsContentExpanded(prev => !prev)}
+                                        className="w-full pt-2 text-center text-[#01DF82] text-xs font-medium hover:underline"
+                                    >
+                                        {isContentExpanded ? '접기 ▲' : '전체 보기 ▼'}
+                                    </button>
+                                </div>
+
+                                <button
+                                    onClick={handleCopyAll}
+                                    className="w-full py-3 bg-[#01DF82] text-black font-bold text-sm rounded-lg hover:bg-[#00C972] transition-colors flex items-center justify-center gap-2"
+                                >
+                                    {isAllCopied ? (
+                                        <>
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                            </svg>
+                                            복사 완료!
+                                        </>
+                                    ) : (
+                                        <>
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                                            </svg>
+                                            전체 내용 복사하기
+                                        </>
+                                    )}
+                                </button>
                             </div>
                         </div>
                     )}
@@ -383,7 +516,7 @@ export default function ApplicationModal({ isOpen, onClose, campaign }: Applicat
                                         체크 중...
                                     </>
                                 ) : (
-                                    step === 3 ? '최종 신청하기' : '다음'
+                                    step === 3 ? '최종 신청하기' : '이해했습니다'
                                 )}
                             </button>
                         </div>

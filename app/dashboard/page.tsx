@@ -10,10 +10,14 @@ import LocationFilter from '@/components/LocationFilter';
 import NotificationToggle from '@/components/NotificationToggle';
 import PartnerCampaignCard from '@/components/PartnerCampaignCard';
 import PartnerCheckinModal from '@/components/PartnerCheckinModal';
-import type { Campaign, PartnerCampaign, TierLevel, ChannelType } from '@/types';
+// CHANGED: 콘텐츠 탭 컴포넌트 import
+import ContentCard from '@/components/ContentCard';
+import ContentSubmitModal from '@/components/ContentSubmitModal';
+import type { Campaign, PartnerCampaign, ContentUpload, TierLevel, ChannelType } from '@/types';
 // CHANGED: 공통 상수/함수를 constants.ts에서 import (중복 제거)
 import { hasPartnerEligibleChannel, KAKAO_CHANNEL_URL } from '@/lib/constants';
 
+// CHANGED: 콘텐츠 탭 제거 — 캠페인 탭만 유지 (콘텐츠는 헤더에서 별도 진입)
 type TabType = 'premium' | 'partner';
 
 // CHANGED: 파트너 오픈 준비중 플래그 — 오픈 시 false로 변경하면 정상 노출
@@ -48,8 +52,12 @@ function DashboardContent() {
     const searchParams = useSearchParams();
 
     // CHANGED: URL 쿼리로 탭 상태 관리
-    const tabFromUrl = searchParams.get('tab') as TabType | null;
-    const [activeTab, setActiveTab] = useState<TabType>(tabFromUrl === 'partner' ? 'partner' : 'premium');
+    const tabFromUrl = searchParams.get('tab');
+    const [activeTab, setActiveTab] = useState<TabType>(
+        tabFromUrl === 'partner' ? 'partner' : 'premium'
+    );
+    // CHANGED: 콘텐츠 뷰 별도 상태 — 헤더에서 진입하는 별도 화면
+    const [showContentView, setShowContentView] = useState(tabFromUrl === 'content');
 
     const [campaigns, setCampaigns] = useState<Campaign[]>([]);
     const [partnerCampaigns, setPartnerCampaigns] = useState<PartnerCampaign[]>([]);
@@ -58,6 +66,9 @@ function DashboardContent() {
     // CHANGED: userRecordId 상태 제거 — API에서 JWT로 사용자 식별
     const [isCheckinModalOpen, setIsCheckinModalOpen] = useState(false);
     const [isPartnerCheckinModalOpen, setIsPartnerCheckinModalOpen] = useState(false);
+    // CHANGED: 콘텐츠 탭 state 추가
+    const [contentUploads, setContentUploads] = useState<ContentUpload[]>([]);
+    const [isContentSubmitModalOpen, setIsContentSubmitModalOpen] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
     const [showClosedCampaigns, setShowClosedCampaigns] = useState(false);
     // CHANGED: 위치 필터 state 추가
@@ -76,6 +87,19 @@ function DashboardContent() {
         window.history.replaceState(null, '', url);
     };
 
+    // CHANGED: 콘텐츠 뷰 전환 핸들러
+    const handleOpenContentView = () => {
+        setShowContentView(true);
+        window.history.replaceState(null, '', '/dashboard?tab=content');
+        fetchContentUploads();
+    };
+
+    const handleCloseContentView = () => {
+        setShowContentView(false);
+        const url = activeTab === 'partner' ? '/dashboard?tab=partner' : '/dashboard';
+        window.history.replaceState(null, '', url);
+    };
+
     const fetchCampaigns = async () => {
         try {
             const response = await fetch('/api/campaigns');
@@ -89,6 +113,19 @@ function DashboardContent() {
         } catch (error) {
             console.error(error);
             setErrorMessage('네트워크 오류가 발생했습니다. 페이지를 새로고침해주세요.');
+        }
+    };
+
+    // CHANGED: 콘텐츠 내역 조회 함수
+    const fetchContentUploads = async () => {
+        try {
+            const response = await fetch('/api/content/my');
+            const data = await response.json();
+            if (response.ok) {
+                setContentUploads(data.uploads || []);
+            }
+        } catch (error) {
+            console.error(error);
         }
     };
 
@@ -137,7 +174,7 @@ function DashboardContent() {
     // CHANGED: 블로거가 partner 탭에 접근 시 premium으로 폴백 (setState 대신 computed)
     const effectiveTab: TabType = (activeTab === 'partner' && !canAccessPartner) ? 'premium' : activeTab;
 
-    // CHANGED: 위치 필터용 location 목록 추출
+    // CHANGED: 위치 필터용 location 목록 추출 (콘텐츠 뷰에서는 사용하지 않음)
     const availableLocations = useMemo(() => {
         const source = effectiveTab === 'premium' ? campaigns : partnerCampaigns;
         const locations = [...new Set(source.map(c => c.location).filter(Boolean))];
@@ -181,12 +218,21 @@ function DashboardContent() {
         }
     }, [userInfo, effectiveTab]);
 
+    // CHANGED: 콘텐츠 뷰 진입 시 데이터 패칭
+    useEffect(() => {
+        if (showContentView && userInfo) {
+            fetchContentUploads();
+        }
+    }, [showContentView, userInfo]);
+
     // 탭 복귀 시 자동 갱신
     useEffect(() => {
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible') {
-                // CHANGED: premiumId 없으면 프리미엄 캠페인 재패칭 스킵
-                if (effectiveTab === 'premium') {
+                if (showContentView) {
+                    fetchContentUploads();
+                } else if (effectiveTab === 'premium') {
+                    // CHANGED: premiumId 없으면 프리미엄 캠페인 재패칭 스킵
                     if (userInfo?.premiumId) {
                         fetchCampaigns();
                     }
@@ -197,7 +243,7 @@ function DashboardContent() {
         };
         document.addEventListener('visibilitychange', handleVisibilityChange);
         return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-    }, [effectiveTab]);
+    }, [effectiveTab, showContentView]);
 
     const handleLogout = async () => {
         await fetch('/api/auth/logout');
@@ -218,57 +264,85 @@ function DashboardContent() {
             {/* Header */}
             <header className="sticky top-0 z-10 bg-[#111111]/95 backdrop-blur-sm border-b border-[#333333]">
                 <div className="max-w-7xl mx-auto px-5 py-4">
-                    {/* Top Row */}
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="flex flex-col gap-1">
-                            {/* CHANGED: 크리에이터 등급 뱃지 일시 삭제 */}
-                            <h1 className="text-xl font-bold text-white truncate max-w-[200px]">
-                                {userInfo?.channelName || '로딩 중...'}
-                            </h1>
-                            <p className="text-xs text-[#888888]">오늘도 즐거운 캠핑 되세요! ⛺️</p>
-                        </div>
-
-                        {/* CHANGED: 알림 토글을 헤더로 이동 — 설정성 액션은 상단에 */}
-                        <div className="flex items-center gap-2">
-                            <NotificationToggle
-                                enabled={notificationEnabled}
-                                onToggle={handleNotificationToggle}
-                            />
+                    {/* CHANGED: 콘텐츠 뷰일 때 별도 헤더 */}
+                    {showContentView ? (
+                        <div className="flex items-center gap-3">
                             <button
-                                onClick={handleLogout}
-                                className="p-2 text-[#666666] hover:text-white transition-colors"
-                                aria-label="로그아웃"
+                                onClick={handleCloseContentView}
+                                className="p-2 -ml-2 text-[#888888] hover:text-white transition-colors"
+                                aria-label="캠페인 보기로 돌아가기"
                             >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                                 </svg>
                             </button>
+                            <h1 className="text-lg font-bold text-white">내 콘텐츠</h1>
                         </div>
-                    </div>
+                    ) : (
+                        <>
+                            {/* Top Row */}
+                            <div className="flex items-center justify-between mb-4">
+                                <div className="flex flex-col gap-1">
+                                    {/* CHANGED: 크리에이터 등급 뱃지 일시 삭제 */}
+                                    <h1 className="text-xl font-bold text-white truncate max-w-[200px]">
+                                        {userInfo?.channelName || '로딩 중...'}
+                                    </h1>
+                                    <p className="text-xs text-[#888888]">오늘도 즐거운 캠핑 되세요! ⛺️</p>
+                                </div>
 
-                    {/* CHANGED: 입실 일정 등록 버튼 — 프리미엄 탭에서 premiumId 없으면 숨김 */}
-                    {!(effectiveTab === 'premium' && !userInfo?.premiumId) && (
-                        <button
-                            onClick={() => {
-                                if (effectiveTab === 'partner') {
-                                    setIsPartnerCheckinModalOpen(true);
-                                } else {
-                                    setIsCheckinModalOpen(true);
-                                }
-                            }}
-                            className="w-full h-12 bg-[#01DF82] text-black font-bold text-base rounded-xl hover:bg-[#00C972] transition-colors shadow-lg shadow-[#01DF82]/10 flex items-center justify-center gap-2"
-                        >
-                            <span>📅&nbsp; 입실 일정 등록하기</span>
-                        </button>
+                                {/* CHANGED: 아이콘 + 라벨 — 각 버튼 역할을 텍스트로 명시 */}
+                                <div className="flex items-center gap-1">
+                                    <button
+                                        onClick={handleOpenContentView}
+                                        className="flex flex-col items-center gap-0.5 px-2 py-1 text-[#888888] hover:text-[#01DF82] transition-colors"
+                                        aria-label="내 콘텐츠"
+                                    >
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                                        </svg>
+                                        <span className="text-[10px]">콘텐츠</span>
+                                    </button>
+                                    <NotificationToggle
+                                        enabled={notificationEnabled}
+                                        onToggle={handleNotificationToggle}
+                                    />
+                                    <button
+                                        onClick={handleLogout}
+                                        className="flex flex-col items-center gap-0.5 px-2 py-1 text-[#666666] hover:text-white transition-colors"
+                                        aria-label="로그아웃"
+                                    >
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                        </svg>
+                                        <span className="text-[10px]">로그아웃</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* CHANGED: 입실 일정 등록 버튼 — 프리미엄 미등록 시 숨김 */}
+                            {!(effectiveTab === 'premium' && !userInfo?.premiumId) && (
+                                <button
+                                    onClick={() => {
+                                        if (effectiveTab === 'partner') {
+                                            setIsPartnerCheckinModalOpen(true);
+                                        } else {
+                                            setIsCheckinModalOpen(true);
+                                        }
+                                    }}
+                                    className="w-full h-12 bg-[#01DF82] text-black font-bold text-base rounded-xl hover:bg-[#00C972] transition-colors shadow-lg shadow-[#01DF82]/10 flex items-center justify-center gap-2"
+                                >
+                                    <span>📅&nbsp; 입실 일정 등록하기</span>
+                                </button>
+                            )}
+                        </>
                     )}
                 </div>
             </header>
 
             {/* Main Content */}
             <main className="max-w-7xl mx-auto px-5 py-6">
-                {/* CHANGED: 탭 컴포넌트 삽입 */}
-                {/* CHANGED: premiumId prop 추가 — 미등록 시 탭에 시각적 힌트 */}
-                {userInfo && (
+                {/* CHANGED: 콘텐츠 뷰가 아닐 때만 탭 표시 */}
+                {!showContentView && userInfo && (
                     <DashboardTabs
                         activeTab={effectiveTab}
                         onTabChange={handleTabChange}
@@ -293,7 +367,7 @@ function DashboardContent() {
 
                 {/* ──── 프리미엄 탭 콘텐츠 ──── */}
                 {/* CHANGED: 프리미엄 미등록 CTA — 카카오톡 문의 → /premium-register 등록 폼 링크로 변경 */}
-                {!loading && effectiveTab === 'premium' && !userInfo?.premiumId && (
+                {!loading && !showContentView && effectiveTab === 'premium' && !userInfo?.premiumId && (
                     <div className="flex flex-col items-center justify-center py-16 gap-6">
                         <div className="w-16 h-16 bg-[#01DF82]/10 rounded-full flex items-center justify-center">
                             <span className="text-3xl">🌟</span>
@@ -323,7 +397,7 @@ function DashboardContent() {
                     </div>
                 )}
 
-                {!loading && effectiveTab === 'premium' && userInfo?.premiumId && (
+                {!loading && !showContentView && effectiveTab === 'premium' && userInfo?.premiumId && (
                     <>
                         {/* Stats Bar */}
                         {campaigns.length > 0 && (
@@ -361,7 +435,7 @@ function DashboardContent() {
                                     {activeCampaigns.length > 0 && (
                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                             {activeCampaigns.map((campaign) => (
-                                                <CampaignCard key={campaign.id} campaign={campaign} />
+                                                <CampaignCard key={campaign.id} campaign={campaign} channelTypes={userInfo?.channelTypes} />
                                             ))}
                                         </div>
                                     )}
@@ -388,7 +462,7 @@ function DashboardContent() {
                                             {showClosedCampaigns && (
                                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
                                                     {closedCampaigns.map((campaign) => (
-                                                        <CampaignCard key={campaign.id} campaign={campaign} />
+                                                        <CampaignCard key={campaign.id} campaign={campaign} channelTypes={userInfo?.channelTypes} />
                                                     ))}
                                                 </div>
                                             )}
@@ -402,7 +476,7 @@ function DashboardContent() {
 
                 {/* ──── 파트너 탭 콘텐츠 ──── */}
                 {/* CHANGED: 파트너 오픈 준비중 플래그 — false로 바꾸면 정상 노출 */}
-                {!loading && effectiveTab === 'partner' && PARTNER_COMING_SOON && (
+                {!loading && !showContentView && effectiveTab === 'partner' && PARTNER_COMING_SOON && (
                     <div className="flex flex-col items-center justify-center py-20 gap-6">
                         <div className="w-20 h-20 bg-[#01DF82]/10 rounded-full flex items-center justify-center">
                             <span className="text-4xl">🚀</span>
@@ -416,7 +490,7 @@ function DashboardContent() {
                         </div>
                     </div>
                 )}
-                {!loading && effectiveTab === 'partner' && !PARTNER_COMING_SOON && (
+                {!loading && !showContentView && effectiveTab === 'partner' && !PARTNER_COMING_SOON && (
                     <>
                         {/* Stats Bar */}
                         {partnerCampaigns.length > 0 && (
@@ -523,6 +597,50 @@ function DashboardContent() {
                         })()}
                     </>
                 )}
+                {/* ──── 콘텐츠 뷰 (별도 화면) ──── */}
+                {/* CHANGED: 탭이 아닌 헤더에서 진입하는 별도 뷰 */}
+                {!loading && showContentView && (
+                    <>
+                        {/* 요약 + 제출 CTA */}
+                        <div className="flex items-center justify-between mb-6">
+                            <p className="text-sm text-[#888888]">
+                                총 <span className="text-white font-semibold">{contentUploads.length}건</span>의 콘텐츠
+                            </p>
+                            <button
+                                onClick={() => setIsContentSubmitModalOpen(true)}
+                                className="px-4 py-2 bg-[#01DF82] text-black font-bold text-sm rounded-lg hover:bg-[#00C972] transition-colors flex items-center gap-1.5"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                </svg>
+                                콘텐츠 제출
+                            </button>
+                        </div>
+
+                        {/* 제출 내역 */}
+                        {contentUploads.length > 0 ? (
+                            <div className="space-y-4">
+                                {contentUploads.map((upload) => (
+                                    <ContentCard key={upload.id} content={upload} />
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center py-20 gap-5">
+                                <div className="w-20 h-20 bg-[#1E1E1E] border border-[#333333] rounded-2xl flex items-center justify-center">
+                                    <svg className="w-8 h-8 text-[#555555]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                                    </svg>
+                                </div>
+                                <div className="text-center">
+                                    <h3 className="text-base font-bold text-white mb-1.5">아직 제출한 콘텐츠가 없어요</h3>
+                                    <p className="text-sm text-[#666666] leading-relaxed">
+                                        협찬 후 업로드한 콘텐츠를<br />여기서 관리할 수 있어요
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+                    </>
+                )}
             </main>
 
             <CheckinModal
@@ -533,6 +651,19 @@ function DashboardContent() {
                 isOpen={isPartnerCheckinModalOpen}
                 onClose={() => setIsPartnerCheckinModalOpen(false)}
             />
+            {/* CHANGED: 콘텐츠 제출 모달 */}
+            {userInfo && (
+                <ContentSubmitModal
+                    isOpen={isContentSubmitModalOpen}
+                    onClose={() => setIsContentSubmitModalOpen(false)}
+                    onSubmitSuccess={fetchContentUploads}
+                    userInfo={{
+                        creatorId: userInfo.creatorId,
+                        channelName: userInfo.channelName,
+                        premiumId: userInfo.premiumId
+                    }}
+                />
+            )}
         </div>
     );
 }

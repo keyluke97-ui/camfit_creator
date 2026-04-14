@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { Campaign } from '@/types';
+import type { Campaign, ChannelType } from '@/types';
 import ApplicationModal from './ApplicationModal';
 import HighlightsModal from './HighlightsModal';
 // CHANGED: 모집현황 텍스트 → 프로그레스 바로 교체
@@ -9,9 +9,10 @@ import RecruitmentProgressBar from './RecruitmentProgressBar';
 
 interface CampaignCardProps {
     campaign: Campaign;
+    channelTypes?: ChannelType[]; // CHANGED: 콘텐츠 제작 요구사항 표시용
 }
 
-export default function CampaignCard({ campaign }: CampaignCardProps) {
+export default function CampaignCard({ campaign, channelTypes }: CampaignCardProps) {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isHighlightsOpen, setIsHighlightsOpen] = useState(false);
 
@@ -130,10 +131,12 @@ export default function CampaignCard({ campaign }: CampaignCardProps) {
             </div>
 
             {/* 신청 모달 */}
+            {/* CHANGED: channelTypes 전달 — 콘텐츠 제작 필수사항 표시용 */}
             <ApplicationModal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 campaign={campaign}
+                channelTypes={channelTypes}
             />
 
             {/* CHANGED: 숙소 특장점 상세 모달 추가 */}
