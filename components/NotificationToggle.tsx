@@ -23,7 +23,7 @@ export default function NotificationToggle({ enabled, onToggle }: NotificationTo
         <div className="relative">
             <button
                 onClick={handleClick}
-                className={`p-2 transition-colors ${
+                className={`flex flex-col items-center gap-0.5 px-2 py-1 transition-colors ${
                     enabled ? 'text-[#01DF82]' : 'text-[#666666]'
                 } hover:text-white`}
                 aria-label={enabled ? '알림 켜짐' : '알림 꺼짐'}
@@ -39,6 +39,8 @@ export default function NotificationToggle({ enabled, onToggle }: NotificationTo
                         <line x1="3" y1="3" x2="21" y2="21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                     </svg>
                 )}
+                {/* CHANGED: 라벨 추가 — 아이콘만으로는 역할 불명확 */}
+                <span className="text-[10px]">이메일</span>
             </button>
 
             {/* 토스트 메시지 */}

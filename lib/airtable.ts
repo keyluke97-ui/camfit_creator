@@ -1217,13 +1217,7 @@ export async function submitContentUpload(payload: ContentSubmitPayload): Promis
 export async function getCreatorContentUploads(channelName: string): Promise<ContentUpload[]> {
     try {
         // CHANGED: 협찬 종류 필터 추가 — '프리미엄 협찬' 또는 '캠핑장 예약'만 조회
-        const formula = `AND(
-            FIND("${escapeAirtableValue(channelName)}", ARRAYJOIN({크리에이터 명단})),
-            OR(
-                {협찬의 종류를 골라주세요} = '프리미엄 협찬',
-                {협찬의 종류를 골라주세요} = '캠핑장 예약'
-            )
-        )`;
+        const formula = `AND(FIND("${escapeAirtableValue(channelName)}", ARRAYJOIN({크리에이터 명단})), OR({협찬의 종류를 골라주세요} = '프리미엄 협찬', {협찬의 종류를 골라주세요} = '캠핑장 예약'))`;
 
         const records = await contentUploadTable()
             .select({
