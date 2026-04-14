@@ -1216,7 +1216,14 @@ export async function submitContentUpload(payload: ContentSubmitPayload): Promis
 // CHANGED: 내 콘텐츠 조회 — ARRAYJOIN({크리에이터 명단})은 primary field(채널명)를 반환하므로 channelName으로 필터링
 export async function getCreatorContentUploads(channelName: string): Promise<ContentUpload[]> {
     try {
-        const formula = `FIND("${escapeAirtableValue(channelName)}", ARRAYJOIN({크리에이터 명단}))`;
+        // CHANGED: 협찬 종류 필터 추가 — '프리미엄 협찬' 또는 '캠핑장 예약'만 조회
+        const formula = `AND(
+            FIND("${escapeAirtableValue(channelName)}", ARRAYJOIN({크리에이터 명단})),
+            OR(
+                {협찬의 종류를 골라주세요} = '프리미엄 협찬',
+                {협찬의 종류를 골라주세요} = '캠핑장 예약'
+            )
+        )`;
 
         const records = await contentUploadTable()
             .select({
@@ -1264,7 +1271,9 @@ export async function getCreatorContentUploads(channelName: string): Promise<Con
             return b.uploadDate.localeCompare(a.uploadDate);
         });
 
-        return uploads;
+        // CHANGED: 이름 없는 고아 레코드 제거 (링크 끊어진 레코드)
+        const validUploads = uploads.filter(u => u.accommodationName || u.premiumCampaignName);
+        return validUploads;
     } catch (error) {
         console.error('Get creator content uploads error:', error);
         return [];

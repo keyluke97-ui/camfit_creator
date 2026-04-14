@@ -12,6 +12,7 @@ import PartnerCampaignCard from '@/components/PartnerCampaignCard';
 import PartnerCheckinModal from '@/components/PartnerCheckinModal';
 // CHANGED: 콘텐츠 탭 컴포넌트 import
 import ContentCard from '@/components/ContentCard';
+import ContentCardCompact from '@/components/ContentCardCompact';
 import ContentSubmitModal from '@/components/ContentSubmitModal';
 import type { Campaign, PartnerCampaign, ContentUpload, TierLevel, ChannelType } from '@/types';
 // CHANGED: 공통 상수/함수를 constants.ts에서 import (중복 제거)
@@ -617,13 +618,50 @@ function DashboardContent() {
                             </button>
                         </div>
 
-                        {/* 제출 내역 */}
+                        {/* CHANGED: 연도별 그룹핑 — 올해 풀카드, 이전 연도 콤팩트 */}
                         {contentUploads.length > 0 ? (
-                            <div className="space-y-4">
-                                {contentUploads.map((upload) => (
-                                    <ContentCard key={upload.id} content={upload} />
-                                ))}
-                            </div>
+                            (() => {
+                                const currentYear = new Date().getFullYear().toString();
+                                const thisYearUploads = contentUploads.filter(u => u.uploadDate?.startsWith(currentYear));
+                                const pastUploads = contentUploads.filter(u => !u.uploadDate?.startsWith(currentYear));
+
+                                // 이전 연도를 연도별로 그룹핑
+                                const pastByYear: Record<string, typeof pastUploads> = {};
+                                pastUploads.forEach(u => {
+                                    const year = u.uploadDate?.slice(0, 4) || '기타';
+                                    if (!pastByYear[year]) pastByYear[year] = [];
+                                    pastByYear[year].push(u);
+                                });
+                                const pastYears = Object.keys(pastByYear).sort((a, b) => b.localeCompare(a));
+
+                                return (
+                                    <div className="space-y-6">
+                                        {/* 올해 콘텐츠 — 풀 카드 */}
+                                        {thisYearUploads.length > 0 && (
+                                            <div className="space-y-3">
+                                                <p className="text-xs text-[#888888] font-medium">{currentYear}년</p>
+                                                <div className="space-y-4">
+                                                    {thisYearUploads.map((upload) => (
+                                                        <ContentCard key={upload.id} content={upload} />
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* 이전 연도 — 콤팩트 row */}
+                                        {pastYears.map(year => (
+                                            <div key={year} className="space-y-2">
+                                                <p className="text-xs text-[#888888] font-medium">{year}년</p>
+                                                <div className="space-y-1.5">
+                                                    {pastByYear[year].map((upload) => (
+                                                        <ContentCardCompact key={upload.id} content={upload} />
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                );
+                            })()
                         ) : (
                             <div className="flex flex-col items-center justify-center py-20 gap-5">
                                 <div className="w-20 h-20 bg-[#1E1E1E] border border-[#333333] rounded-2xl flex items-center justify-center">
@@ -660,7 +698,8 @@ function DashboardContent() {
                     userInfo={{
                         creatorId: userInfo.creatorId,
                         channelName: userInfo.channelName,
-                        premiumId: userInfo.premiumId
+                        premiumId: userInfo.premiumId,
+                        channelTypes: userInfo.channelTypes // CHANGED: 공동작업 인스타 채널 판단용
                     }}
                 />
             )}
