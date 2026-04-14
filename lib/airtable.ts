@@ -1216,8 +1216,8 @@ export async function submitContentUpload(payload: ContentSubmitPayload): Promis
 // CHANGED: 내 콘텐츠 조회 — ARRAYJOIN({크리에이터 명단})은 primary field(채널명)를 반환하므로 channelName으로 필터링
 export async function getCreatorContentUploads(channelName: string): Promise<ContentUpload[]> {
     try {
-        // CHANGED: 협찬 종류 필터 추가 — '프리미엄 협찬' 또는 '캠핑장 예약'만 조회
-        const formula = `AND(FIND("${escapeAirtableValue(channelName)}", ARRAYJOIN({크리에이터 명단})), OR({협찬의 종류를 골라주세요} = '프리미엄 협찬', {협찬의 종류를 골라주세요} = '캠핑장 예약'))`;
+        // CHANGED: lookup 필드로 변경 — ARRAYJOIN({크리에이터 명단})은 record ID를 반환하여 채널명 매칭 실패
+        const formula = `AND(FIND("${escapeAirtableValue(channelName)}", ARRAYJOIN({크리에이터 채널명 (from 크리에이터 명단)})), OR({협찬의 종류를 골라주세요} = '프리미엄 협찬', {협찬의 종류를 골라주세요} = '캠핑장 예약'))`;
 
         const records = await contentUploadTable()
             .select({
