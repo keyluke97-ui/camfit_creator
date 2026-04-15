@@ -1213,10 +1213,10 @@ export async function submitContentUpload(payload: ContentSubmitPayload): Promis
     }
 }
 
-// CHANGED: 내 콘텐츠 조회 — ARRAYJOIN({크리에이터 명단})은 primary field(채널명)를 반환하므로 channelName으로 필터링
+// 내 콘텐츠 조회 — {크리에이터 명단} 링크 기반 매칭만 사용. {채널명} 텍스트 필드는 오타가 많아 신뢰 불가 (사용 금지).
+// 링크가 비어있는 레거시 레코드는 실제 비활동 크리에이터이므로 복구 불필요.
 export async function getCreatorContentUploads(channelName: string): Promise<ContentUpload[]> {
     try {
-        // CHANGED: lookup 필드로 변경 — ARRAYJOIN({크리에이터 명단})은 record ID를 반환하여 채널명 매칭 실패
         const formula = `AND(FIND("${escapeAirtableValue(channelName)}", ARRAYJOIN({크리에이터 채널명 (from 크리에이터 명단)})), OR({협찬의 종류를 골라주세요} = '프리미엄 협찬', {협찬의 종류를 골라주세요} = '캠핑장 예약'))`;
 
         const records = await contentUploadTable()
@@ -1265,8 +1265,8 @@ export async function getCreatorContentUploads(channelName: string): Promise<Con
             return b.uploadDate.localeCompare(a.uploadDate);
         });
 
-        // CHANGED: 이름 없는 고아 레코드 제거 (링크 끊어진 레코드)
-        const validUploads = uploads.filter(u => u.accommodationName || u.premiumCampaignName);
+        // CHANGED: 포스트 필터 완화 — 콘텐츠 링크만 있으면 통과. 숙소명 미지정은 카드 측에서 '이름 없음'으로 폴백 렌더링.
+        const validUploads = uploads.filter(u => u.contentLink);
         return validUploads;
     } catch (error) {
         console.error('Get creator content uploads error:', error);
