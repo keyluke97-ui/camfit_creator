@@ -7,6 +7,7 @@ import type { ChannelType } from '@/types';
 import { hasPartnerEligibleChannel } from '@/lib/constants';
 import SponsorshipGuideModal from './SponsorshipGuideModal';
 
+// CHANGED: 콘텐츠 탭 제거 — 캠페인 탭만 유지 (콘텐츠는 헤더에서 별도 진입)
 type TabType = 'premium' | 'partner';
 
 // CHANGED: premiumId 추가 — 프리미엄 미등록 시 탭에 시각적 힌트 표시
@@ -27,9 +28,6 @@ export default function DashboardTabs({
     const [isGuideOpen, setIsGuideOpen] = useState(false);
 
     const showPartnerTab = hasPartnerEligibleChannel(channelTypes);
-
-    // 블로거 전용이면 탭 UI 자체를 렌더링하지 않음
-    if (!showPartnerTab) return null;
 
     // CHANGED: premiumId 없으면 프리미엄 탭에 "미등록" 뱃지 표시
     const showPremiumBadge = !premiumId;
@@ -58,25 +56,30 @@ export default function DashboardTabs({
                         )}
                     </span>
                 </button>
-                <button
-                    onClick={() => onTabChange('partner')}
-                    className={`flex-1 py-2.5 text-sm font-semibold rounded-md transition-colors ${
-                        activeTab === 'partner'
-                            ? 'bg-[#01DF82] text-black'
-                            : 'text-[#888888] hover:text-white'
-                    }`}
-                >
-                    파트너 협찬
-                </button>
+                {/* CHANGED: 블로거는 파트너 탭 숨김 유지 */}
+                {showPartnerTab && (
+                    <button
+                        onClick={() => onTabChange('partner')}
+                        className={`flex-1 py-2.5 text-sm font-semibold rounded-md transition-colors ${
+                            activeTab === 'partner'
+                                ? 'bg-[#01DF82] text-black'
+                                : 'text-[#888888] hover:text-white'
+                        }`}
+                    >
+                        파트너 협찬
+                    </button>
+                )}
             </div>
 
-            {/* CHANGED: 프리미엄/파트너 차이점 안내 버튼 추가 */}
-            <button
-                onClick={() => setIsGuideOpen(true)}
-                className="w-full text-center text-xs text-[#666666] hover:text-[#01DF82] transition-colors mb-6 py-1"
-            >
-                프리미엄 협찬과 파트너 협찬의 차이점 →
-            </button>
+            {/* CHANGED: 프리미엄/파트너 차이점 안내 — 파트너 탭이 보이는 경우에만 표시 */}
+            {showPartnerTab && (
+                <button
+                    onClick={() => setIsGuideOpen(true)}
+                    className="w-full text-center text-xs text-[#666666] hover:text-[#01DF82] transition-colors mb-6 py-1"
+                >
+                    프리미엄 협찬과 파트너 협찬의 차이점 →
+                </button>
+            )}
 
             <SponsorshipGuideModal
                 isOpen={isGuideOpen}
