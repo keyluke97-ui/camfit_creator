@@ -1269,7 +1269,9 @@ export async function getCreatorContentUploads(channelName: string): Promise<Con
         const validUploads = uploads.filter(u => u.contentLink);
         return validUploads;
     } catch (error) {
+        // CHANGED: 에러 삼키지 않고 throw — 환경변수 누락 등 systemic 실패가 "콘텐츠 0건"으로 위장되는 것을 방지 (API route에서 500 반환).
+        // 조회 함수 = 빈 배열 반환 컨벤션의 예외: 본 함수는 사용자에게 "내 콘텐츠"를 보여주는 핵심 경로라 정적/동적 구분이 중요.
         console.error('Get creator content uploads error:', error);
-        return [];
+        throw error;
     }
 }
