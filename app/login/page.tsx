@@ -113,7 +113,8 @@ export default function LoginPage() {
             const data = await response.json();
 
             if (!response.ok) {
-                setError(data.error || '로그인에 실패했습니다.');
+                // CHANGED: 기본 에러를 구체적 행동 안내로 변경 (API 401 메시지 톤과 일치)
+                setError(data.error || '채널명 또는 연락처 뒤 4자리를 다시 확인해주세요.');
                 setFailCount(previous => previous + 1);
                 setLoading(false);
                 return;
@@ -133,11 +134,12 @@ export default function LoginPage() {
             <div className="w-full max-w-md">
                 {/* 로고/헤더 */}
                 <div className="text-center mb-8">
+                    {/* CHANGED: 캐주얼 톤으로 헤드라인 교체 — 대시보드 인사말과 어울리도록 */}
                     <h1 className="text-3xl font-bold text-white mb-2">
-                        캠핏 협찬 포털
+                        캠핏 크리에이터 포털
                     </h1>
                     <p className="text-[#B0B0B0]">
-                        크리에이터 전용 협찬 플랫폼
+                        당신의 다음 캠핑, 여기서 시작돼요 ⛺️
                     </p>
                 </div>
 
@@ -203,7 +205,7 @@ export default function LoginPage() {
                             type="text"
                             inputMode="numeric"
                             maxLength={4}
-                            placeholder="1234"
+                            placeholder="예: 1234"
                             value={formData.phoneLastFour}
                             onChange={(event) => {
                                 const value = event.target.value.replace(/\D/g, '');

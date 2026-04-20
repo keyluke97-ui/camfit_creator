@@ -55,7 +55,8 @@ export async function PATCH(request: NextRequest) {
     } catch (error) {
         console.error('Partner status update error:', error);
         return NextResponse.json(
-            { error: '상태 변경 중 오류가 발생했습니다.' },
+            // CHANGED: 500 에러에 행동 안내 접미 통일
+            { error: '상태 변경 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요. 계속되면 카카오톡 채널로 문의해주세요.' },
             { status: 500 }
         );
     }

@@ -43,6 +43,7 @@ export default function DashboardTabs({
                             : 'text-[#888888] hover:text-white'
                     }`}
                 >
+                    {/* CHANGED: '미등록' → '정산정보 미등록' — 프리미엄 등록의 의미(대금 지급 정보 등록) 명확화 */}
                     <span className="flex items-center justify-center gap-1">
                         프리미엄 협찬
                         {showPremiumBadge && (
@@ -51,7 +52,7 @@ export default function DashboardTabs({
                                     ? 'bg-black/15 text-black/70'
                                     : 'bg-[#333333] text-[#888888]'
                             }`}>
-                                미등록
+                                정산정보 미등록
                             </span>
                         )}
                     </span>

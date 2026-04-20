@@ -332,7 +332,8 @@ function DashboardContent() {
                                     }}
                                     className="w-full h-12 bg-[#01DF82] text-black font-bold text-base rounded-xl hover:bg-[#00C972] transition-colors shadow-lg shadow-[#01DF82]/10 flex items-center justify-center gap-2"
                                 >
-                                    <span>📅&nbsp; 입실 일정 등록하기</span>
+                                    {/* CHANGED: CTA 버튼 이모지 제거 */}
+                                    <span>입실 일정 등록하기</span>
                                 </button>
                             )}
                         </>
@@ -374,18 +375,19 @@ function DashboardContent() {
                             <span className="text-3xl">🌟</span>
                         </div>
                         <div className="text-center">
-                            <h3 className="text-lg font-bold text-white mb-2">프리미엄 협찬 미등록</h3>
+                            {/* CHANGED: 프리미엄 등록 = 원고료 지급을 위한 정산 정보 등록임을 명확화 */}
+                            <h3 className="text-lg font-bold text-white mb-2">정산 정보 등록 필요</h3>
                             <p className="text-sm text-[#888888] leading-relaxed">
-                                프리미엄 협찬에 참여하려면<br />
-                                크리에이터 등록이 필요합니다.
+                                원고료 지급을 위해<br />
+                                정산 정보를 먼저 등록해주세요.
                             </p>
                         </div>
                         <button
                             onClick={() => router.push('/premium-register')}
                             className="px-6 py-3 bg-[#01DF82] text-black font-bold text-sm rounded-xl hover:bg-[#00C972] transition-colors flex items-center gap-2"
                         >
-                            <span>📝</span>
-                            <span>프리미엄 협찬 등록하기</span>
+                            {/* CHANGED: 이모지 제거 + 정산 정보 등록 의미 명확화 */}
+                            <span>정산 정보 등록하고 프리미엄 시작하기</span>
                         </button>
                         <a
                             href={KAKAO_CHANNEL_URL}
@@ -489,6 +491,15 @@ function DashboardContent() {
                                 조금만 기다려주세요.
                             </p>
                         </div>
+                        {/* CHANGED: 빈 상태 3요소(제목+이유+다음 행동) 구조 통일 — 아래 파트너 캠페인 없음 상태와 톤 맞춤 */}
+                        <a
+                            href={KAKAO_CHANNEL_URL}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-center w-full max-w-xs h-12 bg-[#FEE500] text-[#3C1E1E] font-bold rounded-lg hover:bg-[#F5DC00] transition-colors text-sm"
+                        >
+                            카카오톡 채널에서 소식 받기
+                        </a>
                     </div>
                 )}
                 {!loading && !showContentView && effectiveTab === 'partner' && !PARTNER_COMING_SOON && (
@@ -532,8 +543,9 @@ function DashboardContent() {
                                         새로운 캠페인이 오픈되면 알려드릴게요
                                     </p>
                                 </div>
+                                {/* CHANGED: 하드코딩 URL → 공통 상수 KAKAO_CHANNEL_URL 사용 (위 준비중 상태와 통일) */}
                                 <a
-                                    href="http://pf.kakao.com/_fBxaQG"
+                                    href={KAKAO_CHANNEL_URL}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="flex items-center justify-center w-full max-w-xs h-12 bg-[#FEE500] text-[#3C1E1E] font-bold rounded-lg hover:bg-[#F5DC00] transition-colors text-sm"

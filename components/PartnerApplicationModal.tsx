@@ -71,8 +71,7 @@ export default function PartnerApplicationModal({
     onApplySuccess
 }: PartnerApplicationModalProps) {
     const [step, setStep] = useState<ModalStep>('policy1');
-    // CHANGED: 체크박스 → 텍스트 입력 ('가능'/'동의')
-    const [confirmInput, setConfirmInput] = useState('');
+    // CHANGED: 텍스트 타이핑 확인 제거 — 버튼 클릭 기반으로 전환 (프리미엄 모달과 일관)
     const [checkInDate, setCheckInDate] = useState('');
     const [checkInSite, setCheckInSite] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
@@ -86,7 +85,6 @@ export default function PartnerApplicationModal({
 
     const resetModal = () => {
         setStep('policy1');
-        setConfirmInput('');
         setCheckInDate('');
         setCheckInSite('');
         setErrorMessage('');
@@ -283,6 +281,8 @@ export default function PartnerApplicationModal({
                     {/* Step 1: 방문 가능 기간 + 매칭 즉시 완료 안내 */}
                     {step === 'policy1' && (
                         <div className="space-y-4">
+                            {/* CHANGED: Step 진행률 인디케이터 추가 — 타이핑 확인 제거 보완 */}
+                            <p className="text-xs text-[#666666] text-center">Step 1 / 4</p>
                             <div className="bg-[#252525] border border-[#3A3A3A] rounded-lg p-4">
                                 <p className="text-sm text-[#9CA3AF] mb-1">크리에이터 방문 가능 기간</p>
                                 <p className="text-base font-semibold text-white">
@@ -315,29 +315,17 @@ export default function PartnerApplicationModal({
                             </div>
 
                             <div className="bg-[#252525] border border-[#3A3A3A] rounded-lg p-4">
+                                {/* CHANGED: '매칭 완료' 용어 모호성 제거 — 즉시 확정 의미 명확화 */}
                                 <p className="text-sm text-[#B0B0B0]">
-                                    신청한 시점을 기준으로 즉시 <span className="text-white font-semibold">&lsquo;매칭 완료&rsquo;</span>로 간주됩니다.
+                                    신청과 동시에 예약이 확정돼요 <span className="text-white font-semibold">(캠지기 승인 대기 없음)</span>.
                                 </p>
                             </div>
-                            {/* CHANGED: 체크박스 → '가능' 텍스트 입력 */}
-                            <div>
-                                <label className="block text-sm text-[#9CA3AF] mb-1.5">
-                                    이 기간 내 방문이 가능하시면 <span className="text-white font-semibold">&lsquo;가능&rsquo;</span>을 입력해주세요
-                                </label>
-                                <input
-                                    type="text"
-                                    value={confirmInput}
-                                    onChange={(event) => setConfirmInput(event.target.value)}
-                                    placeholder="가능"
-                                    className="w-full h-12 bg-[#252525] border border-[#3A3A3A] rounded-lg px-4 text-white placeholder:text-[#555555] focus:border-[#01DF82] outline-none transition-colors"
-                                />
-                            </div>
+                            {/* CHANGED: 타이핑 확인 제거 → 버튼 클릭 기반으로 전환 */}
                             <button
-                                onClick={() => { setConfirmInput(''); setStep('policy2'); }}
-                                disabled={confirmInput !== '가능'}
-                                className="w-full h-12 bg-[#01DF82] text-black font-bold rounded-lg hover:bg-[#00C972] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                onClick={() => setStep('policy2')}
+                                className="w-full h-12 bg-[#01DF82] text-black font-bold rounded-lg hover:bg-[#00C972] transition-colors"
                             >
-                                다음
+                                방문 가능합니다
                             </button>
                         </div>
                     )}
@@ -346,6 +334,8 @@ export default function PartnerApplicationModal({
                     {/* CHANGED: 팔로워 방문 기간 + 쿠폰 조건 + 사이트 종류 표시 */}
                     {step === 'policy2' && (
                         <div className="space-y-4">
+                            {/* CHANGED: Step 진행률 인디케이터 추가 */}
+                            <p className="text-xs text-[#666666] text-center">Step 2 / 4</p>
                             <div className="bg-[#252525] border border-[#3A3A3A] rounded-lg p-4 space-y-3">
                                 <p className="text-sm font-semibold text-white">팔로워 쿠폰 안내</p>
                                 <div>
@@ -399,24 +389,12 @@ export default function PartnerApplicationModal({
                                 {couponInfoCopied ? '복사 완료!' : '팔로워 쿠폰 조건 복사하기'}
                             </button>
 
-                            <div>
-                                <label className="block text-sm text-[#9CA3AF] mb-1.5">
-                                    팔로워 쿠폰 조건을 확인하셨으면 <span className="text-white font-semibold">&lsquo;가능&rsquo;</span>을 입력해주세요
-                                </label>
-                                <input
-                                    type="text"
-                                    value={confirmInput}
-                                    onChange={(event) => setConfirmInput(event.target.value)}
-                                    placeholder="가능"
-                                    className="w-full h-12 bg-[#252525] border border-[#3A3A3A] rounded-lg px-4 text-white placeholder:text-[#555555] focus:border-[#01DF82] outline-none transition-colors"
-                                />
-                            </div>
+                            {/* CHANGED: 타이핑 확인 제거 → 버튼 클릭 기반으로 전환 */}
                             <button
-                                onClick={() => { setConfirmInput(''); setStep('policy3'); }}
-                                disabled={confirmInput !== '가능'}
-                                className="w-full h-12 bg-[#01DF82] text-black font-bold rounded-lg hover:bg-[#00C972] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                onClick={() => setStep('policy3')}
+                                className="w-full h-12 bg-[#01DF82] text-black font-bold rounded-lg hover:bg-[#00C972] transition-colors"
                             >
-                                다음
+                                쿠폰 조건 확인했어요
                             </button>
                         </div>
                     )}
@@ -425,10 +403,12 @@ export default function PartnerApplicationModal({
                     {/* CHANGED: 이모지 아이콘 + 14일 경고 최상단 이동 + 노쇼 강조 추가 */}
                     {step === 'policy3' && (
                         <div className="space-y-4">
-                            {/* CHANGED: 14일 자동취소 경고를 최상단으로 이동 — 스크롤 없이 즉시 인지 */}
+                            {/* CHANGED: Step 진행률 인디케이터 추가 */}
+                            <p className="text-xs text-[#666666] text-center">Step 3 / 4</p>
+                            {/* CHANGED: 상단 경고 단축 — '잦은 취소' 중복 제거 (세부 항목에서 유지) */}
                             <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
                                 <p className="text-sm text-red-400 font-medium">
-                                    🚨 최종 신청일로부터 14일 동안 예약하지 않을 시 자동 취소로 간주되며, 잦은 취소는 추후 파트너 협찬 참여가 어려울 수 있습니다.
+                                    🚨 최종 신청일로부터 14일 동안 예약하지 않을 시 자동 취소됩니다.
                                 </p>
                             </div>
 
@@ -502,26 +482,13 @@ export default function PartnerApplicationModal({
                                 </ul>
                             </div>
 
-                            {/* CHANGED: 체크박스 → '동의' 텍스트 입력 */}
                             <p className="text-xs text-[#9CA3AF] text-center">위 4가지 정책을 모두 확인하셨나요?</p>
-                            <div>
-                                <label className="block text-sm text-[#9CA3AF] mb-1.5">
-                                    위 정책에 동의하시면 <span className="text-white font-semibold">&lsquo;동의&rsquo;</span>를 입력해주세요
-                                </label>
-                                <input
-                                    type="text"
-                                    value={confirmInput}
-                                    onChange={(event) => setConfirmInput(event.target.value)}
-                                    placeholder="동의"
-                                    className="w-full h-12 bg-[#252525] border border-[#3A3A3A] rounded-lg px-4 text-white placeholder:text-[#555555] focus:border-[#01DF82] outline-none transition-colors"
-                                />
-                            </div>
+                            {/* CHANGED: 타이핑 확인 제거 → 버튼 클릭 기반으로 전환 */}
                             <button
-                                onClick={() => { setConfirmInput(''); setStep('policy4'); }}
-                                disabled={confirmInput !== '동의'}
-                                className="w-full h-12 bg-[#01DF82] text-black font-bold rounded-lg hover:bg-[#00C972] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                onClick={() => setStep('policy4')}
+                                className="w-full h-12 bg-[#01DF82] text-black font-bold rounded-lg hover:bg-[#00C972] transition-colors"
                             >
-                                다음
+                                정책에 동의합니다
                             </button>
                         </div>
                     )}
@@ -529,10 +496,13 @@ export default function PartnerApplicationModal({
                     {/* CHANGED: Step 4: 팔로워 쿠폰 보안 정책 — 별도 단계로 분리 (중요도 높음) */}
                     {step === 'policy4' && (
                         <div className="space-y-4">
+                            {/* CHANGED: Step 진행률 인디케이터 추가 */}
+                            <p className="text-xs text-[#666666] text-center">Step 4 / 4</p>
                             <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 space-y-3">
                                 <p className="text-sm font-bold text-red-400">⚠️ 팔로워 쿠폰 코드 보안 정책</p>
+                                {/* CHANGED: '외부 유출이 금지' → 행동 지시 톤으로 소프트 랜딩 */}
                                 <p className="text-sm text-[#B0B0B0]">
-                                    팔로워 쿠폰 코드는 <span className="text-red-400 font-medium">외부 유출이 금지</span>됩니다.
+                                    팔로워 쿠폰 코드는 <span className="text-red-400 font-medium">외부에 공개하지 말아주세요</span>.
                                     무분별한 유출 시 빠르게 마감되어 실제 팔로워에게 혜택이 돌아가지 않습니다.
                                 </p>
                                 <p className="text-sm font-semibold text-white mt-2">반드시 콘텐츠 내에서만 노출해주세요:</p>
@@ -553,24 +523,12 @@ export default function PartnerApplicationModal({
                                 </div>
                             </div>
 
-                            <div>
-                                <label className="block text-sm text-[#9CA3AF] mb-1.5">
-                                    위 내용을 확인하셨으면 <span className="text-white font-semibold">&lsquo;이해&rsquo;</span>를 입력해주세요
-                                </label>
-                                <input
-                                    type="text"
-                                    value={confirmInput}
-                                    onChange={(event) => setConfirmInput(event.target.value)}
-                                    placeholder="이해"
-                                    className="w-full h-12 bg-[#252525] border border-[#3A3A3A] rounded-lg px-4 text-white placeholder:text-[#555555] focus:border-[#01DF82] outline-none transition-colors"
-                                />
-                            </div>
+                            {/* CHANGED: 타이핑 확인 제거 → 버튼 클릭 기반으로 전환 */}
                             <button
-                                onClick={() => { setConfirmInput(''); setStep('review'); }}
-                                disabled={confirmInput !== '이해'}
-                                className="w-full h-12 bg-[#01DF82] text-black font-bold rounded-lg hover:bg-[#00C972] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                onClick={() => setStep('review')}
+                                className="w-full h-12 bg-[#01DF82] text-black font-bold rounded-lg hover:bg-[#00C972] transition-colors"
                             >
-                                다음
+                                이해했습니다
                             </button>
                         </div>
                     )}
@@ -609,7 +567,8 @@ export default function PartnerApplicationModal({
                                 {isSubmitting ? (
                                     <span className="flex items-center justify-center gap-2">
                                         <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
-                                        신청 처리 중...
+                                        {/* CHANGED: 로딩 카피 양식 통일 ({동사}하는 중…) */}
+                                        신청하는 중…
                                     </span>
                                 ) : '신청하기'}
                             </button>
@@ -687,7 +646,8 @@ export default function PartnerApplicationModal({
                                         : 'bg-[#333333] text-white hover:bg-[#3A3A3A]'
                                 }`}
                             >
-                                {allCopied ? '복사 완료!' : '📋 전체 정보 복사하기'}
+                                {/* CHANGED: CTA 버튼 이모지 제거 */}
+                                {allCopied ? '복사 완료!' : '전체 정보 복사하기'}
                             </button>
 
                             <button

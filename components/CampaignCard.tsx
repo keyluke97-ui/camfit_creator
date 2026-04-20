@@ -44,6 +44,13 @@ export default function CampaignCard({ campaign, channelTypes }: CampaignCardPro
     // 활성 상태
     return (
         <div className="bg-[#1E1E1E] border border-[#333333] rounded-lg p-5 hover:border-[#01DF82] transition-colors">
+            {/* CHANGED: 경제 모델 배지 — 프리미엄은 '원고료 지급' (파트너 카드 배지와 대칭) */}
+            <div className="mb-3">
+                <span className="inline-block px-2.5 py-1 text-[11px] font-medium bg-[#01DF82]/15 text-[#01DF82] border border-[#01DF82]/30 rounded-full">
+                    원고료 지급
+                </span>
+            </div>
+
             {/* 숙소 이름 */}
             <h3 className="text-xl font-bold text-white mb-3 leading-tight">
                 {campaign.accommodationName}

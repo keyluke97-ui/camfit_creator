@@ -185,7 +185,8 @@ export default function ApplicationModal({ isOpen, onClose, campaign, channelTyp
                             <div className="space-y-4 text-[#B0B0B0] text-sm leading-relaxed">
                                 <h3 className="text-white font-bold text-lg mb-2">1️⃣ 매칭 및 취소 정책</h3>
                                 <div className="bg-[#2A2A2A] p-4 rounded-lg space-y-3">
-                                    <p><span className="text-[#01DF82]">신청 시 매칭 완료</span>: 협찬 공고에 신청한 시점을 기준으로 즉시 <strong>'매칭 완료'</strong>로 간주됩니다.</p>
+                                    {/* CHANGED: '매칭 완료' 용어 모호성 제거 — 즉시 확정 의미 명확화 */}
+                                    <p><span className="text-[#01DF82]">신청 즉시 확정</span>: 신청과 동시에 예약이 확정돼요 (캠지기 승인 대기 없음).</p>
                                     <p><span className="text-[#01DF82]">취소 제한 및 책임</span>: 매칭 완료 이후 개인 사정으로 인한 취소는 지양해주세요. (취소 시 해당 일정 예약 불가로 인해 캠핑장 사업주에게 실질적인 금전적 손해가 발생합니다.)</p>
                                     <p><span className="text-[#01DF82]">노쇼(No-show) 처리</span>: 노쇼 또는 당일 취소 시 협찬은 무효 처리되며, 재방문 또는 보상은 제공되지 않습니다.</p>
                                 </div>
@@ -216,7 +217,8 @@ export default function ApplicationModal({ isOpen, onClose, campaign, channelTyp
                             <div>
                                 <h3 className="text-white font-bold text-lg mb-3">3️⃣ 이용 혜택 및 비용 부담</h3>
                                 <div className="bg-[#2A2A2A] p-4 rounded-lg text-sm text-[#B0B0B0] space-y-2">
-                                    <p><span className="text-[#01DF82]">제공 범위</span>: 혜택은 캠지기가 기재한 숙박권과 원고료에 한합니다.</p>
+                                    {/* CHANGED: '캠지기' 최초 등장 시점에 풀이 1회 추가 */}
+                                    <p><span className="text-[#01DF82]">제공 범위</span>: 혜택은 캠지기(캠핑장 사장님)가 기재한 숙박권과 원고료에 한합니다.</p>
                                     <p><span className="text-[#01DF82]">추가 비용</span>: 기준 인원 초과, 추가 옵션, 시설 이용료 등 추가 비용은 본인 부담입니다.</p>
                                 </div>
                             </div>
@@ -255,7 +257,8 @@ export default function ApplicationModal({ isOpen, onClose, campaign, channelTyp
                     {step === 3 && (
                         <div className="space-y-6">
                             <div className="text-center space-y-2">
-                                <h3 className="text-xl font-bold text-white">거의 다 되었습니다! 🎉</h3>
+                                {/* CHANGED: 쿠폰 발급 전이라 '완료' 오해를 막도록 헤드 변경 */}
+                                <h3 className="text-xl font-bold text-white">마지막! 이메일만 남았어요</h3>
                                 <p className="text-[#B0B0B0] text-sm">
                                     프리미엄 협찬 관련 안내 메일을 받으실 이메일 주소를 입력해주세요.
                                 </p>
@@ -275,7 +278,8 @@ export default function ApplicationModal({ isOpen, onClose, campaign, channelTyp
                             {campaign.highlights && (
                                 <div className="bg-[#2A2A2A] p-4 rounded-lg space-y-2">
                                     <div className="flex items-center gap-2">
-                                        <p className="text-sm font-bold text-[#01DF82]">✨ 캠지기님이 자랑하고 싶은 포인트!</p>
+                                        {/* CHANGED: '캠지기' 풀이 추가 */}
+                                        <p className="text-sm font-bold text-[#01DF82]">✨ 캠지기(캠핑장 사장님)가 자랑하는 포인트</p>
                                         <span className="text-xs text-[#888888]">(필수 X)</span>
                                     </div>
                                     <div className="relative">
@@ -513,7 +517,8 @@ export default function ApplicationModal({ isOpen, onClose, campaign, channelTyp
                                 {isLoading ? (
                                     <>
                                         <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
-                                        체크 중...
+                                        {/* CHANGED: 로딩 카피 양식 통일 ({동사}하는 중…) */}
+                                        확인하는 중…
                                     </>
                                 ) : (
                                     step === 3 ? '최종 신청하기' : '이해했습니다'
