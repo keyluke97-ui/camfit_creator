@@ -65,12 +65,7 @@ export default function PartnerCampaignCard({
 
     return (
         <div className="bg-[#1E1E1E] border border-[#333333] rounded-lg p-5 hover:border-[#01DF82] transition-colors">
-            {/* CHANGED: 경제 모델 배지 — 파트너는 '무료 숙박 + 팔로워 쿠폰' (프리미엄 카드 배지와 대칭) */}
-            <div className="mb-3">
-                <span className="inline-block px-2.5 py-1 text-[11px] font-medium bg-sky-500/15 text-sky-400 border border-sky-500/30 rounded-full">
-                    무료 숙박 + 팔로워 쿠폰
-                </span>
-            </div>
+            {/* CHANGED: 경제 모델 배지 제거 — 탭이 이미 구분자 역할이라 카드마다 반복 노출은 중복 노이즈 */}
 
             {/* 소재 권역 위치 태그 */}
             {campaign.location && (

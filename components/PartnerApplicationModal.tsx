@@ -516,9 +516,10 @@ export default function PartnerApplicationModal({
                                         <span><span className="text-white font-medium">인스타그램</span>: DM 발송 (DM 발송 서비스 미사용 시 피드/릴스 캡션 삽입)</span>
                                     </li>
                                 </ul>
+                                {/* CHANGED: 쿠폰 오남용 시 제재 문구 구체화 — 이상 사용 패턴·고의적 오남용 명시 */}
                                 <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-3 mt-2">
-                                    <p className="text-xs text-red-400 font-medium">
-                                        위반 시 향후 파트너 협찬 참여가 제한됩니다.
+                                    <p className="text-xs text-red-400 font-medium leading-relaxed">
+                                        팔로워 쿠폰 코드 배포 과정에서 이상 사용 패턴 또는 고의적 오남용이 확인되는 경우, 캠핏은 해당 크리에이터의 향후 협찬 참여 제한 조치를 할 수 있습니다.
                                     </p>
                                 </div>
                             </div>
