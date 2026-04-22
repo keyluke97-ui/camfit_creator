@@ -27,19 +27,14 @@ function isRegistered(application: PartnerApplication): boolean {
  * 쿠폰 정보 복사용 텍스트 생성
  */
 function buildCheckinCopyText(application: PartnerApplication): string {
-    const perPersonCoupon = application.totalRecruitCount > 0
-        ? Math.floor(application.followerCouponCount / application.totalRecruitCount)
-        : 0;
-
     const lines = [
         `[${application.accommodationName} 파트너 협찬 안내]`,
         ``,
         ...(application.creatorCouponCode ? [`🎫 크리에이터 쿠폰 코드: ${application.creatorCouponCode}`] : []),
         ...(application.followerCouponCode ? [`🎫 팔로워 쿠폰 코드: ${application.followerCouponCode}`] : []),
-        `🎟️ 1인당 팔로워 쿠폰: ${perPersonCoupon}장`,
-        `💰 팔로워 할인: 평일 ${application.weekdayDiscount.toLocaleString()}원${application.weekendDiscount > 0 ? ` / 주말 ${application.weekendDiscount.toLocaleString()}원` : ''}`,
-        ...(application.stayType ? [`📅 적용 가능 요일: ${application.stayType}`] : []),
-        ...(application.holidayCouponApplied ? [`✅ 공휴일에도 쿠폰 사용 가능`] : []),
+        `🎟️ 1인당 팔로워 쿠폰: ${application.couponPerCreator}장`,
+        `💰 쿠폰 할인 금액: 예약 건당 ${application.discount.toLocaleString()}원`,
+        ...(application.couponApplyDays ? [`📅 적용 가능 요일: ${application.couponApplyDays}`] : []),
         ...(application.siteTypes.length > 0 ? [`🏕️ 적용 가능 존: ${application.siteTypes.join(', ')}`] : []),
         // CHANGED: 빈값 방어 + 라벨 명확화
         ...(application.visitStartDate ? [`📅 크리에이터 방문 가능: ${application.visitStartDate} ~ ${application.visitEndDate}`] : []),

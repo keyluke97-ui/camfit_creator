@@ -129,31 +129,39 @@ export interface Application {
 // ──────────────────────────────────────────────
 
 export type PartnerRecruitmentStatus = '오픈전' | '모집중' | '마감';
+// v3: '쿠폰 적용 요일' 필드 옵션
 export type PartnerStayType = '평일전용' | '평일+주말(금토)' | '평일+주말+공휴일';
 
 export interface PartnerCampaign {
   id: string;
   accommodationName: string;
-  location: string; // CHANGED: 소재 권역 필드 추가 (A1-1)
-  packageType: string;
-  stayType: PartnerStayType;
-  weekdayDiscount: number;
-  weekendDiscount: number;
-  holidayCouponApplied: boolean;
+  location: string;
+  couponApplyDays: PartnerStayType; // v3: 숙박 타입 → 쿠폰 적용 요일
+  discount: number;                 // v3: 단일 할인 금액
   accommodationDescription: string;
   recruitmentStatus: PartnerRecruitmentStatus;
-  totalRecruitCount: number; // CHANGED: 총모집인원 필드 추가 (1인당 쿠폰 계산용)
-  availableCount: number;
-  followerCouponCount: number;
+
+  // v3: 등급별 모집 & 잔여
+  iconRecruitCount: number;
+  partnerRecruitCount: number;
+  risingRecruitCount: number;
+  iconAvailable: number;
+  partnerAvailable: number;
+  risingAvailable: number;
+
+  // v3: 쿠폰
+  couponPerCreator: number;         // 인당 팔로워 쿠폰 (10/20/30)
+  totalFollowerCoupon: number;      // Formula: 등급별 쿠폰 수량 합산
+
   creatorCouponCode: string;
   followerCouponCode: string;
   visitStartDate: string;
   visitEndDate: string;
   couponStartDate: string;
   couponEndDate: string;
-  camfitLink: string; // CHANGED: 캠핑장 바로가기 링크 추가
-  siteTypes: string[]; // CHANGED: 제공 가능한 사이트 종류 추가
-  creatorStayNights: number; // CHANGED: 크리에이터 쿠폰 숙박 박수 (Airtable 디폴트 2)
+  camfitLink: string;
+  siteTypes: string[];
+  creatorStayNights: number;
   isClosed: boolean;
 }
 
@@ -171,16 +179,15 @@ export interface PartnerApplication {
   visitEndDate: string;
   couponStartDate: string;
   couponEndDate: string;
-  // CHANGED: 캠페인 상세 조인 (체크인 모달 쿠폰 정보 복사용)
-  weekdayDiscount: number;
-  weekendDiscount: number;
-  stayType: string;
-  holidayCouponApplied: boolean;
+
+  // v3: 캠페인 상세 조인 (enrichPartnerApplications에서 채워짐)
+  discount: number;
+  couponApplyDays: string;
   siteTypes: string[];
   accommodationDescription: string;
-  followerCouponCount: number;
-  totalRecruitCount: number;
-  creatorStayNights: number; // CHANGED: 크리에이터 숙박 박수
+  couponPerCreator: number;
+  totalFollowerCoupon: number;
+  creatorStayNights: number;
 }
 
 // ──────────────────────────────────────────────
@@ -260,16 +267,26 @@ export interface AirtablePartnerCampaignRecord {
   id: string;
   fields: {
     '캠핑장명': string;
-    '패키지 유형': string;
-    '숙박 타입': string;
-    '평일 할인 금액': number;
-    '주말 할인 금액': number;
-    '공휴일 쿠폰 적용'?: boolean;
+    '할인 금액': number;
+    '쿠폰 적용 요일': string;
     '숙소 소개': string;
     '모집 상태': string;
-    '총모집인원'?: number; // CHANGED: 1인당 쿠폰 계산용
-    '신청가능인원': number;
-    '팔로워쿠폰수': number;
+
+    // v3 등급별 9필드
+    '⭐️ 쿠폰 수량'?: number;
+    '✔️ 쿠폰 수량'?: number;
+    '🔥 쿠폰 수량'?: number;
+    '⭐️ 모집 희망 인원'?: number;
+    '✔️ 모집 희망 인원'?: number;
+    '🔥 모집 희망 인원'?: number;
+    '⭐️ 신청 가능 인원'?: number;
+    '✔️ 신청 가능 인원'?: number;
+    '🔥 신청 가능 인원'?: number;
+
+    // v3 쿠폰
+    '인당 팔로워 쿠폰'?: number;
+    '총 팔로워 쿠폰 수'?: number;
+
     '크리에이터 쿠폰 코드'?: string;
     '팔로워 쿠폰 코드'?: string;
     '파트너 신청'?: string[];
@@ -277,10 +294,10 @@ export interface AirtablePartnerCampaignRecord {
     '크리에이터 방문 가능 종료일': string;
     '쿠폰 유효 시작일': string;
     '쿠폰 유효 종료일': string;
-    '소재 권역'?: string; // CHANGED: 위치 태그용 필드 추가 (A1-1)
-    '캠핏링크'?: string; // CHANGED: 캠핑장 바로가기 링크
-    '제공 가능한 사이트 종류'?: string[]; // CHANGED: 사이트 종류 MultipleSelect
-    '숙박박수(크리에이터 사이드)'?: number; // CHANGED: 크리에이터 쿠폰 숙박 박수 (디폴트 2)
+    '소재 권역'?: string;
+    '캠핏링크'?: string;
+    '제공 가능한 사이트 종류'?: string[];
+    '숙박박수(크리에이터 사이드)'?: number;
   };
 }
 
@@ -306,5 +323,10 @@ export interface AirtablePartnerApplicationRecord {
     '방문 가능 종료일 (from 캠페인)'?: string[];
     '쿠폰 유효 시작일 (from 캠페인)'?: string[];
     '쿠폰 유효 종료일 (from 캠페인)'?: string[];
+    // v3: 신규 Lookup 필드
+    '할인 금액 (from 캠페인)'?: number[];
+    '쿠폰 적용 요일 (from 캠페인)'?: string[];
+    '인당 팔로워 쿠폰 (from 캠페인)'?: number[];
+    '총 팔로워 쿠폰 수 (from 캠페인)'?: number[];
   };
 }

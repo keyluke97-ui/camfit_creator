@@ -567,6 +567,7 @@ function DashboardContent() {
                                                 <PartnerCampaignCard
                                                     key={campaign.id}
                                                     campaign={campaign}
+                                                    myTier={userInfo?.tier || '1'}
                                                     onApplySuccess={fetchPartnerCampaigns}
                                                 />
                                             ))}
@@ -598,6 +599,7 @@ function DashboardContent() {
                                                         <PartnerCampaignCard
                                                             key={campaign.id}
                                                             campaign={campaign}
+                                                            myTier={userInfo?.tier || '1'}
                                                             onApplySuccess={fetchPartnerCampaigns}
                                                         />
                                                     ))}

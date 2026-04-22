@@ -3,21 +3,20 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import type { PartnerCampaign } from '@/types';
+import type { PartnerCampaign, TierLevel } from '@/types';
 import PartnerCouponDisplay from './PartnerCouponDisplay';
 
 /**
  * 팔로워 쿠폰 안내 정보를 복사용 텍스트로 생성
  */
-function buildCouponInfoText(campaign: PartnerCampaign, perPersonCoupon: number): string {
+function buildCouponInfoText(campaign: PartnerCampaign): string {
     const lines = [
         `[${campaign.accommodationName} 팔로워 쿠폰 안내]`,
         ``,
         `🎫 팔로워 쿠폰 입실 가능: ${campaign.couponStartDate} ~ ${campaign.couponEndDate}`,
-        `🎟️ 1인당 팔로워 쿠폰: ${perPersonCoupon}장`,
-        `💰 할인 금액: 평일 ${campaign.weekdayDiscount.toLocaleString()}원${campaign.weekendDiscount > 0 ? ` / 주말 ${campaign.weekendDiscount.toLocaleString()}원` : ''}`,
-        `📅 적용 가능 요일: ${campaign.stayType}`,
-        ...(campaign.holidayCouponApplied ? [`✅ 공휴일에도 쿠폰 사용 가능`] : []),
+        `🎟️ 1인당 팔로워 쿠폰: ${campaign.couponPerCreator}장`,
+        `💰 쿠폰 할인 금액: 예약 건당 ${campaign.discount.toLocaleString()}원`,
+        `📅 적용 가능 요일: ${campaign.couponApplyDays}`,
         ...(campaign.siteTypes.length > 0 ? [`🏕️ 적용 가능 존: ${campaign.siteTypes.join(', ')}`] : []),
     ];
     return lines.join('\n');
@@ -27,7 +26,10 @@ function buildCouponInfoText(campaign: PartnerCampaign, perPersonCoupon: number)
  * 전체 협찬 정보를 카카오톡 복붙용 텍스트로 생성
  */
 // CHANGED: 패키지 제거, 숙소소개·사이트종류·적용요일 추가
-function buildCopyText(campaign: PartnerCampaign, couponCodes: { creator: string; follower: string }, perPersonCoupon: number): string {
+function buildCopyText(
+    campaign: PartnerCampaign,
+    couponCodes: { creator: string; follower: string }
+): string {
     const lines = [
         `[캠핏 파트너 협찬 안내]`,
         ``,
@@ -38,10 +40,9 @@ function buildCopyText(campaign: PartnerCampaign, couponCodes: { creator: string
         ``,
         `📅 크리에이터 방문 가능: ${campaign.visitStartDate} ~ ${campaign.visitEndDate}`,
         `🎫 팔로워 쿠폰 입실 가능: ${campaign.couponStartDate} ~ ${campaign.couponEndDate}`,
-        `💰 팔로워 할인: 평일 ${campaign.weekdayDiscount.toLocaleString()}원${campaign.weekendDiscount > 0 ? ` / 주말 ${campaign.weekendDiscount.toLocaleString()}원` : ''}`,
-        `🎟️ 1인당 팔로워 쿠폰: ${perPersonCoupon}장`,
-        `📅 적용 가능 요일: ${campaign.stayType}`,
-        ...(campaign.holidayCouponApplied ? [`✅ 공휴일에도 쿠폰 사용 가능`] : []),
+        `💰 쿠폰 할인 금액: 예약 건당 ${campaign.discount.toLocaleString()}원`,
+        `🎟️ 1인당 팔로워 쿠폰: ${campaign.couponPerCreator}장`,
+        `📅 적용 가능 요일: ${campaign.couponApplyDays}`,
         ...(campaign.siteTypes.length > 0 ? [`🏕️ 적용 가능 존: ${campaign.siteTypes.join(', ')}`] : []),
         ...(campaign.accommodationDescription ? [``, `📢 캠핑장 추천 포인트:`, campaign.accommodationDescription] : []),
         ``,
@@ -54,6 +55,7 @@ interface PartnerApplicationModalProps {
     isOpen: boolean;
     onClose: () => void;
     campaign: PartnerCampaign;
+    myTier: TierLevel; // v3: 신청자 등급 (Review 화면 안내 + 파생 로직용)
     onApplySuccess: () => void;
 }
 
@@ -68,6 +70,7 @@ export default function PartnerApplicationModal({
     isOpen,
     onClose,
     campaign,
+    myTier,
     onApplySuccess
 }: PartnerApplicationModalProps) {
     const [step, setStep] = useState<ModalStep>('policy1');
@@ -204,14 +207,9 @@ export default function PartnerApplicationModal({
         }
     };
 
-    // CHANGED: 1인당 팔로워 쿠폰 수 계산 (팔로워쿠폰수 / 총모집인원, 정수 절삭)
-    const perPersonCoupon = campaign.totalRecruitCount > 0
-        ? Math.floor(campaign.followerCouponCount / campaign.totalRecruitCount)
-        : 0;
-
     // CHANGED: 전체 정보 복사 핸들러
     const handleCopyAll = useCallback(async () => {
-        const text = buildCopyText(campaign, couponCodes, perPersonCoupon);
+        const text = buildCopyText(campaign, couponCodes);
         try {
             await navigator.clipboard.writeText(text);
             setAllCopied(true);
@@ -229,11 +227,11 @@ export default function PartnerApplicationModal({
             setAllCopied(true);
             setTimeout(() => setAllCopied(false), 2000);
         }
-    }, [campaign, couponCodes, perPersonCoupon]);
+    }, [campaign, couponCodes]);
 
     // CHANGED: 팔로워 쿠폰 안내 복사 핸들러
     const handleCopyCouponInfo = useCallback(async () => {
-        const text = buildCouponInfoText(campaign, perPersonCoupon);
+        const text = buildCouponInfoText(campaign);
         try {
             await navigator.clipboard.writeText(text);
             setCouponInfoCopied(true);
@@ -250,7 +248,7 @@ export default function PartnerApplicationModal({
             setCouponInfoCopied(true);
             setTimeout(() => setCouponInfoCopied(false), 2000);
         }
-    }, [campaign, perPersonCoupon]);
+    }, [campaign]);
 
     if (!isOpen) return null;
 
@@ -346,21 +344,17 @@ export default function PartnerApplicationModal({
                                 </div>
                                 <div>
                                     <p className="text-xs text-[#9CA3AF] mb-0.5">1인당 팔로워 쿠폰</p>
-                                    <p className="text-sm font-semibold text-white">{perPersonCoupon}장</p>
+                                    <p className="text-sm font-semibold text-white">{campaign.couponPerCreator}장</p>
                                 </div>
                                 <div>
                                     <p className="text-xs text-[#9CA3AF] mb-0.5">할인 금액 (팔로워 쿠폰)</p>
                                     <p className="text-sm text-white">
-                                        평일 {campaign.weekdayDiscount.toLocaleString()}원
-                                        {campaign.weekendDiscount > 0 && ` / 주말 ${campaign.weekendDiscount.toLocaleString()}원`}
+                                        예약 건당 {campaign.discount.toLocaleString()}원
                                     </p>
                                 </div>
                                 <div>
                                     <p className="text-xs text-[#9CA3AF] mb-0.5">적용 가능 요일</p>
-                                    <p className="text-sm text-white">{campaign.stayType}</p>
-                                    {campaign.holidayCouponApplied && (
-                                        <p className="text-xs text-orange-400 mt-0.5">공휴일에도 쿠폰 사용 가능</p>
-                                    )}
+                                    <p className="text-sm text-white">{campaign.couponApplyDays}</p>
                                 </div>
                                 {/* CHANGED: 제공 가능한 사이트 종류 표시 */}
                                 {campaign.siteTypes.length > 0 && (
@@ -543,13 +537,11 @@ export default function PartnerApplicationModal({
                                 <ReviewRow label="캠핑장" value={campaign.accommodationName} />
                                 <ReviewRow label="크리에이터 숙박" value={`${campaign.creatorStayNights}박 무료`} highlight />
                                 <div className="border-t border-[#333333]" />
-                                <ReviewRow label="팔로워 쿠폰 (평일)" value={`${campaign.weekdayDiscount.toLocaleString()}원 할인`} />
-                                {campaign.weekendDiscount > 0 && (
-                                    <ReviewRow label="팔로워 쿠폰 (주말)" value={`${campaign.weekendDiscount.toLocaleString()}원 할인`} />
-                                )}
+                                <ReviewRow label="팔로워 쿠폰 할인" value={`예약 건당 ${campaign.discount.toLocaleString()}원`} />
                                 <ReviewRow label="크리에이터 방문 가능" value={`${campaign.visitStartDate} ~ ${campaign.visitEndDate}`} />
                                 <ReviewRow label="팔로워 쿠폰 입실 가능" value={`${campaign.couponStartDate} ~ ${campaign.couponEndDate}`} />
-                                <ReviewRow label="1인당 팔로워 쿠폰" value={`${perPersonCoupon}장`} />
+                                <ReviewRow label="1인당 팔로워 쿠폰" value={`${campaign.couponPerCreator}장`} />
+                                <ReviewRow label="적용 가능 요일" value={campaign.couponApplyDays} />
                             </div>
 
                             {/* CHANGED: 정산 문구 제거 — 파트너 협찬에 정산 없음 */}
@@ -558,6 +550,10 @@ export default function PartnerApplicationModal({
                                     입실일과 입실 사이트를 꼭 등록해주세요. 미등록 시 협찬 진행 확인이 어렵습니다.
                                 </p>
                             </div>
+
+                            <p className="text-sm text-[#B0B0B0]">
+                                {myTier === '3' ? '⭐️ 아이콘' : myTier === '2' ? '✔️ 파트너' : '🔥 라이징'} 등급의 남은 자리에 신청합니다.
+                            </p>
 
                             {/* CHANGED: 신청 버튼 로딩 상태 — 기다려야 함을 인지시킴 */}
                             <button
