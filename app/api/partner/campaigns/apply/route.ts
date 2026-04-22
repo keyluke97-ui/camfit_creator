@@ -5,6 +5,7 @@ import { jwtVerify } from 'jose';
 import { applyPartnerCampaign } from '@/lib/airtable';
 // CHANGED: 공통 상수/함수를 constants.ts에서 import (중복 제거)
 import { hasPartnerEligibleChannel } from '@/lib/constants';
+import type { TierLevel } from '@/types';
 
 if (!process.env.NEXTAUTH_SECRET) {
     throw new Error('NEXTAUTH_SECRET 환경변수가 설정되지 않았습니다.');
@@ -41,16 +42,21 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // CHANGED: payload.id → payload.creatorId (로그인 소스 전환)
         const userRecordId = payload.creatorId as string;
         const channelName = payload.channelName as string;
+        const tier = payload.tier as TierLevel;
+
+        if (!tier) {
+            return NextResponse.json({ error: '등급 정보가 없습니다. 다시 로그인해주세요.' }, { status: 401 });
+        }
 
         const result = await applyPartnerCampaign({
             campaignId,
             userRecordId,
-            channelName, // CHANGED: 프라이머리 필드(크리에이터 채널명) 채우기용
+            channelName,
+            tier, // v3: 등급 기반 잔여 검증
             checkInDate: checkInDate || undefined,
-            checkInSite: checkInSite || undefined
+            checkInSite: checkInSite || undefined,
         });
 
         return NextResponse.json(result);

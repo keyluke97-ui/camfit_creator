@@ -109,6 +109,31 @@ export function getTierFields(tier: TierLevel) {
 }
 
 /**
+ * 파트너 협찬 등급별 필드명 매핑 (신규)
+ * - 프리미엄 getTierFields와 구분: 파트너는 '쿠폰 수량' / '모집 희망 인원' / '신청 가능 인원' 3셋.
+ */
+export function getPartnerTierFields(tier: TierLevel) {
+    const fieldMap = {
+        '3': { // ⭐️ Icon
+            couponAmount: '⭐️ 쿠폰 수량',
+            total: '⭐️ 모집 희망 인원',
+            available: '⭐️ 신청 가능 인원',
+        },
+        '2': { // ✔️ Partner
+            couponAmount: '✔️ 쿠폰 수량',
+            total: '✔️ 모집 희망 인원',
+            available: '✔️ 신청 가능 인원',
+        },
+        '1': { // 🔥 Rising
+            couponAmount: '🔥 쿠폰 수량',
+            total: '🔥 모집 희망 인원',
+            available: '🔥 신청 가능 인원',
+        },
+    };
+    return fieldMap[tier];
+}
+
+/**
  * 마감 여부 판단
  */
 export function isCampaignClosed(availableCount: number, price: number): boolean {
@@ -630,50 +655,59 @@ function isPartnerCampaignClosed(
 }
 
 /**
- * Airtable 파트너 캠페인 레코드 → 도메인 객체 변환
+ * Airtable 파트너 캠페인 레코드 → 도메인 객체 변환 (v3)
  */
 function mapPartnerCampaignRecord(
     record: AirtablePartnerCampaignRecord
 ): PartnerCampaign {
     const fields = record.fields;
     const recruitmentStatus = fields['모집 상태'] || '오픈전';
-    const availableCount = fields['신청가능인원'] || 0;
+
+    const iconAvailable = fields['⭐️ 신청 가능 인원'] || 0;
+    const partnerAvailable = fields['✔️ 신청 가능 인원'] || 0;
+    const risingAvailable = fields['🔥 신청 가능 인원'] || 0;
+    const totalAvailable = iconAvailable + partnerAvailable + risingAvailable;
 
     return {
         id: record.id,
         accommodationName: fields['캠핑장명'] || '',
-        location: fields['소재 권역'] || '', // CHANGED: 소재 권역 매핑 추가 (A1-1)
-        packageType: fields['패키지 유형'] || '',
-        stayType: (fields['숙박 타입'] || '평일전용') as PartnerCampaign['stayType'],
-        weekdayDiscount: fields['평일 할인 금액'] || 0,
-        weekendDiscount: fields['주말 할인 금액'] || 0,
-        holidayCouponApplied: fields['공휴일 쿠폰 적용'] || false,
+        location: fields['소재 권역'] || '',
+        couponApplyDays: (fields['쿠폰 적용 요일'] || '평일전용') as PartnerCampaign['couponApplyDays'],
+        discount: fields['할인 금액'] || 0,
         accommodationDescription: fields['숙소 소개'] || '',
         recruitmentStatus: recruitmentStatus as PartnerCampaign['recruitmentStatus'],
-        totalRecruitCount: fields['총모집인원'] || 0, // CHANGED: 총모집인원 매핑
-        availableCount,
-        followerCouponCount: fields['팔로워쿠폰수'] || 0,
+
+        iconRecruitCount: fields['⭐️ 모집 희망 인원'] || 0,
+        partnerRecruitCount: fields['✔️ 모집 희망 인원'] || 0,
+        risingRecruitCount: fields['🔥 모집 희망 인원'] || 0,
+        iconAvailable,
+        partnerAvailable,
+        risingAvailable,
+
+        couponPerCreator: fields['인당 팔로워 쿠폰'] || 0,
+        totalFollowerCoupon: fields['총 팔로워 쿠폰 수'] || 0,
+
         creatorCouponCode: fields['크리에이터 쿠폰 코드'] || '',
         followerCouponCode: fields['팔로워 쿠폰 코드'] || '',
         visitStartDate: fields['크리에이터 방문 가능 시작일'] || '',
         visitEndDate: fields['크리에이터 방문 가능 종료일'] || '',
         couponStartDate: fields['쿠폰 유효 시작일'] || '',
         couponEndDate: fields['쿠폰 유효 종료일'] || '',
-        camfitLink: fields['캠핏링크'] || '', // CHANGED: 캠핑장 바로가기 링크 매핑
-        siteTypes: fields['제공 가능한 사이트 종류'] || [], // CHANGED: 사이트 종류 매핑
-        creatorStayNights: fields['숙박박수(크리에이터 사이드)'] || 2, // CHANGED: 크리에이터 숙박 박수 매핑 (디폴트 2)
-        isClosed: isPartnerCampaignClosed(recruitmentStatus, availableCount)
+        camfitLink: fields['캠핏링크'] || '',
+        siteTypes: fields['제공 가능한 사이트 종류'] || [],
+        creatorStayNights: fields['숙박박수(크리에이터 사이드)'] || 2,
+        isClosed: isPartnerCampaignClosed(recruitmentStatus, totalAvailable),
     };
 }
 
 /**
- * 파트너 캠페인 목록 조회 (모집중 우선 → 최신순)
+ * 파트너 캠페인 목록 조회 (v3: tier 인자, 등급별 합산 기반 auto-close)
  */
-export async function getPartnerCampaigns(): Promise<PartnerCampaign[]> {
+export async function getPartnerCampaigns(tier: TierLevel): Promise<PartnerCampaign[]> {
     try {
         const records = await partnerCampaignTable()
             .select({
-                filterByFormula: `{모집 상태} != '오픈전'`
+                filterByFormula: `{모집 상태} != '오픈전'`,
             })
             .all();
 
@@ -682,26 +716,33 @@ export async function getPartnerCampaigns(): Promise<PartnerCampaign[]> {
             return mapPartnerCampaignRecord(rec);
         });
 
-        // CHANGED: 모집 상태 자동 동기화 (비동기, 응답 대기 안 함)
-        // 참고 필드: 신청가능인원(fldeEDkih4Aev5fLR), 모집 상태(fld9jtF3iTETssFUi)
+        // v3 자동 마감/오픈 재전환: 전 등급 합계 기준
         const campaignsToReopen = records.filter((record) => {
             const rec = record as unknown as AirtablePartnerCampaignRecord;
-            return rec.fields['모집 상태'] === '마감' && (rec.fields['신청가능인원'] || 0) >= 1;
+            const sumAvailable =
+                (rec.fields['⭐️ 신청 가능 인원'] || 0) +
+                (rec.fields['✔️ 신청 가능 인원'] || 0) +
+                (rec.fields['🔥 신청 가능 인원'] || 0);
+            return rec.fields['모집 상태'] === '마감' && sumAvailable >= 1;
         });
         const campaignsToClose = records.filter((record) => {
             const rec = record as unknown as AirtablePartnerCampaignRecord;
-            return rec.fields['모집 상태'] === '모집중' && (rec.fields['신청가능인원'] || 0) < 1;
+            const sumAvailable =
+                (rec.fields['⭐️ 신청 가능 인원'] || 0) +
+                (rec.fields['✔️ 신청 가능 인원'] || 0) +
+                (rec.fields['🔥 신청 가능 인원'] || 0);
+            return rec.fields['모집 상태'] === '모집중' && sumAvailable < 1;
         });
         const statusUpdates = [
-            ...campaignsToReopen.map((record) => ({ id: record.id, fields: { '모집 상태': '모집중' } })),
-            ...campaignsToClose.map((record) => ({ id: record.id, fields: { '모집 상태': '마감' } }))
+            ...campaignsToReopen.map((r) => ({ id: r.id, fields: { '모집 상태': '모집중' } })),
+            ...campaignsToClose.map((r) => ({ id: r.id, fields: { '모집 상태': '마감' } })),
         ];
         if (statusUpdates.length > 0) {
-            partnerCampaignTable().update(statusUpdates)
+            partnerCampaignTable()
+                .update(statusUpdates)
                 .catch((error) => console.error('Auto-sync partner campaign status error:', error));
         }
 
-        // 모집중 우선, 그 다음 마감 → 각 그룹 내에서는 ID 역순(최신)
         campaigns.sort((a, b) => {
             if (a.recruitmentStatus === '모집중' && b.recruitmentStatus !== '모집중') return -1;
             if (a.recruitmentStatus !== '모집중' && b.recruitmentStatus === '모집중') return 1;
@@ -735,105 +776,93 @@ export async function checkPartnerDuplicateApplication(
     }
 }
 
-// CHANGED: checkInDate/checkInSite 선택으로 변경 — 신청 후 성공 화면에서 등록
 interface ApplyPartnerCampaignParams {
     campaignId: string;
     userRecordId: string;
-    channelName: string; // CHANGED: 프라이머리 필드(크리에이터 채널명) 채우기용
+    channelName: string;
+    tier: TierLevel; // v3 신규
     checkInDate?: string;
     checkInSite?: string;
 }
 
 /**
- * 파트너 캠페인 신청 (2단계 검증 + 자동 마감)
+ * 파트너 캠페인 신청 (2단계 검증 + 자동 마감) — v3 tier 기반
  */
 export async function applyPartnerCampaign({
     campaignId,
     userRecordId,
     channelName,
+    tier,
     checkInDate,
-    checkInSite
-// CHANGED: 반환 타입에 쿠폰 코드 추가 (A2-9)
+    checkInSite,
 }: ApplyPartnerCampaignParams): Promise<{ success: boolean; creatorCouponCode: string; followerCouponCode: string }> {
     let createdApplicationId: string | null = null;
+    const tierFields = getPartnerTierFields(tier);
 
     try {
         // 1. 중복 신청 확인
         const isDuplicate = await checkPartnerDuplicateApplication(userRecordId, campaignId);
-        if (isDuplicate) {
-            throw new Error('ALREADY_APPLIED');
-        }
+        if (isDuplicate) throw new Error('ALREADY_APPLIED');
 
-        // 2. 잔여 인원 사전 체크 (1차 방어)
-        const campaignRecord = await partnerCampaignTable().find(campaignId) as unknown as AirtablePartnerCampaignRecord;
-        const availableCountBefore = campaignRecord.fields['신청가능인원'] || 0;
-        if (availableCountBefore < 1) {
-            throw new Error('CAMPAIGN_FULL');
-        }
+        // 2. 해당 등급 잔여 인원 사전 체크
+        const campaignRecord = (await partnerCampaignTable().find(campaignId)) as unknown as AirtablePartnerCampaignRecord;
+        const tierAvailableBefore = (campaignRecord.fields[tierFields.available as keyof typeof campaignRecord.fields] as number) || 0;
+        if (tierAvailableBefore < 1) throw new Error('CAMPAIGN_FULL');
 
-        // CHANGED: 서버 사이드 날짜 범위 검증 — 프론트 우회 방어 (checkInDate가 있을 때만)
+        // 서버 사이드 날짜 범위 검증
         if (checkInDate) {
             const visitStart = campaignRecord.fields['크리에이터 방문 가능 시작일'] || '';
             const visitEnd = campaignRecord.fields['크리에이터 방문 가능 종료일'] || '';
             if (visitStart && visitEnd) {
-                if (checkInDate < visitStart || checkInDate > visitEnd) {
-                    throw new Error('INVALID_DATE_RANGE');
-                }
+                if (checkInDate < visitStart || checkInDate > visitEnd) throw new Error('INVALID_DATE_RANGE');
             }
         }
 
-        // 3. 신청 레코드 생성 — CHANGED: checkInDate/checkInSite 선택
+        // 3. 신청 레코드 생성
         const applicationFields: Record<string, unknown> = {
             '크리에이터': [userRecordId],
             '캠페인': [campaignId],
-            '크리에이터 채널명': channelName, // CHANGED: 프라이머리 필드 채우기
+            '크리에이터 채널명': channelName,
             '신청 상태': '신청완료',
-            '정책 확인 동의': true
+            '정책 확인 동의': true,
         };
         if (checkInDate) applicationFields['입실일'] = checkInDate;
         if (checkInSite) applicationFields['입실 사이트'] = checkInSite;
 
         const createdRecords = await partnerApplicationTable().create([
-            { fields: applicationFields as Partial<FieldSet> }
+            { fields: applicationFields as Partial<FieldSet> },
         ]);
-
-        if (!createdRecords || createdRecords.length === 0) {
-            throw new Error('FAILED_TO_CREATE_APPLICATION');
-        }
-
+        if (!createdRecords || createdRecords.length === 0) throw new Error('FAILED_TO_CREATE_APPLICATION');
         createdApplicationId = createdRecords[0].id;
 
-        // 4. 사후 검증 (2차 방어) — 잔여 인원 재확인
-        const updatedCampaign = await partnerCampaignTable().find(campaignId) as unknown as AirtablePartnerCampaignRecord;
-        const availableCountAfter = updatedCampaign.fields['신청가능인원'] || 0;
+        // 4. 사후 검증: 해당 등급 잔여 재확인
+        const updatedCampaign = (await partnerCampaignTable().find(campaignId)) as unknown as AirtablePartnerCampaignRecord;
+        const tierAvailableAfter = (updatedCampaign.fields[tierFields.available as keyof typeof updatedCampaign.fields] as number) || 0;
 
-        if (availableCountAfter < 0) {
-            // 정원 초과 → 롤백
-            console.error(`[Partner Race Condition] campaignId=${campaignId}, availableCount=${availableCountAfter} — 롤백`);
+        if (tierAvailableAfter < 0) {
+            console.error(`[Partner Race Condition] tier=${tier}, campaignId=${campaignId}, available=${tierAvailableAfter} — 롤백`);
             await partnerApplicationTable().destroy(createdApplicationId);
             createdApplicationId = null;
             throw new Error('CAMPAIGN_FULL');
         }
 
-        // 5. 자동 마감 전환: 잔여 인원 0이면 모집 상태 → 마감
-        if (availableCountAfter === 0) {
-            await partnerCampaignTable().update([
-                {
-                    id: campaignId,
-                    fields: { '모집 상태': '마감' }
-                }
-            ]);
+        // 5. 자동 마감: 3등급 합계 0일 때만
+        const totalAvailable =
+            (updatedCampaign.fields['⭐️ 신청 가능 인원'] || 0) +
+            (updatedCampaign.fields['✔️ 신청 가능 인원'] || 0) +
+            (updatedCampaign.fields['🔥 신청 가능 인원'] || 0);
+
+        if (totalAvailable === 0) {
+            await partnerCampaignTable().update([{ id: campaignId, fields: { '모집 상태': '마감' } }]);
         }
 
-        // CHANGED: 쿠폰 코드를 캠페인 레코드에서 읽어 반환 (A2-9)
         return {
             success: true,
             creatorCouponCode: updatedCampaign.fields['크리에이터 쿠폰 코드'] || '',
-            followerCouponCode: updatedCampaign.fields['팔로워 쿠폰 코드'] || ''
+            followerCouponCode: updatedCampaign.fields['팔로워 쿠폰 코드'] || '',
         };
     } catch (error) {
         console.error('Apply partner campaign error:', error);
-
         if (createdApplicationId) {
             try {
                 await partnerApplicationTable().destroy(createdApplicationId);
@@ -841,7 +870,6 @@ export async function applyPartnerCampaign({
                 console.error('Partner cleanup error:', cleanupError);
             }
         }
-
         throw error;
     }
 }
@@ -883,16 +911,14 @@ export async function getPartnerApplications(
                 visitEndDate: (fields['방문 가능 종료일 (from 캠페인)'] || [])[0] || '',
                 couponStartDate: (fields['쿠폰 유효 시작일 (from 캠페인)'] || [])[0] || '',
                 couponEndDate: (fields['쿠폰 유효 종료일 (from 캠페인)'] || [])[0] || '',
-                // CHANGED: 캠페인 상세 기본값 — enrichPartnerApplications에서 조인
-                weekdayDiscount: 0,
-                weekendDiscount: 0,
-                stayType: '',
-                holidayCouponApplied: false,
+                // v3 defaults — enrichPartnerApplications가 채움
+                discount: 0,
+                couponApplyDays: '',
                 siteTypes: [],
                 accommodationDescription: '',
-                followerCouponCount: 0,
-                totalRecruitCount: 0,
-                creatorStayNights: 2 // CHANGED: 기본값 — enrichPartnerApplications에서 실제 값으로 교체됨
+                couponPerCreator: 0,
+                totalFollowerCoupon: 0,
+                creatorStayNights: 2,
             };
         });
     } catch (error) {
@@ -939,15 +965,13 @@ export async function enrichPartnerApplications(
             return {
                 ...application,
                 accommodationName: campaign.accommodationName,
-                weekdayDiscount: campaign.weekdayDiscount,
-                weekendDiscount: campaign.weekendDiscount,
-                stayType: campaign.stayType,
-                holidayCouponApplied: campaign.holidayCouponApplied,
+                discount: campaign.discount,
+                couponApplyDays: campaign.couponApplyDays,
                 siteTypes: campaign.siteTypes,
                 accommodationDescription: campaign.accommodationDescription,
-                followerCouponCount: campaign.followerCouponCount,
-                totalRecruitCount: campaign.totalRecruitCount,
-                creatorStayNights: campaign.creatorStayNights
+                couponPerCreator: campaign.couponPerCreator,
+                totalFollowerCoupon: campaign.totalFollowerCoupon,
+                creatorStayNights: campaign.creatorStayNights,
             };
         });
     } catch (error) {
