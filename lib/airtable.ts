@@ -410,7 +410,7 @@ export async function applyCampaign({
         }
 
         return { success: true, couponCode };
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Apply campaign error:', error);
 
         // [Cleanup] 캠페인 업데이트 실패 시 생성된 신청 레코드 삭제
@@ -1208,6 +1208,9 @@ export async function submitContentUpload(payload: ContentSubmitPayload): Promis
             '협찬의 종류를 골라주세요': payload.sponsorshipType,
             '업로드 날짜': payload.uploadDate,
             '콘텐츠 링크': payload.contentLink,
+            // CHANGED: 채널명 프라이머리 필드 + 제출 경로 매핑 추가
+            '채널명': payload.channelName ?? '',
+            '제출 경로': payload.submissionSource ?? '',
         };
 
         // 숙소 협찬 (캠핑장 예약)
