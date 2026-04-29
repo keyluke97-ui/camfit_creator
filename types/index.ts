@@ -247,6 +247,9 @@ export interface ContentSubmitPayload {
     // 프리미엄 협찬
     premiumCampaignRecordId?: string;     // 캠지기 모집 폼 linked record
     premiumRegistrationRecordId?: string; // 프리미엄 협찬 신청 인플루언서 linked record (premiumId 자동)
+    // CHANGED: 채널명 + 제출 경로 필드 추가
+    channelName?: string;                 // 인플루언서 컨텐츠 업로드 프라이머리 필드(채널명) 채우기
+    submissionSource?: string;            // 제출 경로 표시 (포털: "크리에이터 포털 통해서 진행")
 }
 
 // CHANGED: 콘텐츠 업로드 조회 도메인 타입

@@ -24,6 +24,8 @@ export async function POST(request: Request) {
         const { payload: jwtPayload } = await jwtVerify(token, JWT_SECRET);
         const creatorId = jwtPayload.creatorId as string;
         const premiumId = jwtPayload.premiumId as string | null;
+        // CHANGED: 채널명 + 제출 경로 필드 추가 — Airtable 프라이머리 필드 채우기 + 포털 경유 식별
+        const channelName = jwtPayload.channelName as string;
 
         const body = await request.json();
         const { sponsorshipType, uploadDate, contentLink, accommodationRecordId, camfitLoungeUrl, officialCollabRequest, premiumCampaignRecordId } = body;
@@ -69,6 +71,9 @@ export async function POST(request: Request) {
             officialCollabRequest: sponsorshipType === '캠핑장 예약' ? officialCollabRequest : undefined,
             premiumCampaignRecordId: sponsorshipType === '프리미엄 협찬' ? premiumCampaignRecordId : undefined,
             premiumRegistrationRecordId: sponsorshipType === '프리미엄 협찬' ? (premiumId || undefined) : undefined,
+            // CHANGED: 채널명 + 제출 경로 필드 추가
+            channelName,
+            submissionSource: '크리에이터 포털 통해서 진행',
         };
 
         const result = await submitContentUpload(submitPayload);
