@@ -14,6 +14,8 @@ import PartnerCheckinModal from '@/components/PartnerCheckinModal';
 import ContentCard from '@/components/ContentCard';
 import ContentCardCompact from '@/components/ContentCardCompact';
 import ContentSubmitModal from '@/components/ContentSubmitModal';
+// CHANGED (IA v3): 콘텐츠 진입 배너 — 헤더 아이콘 대신 메인 영역 배너로 승격
+import ContentEntryBanner from '@/components/ContentEntryBanner';
 import type { Campaign, PartnerCampaign, ContentUpload, TierLevel, ChannelType } from '@/types';
 // CHANGED: 공통 상수/함수를 constants.ts에서 import (중복 제거)
 import { hasPartnerEligibleChannel, KAKAO_CHANNEL_URL } from '@/lib/constants';
@@ -172,8 +174,9 @@ function DashboardContent() {
         ? hasPartnerEligibleChannel(userInfo.channelTypes)
         : false;
 
-    // CHANGED: 블로거가 partner 탭에 접근 시 premium으로 폴백 (setState 대신 computed)
-    const effectiveTab: TabType = (activeTab === 'partner' && !canAccessPartner) ? 'premium' : activeTab;
+    // CHANGED (IA v3): 폴백 제거. 비적격자가 partner 탭 클릭 시 잠김 안내 화면을 보여줌 (아래 분기에서 처리)
+    const effectiveTab: TabType = activeTab;
+    const showPartnerLockedView = effectiveTab === 'partner' && !canAccessPartner;
 
     // CHANGED: 위치 필터용 location 목록 추출 (콘텐츠 뷰에서는 사용하지 않음)
     const availableLocations = useMemo(() => {
@@ -207,6 +210,7 @@ function DashboardContent() {
     };
 
     // CHANGED: effectiveTab 기반 데이터 패칭 — premiumId 없으면 프리미엄 캠페인 스킵
+    // CHANGED (IA v3): 파트너 비적격자가 partner 탭에 있을 때는 패칭 스킵 (서버 403 방지)
     useEffect(() => {
         if (!userInfo) return;
 
@@ -214,10 +218,10 @@ function DashboardContent() {
             if (userInfo.premiumId) {
                 fetchCampaigns();
             }
-        } else {
+        } else if (canAccessPartner) {
             fetchPartnerCampaigns();
         }
-    }, [userInfo, effectiveTab]);
+    }, [userInfo, effectiveTab, canAccessPartner]);
 
     // CHANGED: 콘텐츠 뷰 진입 시 데이터 패칭
     useEffect(() => {
@@ -237,14 +241,15 @@ function DashboardContent() {
                     if (userInfo?.premiumId) {
                         fetchCampaigns();
                     }
-                } else {
+                } else if (canAccessPartner) {
+                    // CHANGED (IA v3): 파트너 비적격자는 재패칭 스킵
                     fetchPartnerCampaigns();
                 }
             }
         };
         document.addEventListener('visibilitychange', handleVisibilityChange);
         return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-    }, [effectiveTab, showContentView]);
+    }, [effectiveTab, showContentView, canAccessPartner, userInfo?.premiumId]);
 
     const handleLogout = async () => {
         await fetch('/api/auth/logout');
@@ -291,18 +296,8 @@ function DashboardContent() {
                                     <p className="text-xs text-[#888888]">오늘도 즐거운 캠핑 되세요! ⛺️</p>
                                 </div>
 
-                                {/* CHANGED: 아이콘 + 라벨 — 각 버튼 역할을 텍스트로 명시 */}
+                                {/* CHANGED (IA v3): 콘텐츠 아이콘 제거 — 메인 영역 ContentEntryBanner로 승격. 알림/로그아웃만 유지 */}
                                 <div className="flex items-center gap-1">
-                                    <button
-                                        onClick={handleOpenContentView}
-                                        className="flex flex-col items-center gap-0.5 px-2 py-1 text-[#888888] hover:text-[#01DF82] transition-colors"
-                                        aria-label="내 콘텐츠"
-                                    >
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                                        </svg>
-                                        <span className="text-[10px]">콘텐츠</span>
-                                    </button>
                                     <NotificationToggle
                                         enabled={notificationEnabled}
                                         onToggle={handleNotificationToggle}
@@ -343,6 +338,13 @@ function DashboardContent() {
 
             {/* Main Content */}
             <main className="max-w-7xl mx-auto px-5 py-6">
+                {/* CHANGED (IA v3): 콘텐츠 진입 배너 — 헤더 아이콘 대신 메인 영역 상단 노출 (탭 위) */}
+                {!showContentView && userInfo && (
+                    <div className="mb-4">
+                        <ContentEntryBanner onClick={handleOpenContentView} />
+                    </div>
+                )}
+
                 {/* CHANGED: 콘텐츠 뷰가 아닐 때만 탭 표시 */}
                 {!showContentView && userInfo && (
                     <DashboardTabs
@@ -478,8 +480,42 @@ function DashboardContent() {
                 )}
 
                 {/* ──── 파트너 탭 콘텐츠 ──── */}
-                {/* CHANGED: 파트너 오픈 준비중 플래그 — false로 바꾸면 정상 노출 */}
-                {!loading && !showContentView && effectiveTab === 'partner' && PARTNER_COMING_SOON && (
+                {/* CHANGED (IA v3): 파트너 비적격(블로거 등) — 잠김 안내 화면 (최우선 분기) */}
+                {/* CHANGED: "전용" 표현이 배제하는 톤이라 매커니즘 설명으로 변경 — 쿠폰 배포가 필요한 협찬이라 SNS 채널이 필요함을 객관적으로 안내 */}
+                {!loading && !showContentView && showPartnerLockedView && (
+                    <div className="flex flex-col items-center justify-center py-16 gap-5">
+                        <div className="w-16 h-16 bg-[#1E1E1E] border border-[#333333] rounded-2xl flex items-center justify-center text-3xl">
+                            🎟️
+                        </div>
+                        <div className="text-center max-w-xs">
+                            <h3 className="text-base font-bold text-white mb-2 leading-snug">
+                                쿠폰 배포가 필요한<br />협찬이에요
+                            </h3>
+                            <p className="text-sm text-[#888888] leading-relaxed">
+                                팔로워에게 할인 쿠폰을 배포해야 해서,<br />
+                                인스타그램·유튜브가 메인인<br />
+                                크리에이터만 이용 가능합니다.
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => handleTabChange('premium')}
+                            className="mt-2 px-5 py-2.5 bg-[#01DF82] text-black font-bold text-sm rounded-xl hover:bg-[#00C972] transition-colors"
+                        >
+                            ⭐ 프리미엄 협찬 보기 →
+                        </button>
+                        <a
+                            href={KAKAO_CHANNEL_URL}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-[#666666] hover:text-[#888888] transition-colors underline"
+                        >
+                            SNS 채널 추가 문의하기
+                        </a>
+                    </div>
+                )}
+
+                {/* CHANGED: 파트너 오픈 준비중 플래그 — false로 바꾸면 정상 노출 (적격자에게만 노출) */}
+                {!loading && !showContentView && !showPartnerLockedView && effectiveTab === 'partner' && PARTNER_COMING_SOON && (
                     <div className="flex flex-col items-center justify-center py-20 gap-6">
                         <div className="w-20 h-20 bg-[#01DF82]/10 rounded-full flex items-center justify-center">
                             <span className="text-4xl">🚀</span>
@@ -502,7 +538,7 @@ function DashboardContent() {
                         </a>
                     </div>
                 )}
-                {!loading && !showContentView && effectiveTab === 'partner' && !PARTNER_COMING_SOON && (
+                {!loading && !showContentView && !showPartnerLockedView && effectiveTab === 'partner' && !PARTNER_COMING_SOON && (
                     <>
                         {/* Stats Bar */}
                         {partnerCampaigns.length > 0 && (
