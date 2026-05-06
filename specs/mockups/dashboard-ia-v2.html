@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>크리에이터 포털 IA v2 — 콘텐츠 메인 승격 + 협찬 통합 탭</title>
+<style>
+  :root {
+    --bg: #0A0A0A;
+    --surface: #111111;
+    --card: #1E1E1E;
+    --card-hover: #252525;
+    --border: #333333;
+    --border-soft: #1E1E1E;
+    --text: #FFFFFF;
+    --text-mute: #888888;
+    --text-dim: #666666;
+    --accent: #01DF82;
+    --accent-dim: #00C972;
+    --kakao: #FEE500;
+    --kakao-text: #3C1E1E;
+    --premium: #facc15;
+    --partner: #60a5fa;
+    --rising: #34d399;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { -webkit-font-smoothing: antialiased; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Pretendard', 'Apple SD Gothic Neo', sans-serif;
+    min-height: 100vh;
+    padding: 40px 20px 80px;
+  }
+
+  .canvas {
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  .canvas-header {
+    margin-bottom: 32px;
+    padding-bottom: 16px;
+    border-bottom: 1px dashed #2a2a2a;
+  }
+
+  .canvas-title {
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 6px;
+    letter-spacing: -0.01em;
+  }
+
+  .canvas-subtitle {
+    font-size: 13px;
+    color: var(--text-mute);
+    line-height: 1.5;
+  }
+
+  .canvas-meta {
+    margin-top: 12px;
+    display: flex;
+    gap: 20px;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .canvas-meta span::before {
+    content: '●';
+    color: var(--accent);
+    margin-right: 6px;
+  }
+
+  /* 3 column phone preview grid */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 32px;
+    align-items: start;
+  }
+
+  @media (max-width: 1100px) {
+    .grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 720px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+
+  .frame {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .frame-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .frame-desc {
+    font-size: 11px;
+    color: var(--text-dim);
+    line-height: 1.5;
+    margin-top: -8px;
+    margin-bottom: 8px;
+  }
+
+  /* Phone shell */
+  .phone {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 28px;
+    overflow: hidden;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.02) inset;
+  }
+
+  .phone-inner {
+    padding: 20px 18px 80px;
+    min-height: 720px;
+    background: var(--surface);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  /* Header */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .header-left { display: flex; flex-direction: column; gap: 2px; }
+  .header-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .header-greet {
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+  .header-right {
+    display: flex;
+    gap: 4px;
+  }
+  .icon-btn {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    color: var(--text-mute);
+    font-size: 9px;
+  }
+  .icon-btn svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  /* CTA */
+  .cta {
+    background: var(--accent);
+    color: #000;
+    font-weight: 700;
+    font-size: 14px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    box-shadow: 0 0 0 1px rgba(1, 223, 130, 0.1), 0 8px 16px -8px rgba(1, 223, 130, 0.4);
+  }
+
+  /* Event banner */
+  .event-banner {
+    background: linear-gradient(135deg, #01DF82 0%, #00855A 100%);
+    border-radius: 14px;
+    padding: 14px 16px;
+    color: #000;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    position: relative;
+    overflow: hidden;
+  }
+  .event-banner::before {
+    content: '';
+    position: absolute;
+    right: -20px;
+    top: -20px;
+    width: 80px;
+    height: 80px;
+    background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .event-banner-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    z-index: 1;
+  }
+  .event-banner-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    opacity: 0.85;
+  }
+  .event-banner-title {
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .event-banner-arrow {
+    font-size: 14px;
+    z-index: 1;
+  }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    gap: 0;
+  }
+  .tab {
+    flex: 1;
+    padding: 12px 8px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-mute);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .tab.active {
+    color: var(--text);
+    border-bottom-color: var(--accent);
+  }
+  .tab-badge {
+    background: var(--accent);
+    color: #000;
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 8px;
+    font-weight: 700;
+  }
+
+  /* Segment chips (협찬 탭 안에서) */
+  .segments {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .segments::-webkit-scrollbar { display: none; }
+  .seg {
+    padding: 6px 14px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: 12px;
+    color: var(--text-mute);
+    white-space: nowrap;
+  }
+  .seg.active {
+    background: rgba(1, 223, 130, 0.1);
+    border-color: var(--accent);
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  /* Stats */
+  .stats {
+    display: flex;
+    gap: 8px;
+  }
+  .stat {
+    flex: 1;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+  }
+  .stat-label {
+    font-size: 10px;
+    color: var(--text-mute);
+    margin-bottom: 4px;
+  }
+  .stat-value {
+    font-size: 18px;
+    font-weight: 700;
+  }
+  .stat-value.accent { color: var(--accent); }
+
+  /* Content year header */
+  .year-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 4px;
+  }
+  .year-label {
+    font-size: 11px;
+    color: var(--text-mute);
+    font-weight: 600;
+  }
+  .submit-btn {
+    background: var(--accent);
+    color: #000;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: none;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  /* Content card */
+  .content-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .content-card-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .content-type-badges {
+    display: flex;
+    gap: 4px;
+  }
+  .badge {
+    font-size: 9px;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-weight: 700;
+  }
+  .badge-premium {
+    background: rgba(250, 204, 21, 0.15);
+    color: var(--premium);
+    border: 1px solid rgba(250, 204, 21, 0.3);
+  }
+  .badge-partner {
+    background: rgba(96, 165, 250, 0.15);
+    color: var(--partner);
+    border: 1px solid rgba(96, 165, 250, 0.3);
+  }
+  .badge-basic {
+    background: rgba(52, 211, 153, 0.15);
+    color: var(--rising);
+    border: 1px solid rgba(52, 211, 153, 0.3);
+  }
+  .content-date {
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+  .content-title {
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+  .content-link-block {
+    background: var(--card-hover);
+    border-radius: 8px;
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    color: var(--text-mute);
+  }
+  .content-link-block svg {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+  }
+
+  /* Compact content card (이전 연도) */
+  .content-compact {
+    background: transparent;
+    border: 1px solid var(--border-soft);
+    border-radius: 10px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+  }
+  .content-compact-title {
+    color: var(--text-mute);
+  }
+  .content-compact-date {
+    color: var(--text-dim);
+    font-size: 10px;
+  }
+
+  /* Campaign card */
+  .camp-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+  .camp-cover {
+    height: 100px;
+    background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    padding: 10px;
+  }
+  .camp-cover.cover-a {
+    background: linear-gradient(135deg, #4a3220 0%, #1a1410 100%);
+  }
+  .camp-cover.cover-b {
+    background: linear-gradient(135deg, #1a3a2c 0%, #0a1a14 100%);
+  }
+  .camp-tier {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(6px);
+    color: var(--accent);
+    font-size: 10px;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 6px;
+  }
+  .camp-amount {
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(6px);
+    color: var(--accent);
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .camp-body {
+    padding: 12px 14px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .camp-name {
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .camp-meta {
+    font-size: 11px;
+    color: var(--text-mute);
+  }
+  .camp-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-soft);
+  }
+  .camp-slot {
+    font-size: 11px;
+    color: var(--text-mute);
+  }
+  .camp-slot strong {
+    color: var(--accent);
+  }
+  .camp-apply {
+    background: var(--accent);
+    color: #000;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 6px;
+  }
+
+  /* Filter row */
+  .filter-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .filter-chip {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 12px;
+    color: var(--text-mute);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  /* Section divider w/ label */
+  .section-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    font-weight: 600;
+    margin-top: 4px;
+    margin-bottom: -4px;
+  }
+
+  /* Empty state */
+  .empty {
+    background: var(--card);
+    border: 1px dashed var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.6;
+  }
+
+  /* Annotation pin */
+  .annotations {
+    margin-top: 12px;
+    padding: 12px 14px;
+    background: rgba(1, 223, 130, 0.04);
+    border: 1px solid rgba(1, 223, 130, 0.15);
+    border-radius: 10px;
+    font-size: 11px;
+    line-height: 1.6;
+    color: #aaa;
+  }
+  .annotations strong { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<div class="canvas">
+  <div class="canvas-header">
+    <div class="canvas-title">크리에이터 포털 IA v2 — 콘텐츠 메인 승격 + 협찬 통합 탭</div>
+    <div class="canvas-subtitle">
+      현행: 헤더 진입 콘텐츠 + 프리미엄·파트너 평행 탭 → 변경: 콘텐츠를 1차 탭으로 승격, 협찬은 단일 탭 + 세그먼트 칩
+    </div>
+    <div class="canvas-meta">
+      <span>다크 테마 #111111 · 모바일 퍼스트 max-w-md</span>
+      <span>액센트 #01DF82</span>
+      <span>섹션 4종 (콘텐츠 / 프리미엄 / 파트너 / 이벤트)</span>
+    </div>
+  </div>
+
+  <div class="grid">
+
+    <!-- ============================================ -->
+    <!-- Frame 1: 콘텐츠 전달 탭 (default landing) -->
+    <!-- ============================================ -->
+    <div class="frame">
+      <div class="frame-label">A · 콘텐츠 전달 (기본 진입)</div>
+      <div class="frame-desc">로그인 직후 첫 화면. 모든 크리에이터에게 동일.</div>
+
+      <div class="phone">
+        <div class="phone-inner">
+
+          <!-- Header -->
+          <div class="header">
+            <div class="header-left">
+              <div class="header-name">캠핑하는 지영</div>
+              <div class="header-greet">오늘도 즐거운 캠핑 되세요! ⛺️</div>
+            </div>
+            <div class="header-right">
+              <div class="icon-btn">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+                <span>알림</span>
+              </div>
+              <div class="icon-btn">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                <span>로그아웃</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Event banner (조건부) -->
+          <div class="event-banner">
+            <div class="event-banner-content">
+              <div class="event-banner-label">진행 중 이벤트</div>
+              <div class="event-banner-title">5월 가정의 달 한정 협찬</div>
+            </div>
+            <div class="event-banner-arrow">↗</div>
+          </div>
+
+          <!-- Tabs -->
+          <div class="tabs">
+            <div class="tab active">
+              <span>📤</span>
+              <span>내 콘텐츠</span>
+              <span class="tab-badge">12</span>
+            </div>
+            <div class="tab">
+              <span>협찬</span>
+            </div>
+          </div>
+
+          <!-- Year + Submit -->
+          <div class="year-header">
+            <div class="year-label">2026년</div>
+            <button class="submit-btn">
+              <span style="font-size: 13px; line-height: 1;">+</span>
+              <span>콘텐츠 제출</span>
+            </button>
+          </div>
+
+          <!-- Content card -->
+          <div class="content-card">
+            <div class="content-card-row">
+              <div class="content-type-badges">
+                <span class="badge badge-premium">프리미엄</span>
+              </div>
+              <div class="content-date">2026.04.18</div>
+            </div>
+            <div class="content-title">강원도 평창 별빛캠프 협찬 후기</div>
+            <div class="content-link-block">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101"/></svg>
+              <span>인스타그램 게시물 보기 →</span>
+            </div>
+          </div>
+
+          <div class="content-card">
+            <div class="content-card-row">
+              <div class="content-type-badges">
+                <span class="badge badge-basic">캠핑장 예약</span>
+              </div>
+              <div class="content-date">2026.03.05</div>
+            </div>
+            <div class="content-title">충남 태안 솔밭오토캠핑장 1박</div>
+            <div class="content-link-block">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101"/></svg>
+              <span>네이버 블로그 글 보기 →</span>
+            </div>
+          </div>
+
+          <!-- Past year compact -->
+          <div class="year-label" style="margin-top: 8px;">2025년</div>
+          <div class="content-compact">
+            <span class="content-compact-title">제주 곶자왈 캠핑 후기</span>
+            <span class="content-compact-date">2025.11.20</span>
+          </div>
+          <div class="content-compact">
+            <span class="content-compact-title">가을 단풍 캠핑 모음</span>
+            <span class="content-compact-date">2025.10.04</span>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="annotations">
+        <strong>핵심 변경:</strong> 콘텐츠 탭이 첫 진입. 모든 크리에이터(블로거 포함)가 로그인 직후 본인 이력을 바로 봄. 우상단 <strong>+ 콘텐츠 제출</strong> CTA로 Airtable 폼 대체.
+      </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- Frame 2: 협찬 탭 - 프리미엄 세그먼트 -->
+    <!-- ============================================ -->
+    <div class="frame">
+      <div class="frame-label">B · 협찬 탭 — 프리미엄 활성</div>
+      <div class="frame-desc">프리미엄 등록자가 "협찬" 탭 클릭 시. 세그먼트 칩으로 프리미엄/파트너 전환.</div>
+
+      <div class="phone">
+        <div class="phone-inner">
+
+          <!-- Header -->
+          <div class="header">
+            <div class="header-left">
+              <div class="header-name">캠핑하는 지영</div>
+              <div class="header-greet">오늘도 즐거운 캠핑 되세요! ⛺️</div>
+            </div>
+            <div class="header-right">
+              <div class="icon-btn">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+                <span>알림</span>
+              </div>
+              <div class="icon-btn">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                <span>로그아웃</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Check-in CTA (협찬 탭 진입 시 노출) -->
+          <button class="cta">입실 일정 등록하기</button>
+
+          <!-- Tabs -->
+          <div class="tabs">
+            <div class="tab">
+              <span>📤</span>
+              <span>내 콘텐츠</span>
+            </div>
+            <div class="tab active">
+              <span>협찬</span>
+            </div>
+          </div>
+
+          <!-- Segment chips -->
+          <div class="segments">
+            <div class="seg active">⭐ 프리미엄</div>
+            <div class="seg">✓ 파트너</div>
+          </div>
+
+          <!-- Stats -->
+          <div class="stats">
+            <div class="stat">
+              <div class="stat-label">전체 캠페인</div>
+              <div class="stat-value">8개</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">신청 가능</div>
+              <div class="stat-value accent">5개</div>
+            </div>
+          </div>
+
+          <!-- Filter -->
+          <div class="filter-row">
+            <div class="filter-chip">전체 ▾</div>
+          </div>
+
+          <!-- Campaign cards -->
+          <div class="camp-card">
+            <div class="camp-cover cover-a">
+              <span class="camp-tier">⭐ 아이콘</span>
+              <span class="camp-amount" style="margin-left: auto;">50만원</span>
+            </div>
+            <div class="camp-body">
+              <div class="camp-name">강원 인제 자작나무숲</div>
+              <div class="camp-meta">강원도 · 인스타 + 블로그</div>
+              <div class="camp-footer">
+                <div class="camp-slot">잔여 <strong>3</strong> / 5</div>
+                <div class="camp-apply">신청하기</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="camp-card">
+            <div class="camp-cover cover-b">
+              <span class="camp-tier">⭐ 아이콘</span>
+              <span class="camp-amount" style="margin-left: auto;">35만원</span>
+            </div>
+            <div class="camp-body">
+              <div class="camp-name">전남 담양 죽녹원 캠핑장</div>
+              <div class="camp-meta">전라도 · 인스타</div>
+              <div class="camp-footer">
+                <div class="camp-slot">잔여 <strong>2</strong> / 4</div>
+                <div class="camp-apply">신청하기</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="annotations">
+        <strong>세그먼트 칩:</strong> 적격 채널에 따라 동적 노출. 블로거(파트너 비적격)는 칩 1개만(프리미엄). 인스타·유튜버는 둘 다.<br>
+        <strong>입실 등록 CTA:</strong> 협찬 탭에서만 노출(콘텐츠 탭에선 숨김 — 컨텍스트 정렬).
+      </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- Frame 3: 콘텐츠 빈 상태 — 미등록 블로거 -->
+    <!-- ============================================ -->
+    <div class="frame">
+      <div class="frame-label">C · 첫 진입 — 신규 블로거</div>
+      <div class="frame-desc">프리미엄 미등록 블로거가 처음 로그인. 협찬 탭은 비활성, 콘텐츠 빈 상태부터 시작.</div>
+
+      <div class="phone">
+        <div class="phone-inner">
+
+          <!-- Header -->
+          <div class="header">
+            <div class="header-left">
+              <div class="header-name">평일캠퍼 민수</div>
+              <div class="header-greet">캠핏 크리에이터 포털에 오신 것을 환영합니다</div>
+            </div>
+            <div class="header-right">
+              <div class="icon-btn">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+                <span>알림</span>
+              </div>
+              <div class="icon-btn">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                <span>로그아웃</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tabs (블로거는 협찬 탭이 비활성 처리되거나 "프리미엄 등록" 안내로 변환) -->
+          <div class="tabs">
+            <div class="tab active">
+              <span>📤</span>
+              <span>내 콘텐츠</span>
+            </div>
+            <div class="tab" style="opacity: 0.5;">
+              <span>협찬</span>
+              <span class="tab-badge" style="background: rgba(255,255,255,0.1); color: var(--text-mute);">잠김</span>
+            </div>
+          </div>
+
+          <!-- Year + Submit -->
+          <div class="year-header">
+            <div class="year-label">시작하기</div>
+            <button class="submit-btn">
+              <span style="font-size: 13px; line-height: 1;">+</span>
+              <span>콘텐츠 제출</span>
+            </button>
+          </div>
+
+          <!-- Empty state with primary CTA -->
+          <div style="background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 28px 20px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px;">
+            <div style="width: 56px; height: 56px; background: rgba(1,223,130,0.08); border-radius: 16px; display: flex; align-items: center; justify-content: center;">
+              <svg width="26" height="26" fill="none" stroke="var(--accent)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v16m8-8H4"/></svg>
+            </div>
+            <div>
+              <div style="font-size: 15px; font-weight: 700; margin-bottom: 6px;">아직 제출한 콘텐츠가 없어요</div>
+              <div style="font-size: 12px; color: var(--text-dim); line-height: 1.6;">
+                협찬 캠핑장 후기나<br>
+                일반 캠핑 콘텐츠를 등록하고<br>
+                활동 이력을 쌓아보세요
+              </div>
+            </div>
+            <button style="background: var(--accent); color: #000; font-weight: 700; font-size: 13px; padding: 10px 20px; border-radius: 10px; border: none; margin-top: 4px;">
+              첫 콘텐츠 제출하기 →
+            </button>
+          </div>
+
+          <!-- Premium upgrade hint -->
+          <div style="background: linear-gradient(135deg, rgba(250,204,21,0.08) 0%, rgba(250,204,21,0.02) 100%); border: 1px solid rgba(250,204,21,0.2); border-radius: 12px; padding: 14px;">
+            <div style="display: flex; align-items: flex-start; gap: 10px;">
+              <div style="font-size: 20px;">⭐</div>
+              <div style="flex: 1;">
+                <div style="font-size: 12px; font-weight: 700; color: var(--premium); margin-bottom: 4px;">프리미엄 협찬에 도전해보세요</div>
+                <div style="font-size: 11px; color: var(--text-dim); line-height: 1.5; margin-bottom: 8px;">
+                  콘텐츠를 꾸준히 쌓으면<br>
+                  협찬 캠페인 신청 자격이 생겨요
+                </div>
+                <div style="font-size: 11px; color: var(--text-mute);">정산 정보 등록하기 →</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="annotations">
+        <strong>블로거 첫 화면:</strong> 콘텐츠 탭이 메인 → 활동 동기 부여. 협찬 탭은 잠김 표시(완전 숨김 아님 — 존재는 알리되 진입은 막음).<br>
+        <strong>프리미엄 업그레이드 카드:</strong> 콘텐츠 누적 후 자연스럽게 다음 단계로 유도.
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Bottom note -->
+  <div style="margin-top: 60px; padding: 20px; background: var(--card); border-radius: 12px; border: 1px solid var(--border); font-size: 12px; line-height: 1.7; color: var(--text-mute);">
+    <div style="color: var(--accent); font-weight: 700; margin-bottom: 8px; font-size: 13px;">📐 IA 결정 요약</div>
+    <ul style="padding-left: 18px;">
+      <li><strong style="color:#fff;">탭 구조 변경</strong>: <code style="background:#1a1a1a; padding:1px 6px; border-radius:4px;">premium | partner</code> → <code style="background:#1a1a1a; padding:1px 6px; border-radius:4px;">콘텐츠 | 협찬</code> (협찬 안에 세그먼트)</li>
+      <li><strong style="color:#fff;">콘텐츠 진입점</strong>: 헤더 아이콘 → 1차 탭으로 승격 (자주 보는 페이지화)</li>
+      <li><strong style="color:#fff;">이벤트</strong>: 별도 탭 없음. 활성 이벤트 있을 때만 그라디언트 배너로 헤더 아래 1회 노출</li>
+      <li><strong style="color:#fff;">베이직 협찬</strong>: 포털에서 제외 (캠핏 앱에서 확인)</li>
+      <li><strong style="color:#fff;">입실 등록 CTA</strong>: 협찬 탭에서만 노출(콘텐츠 탭에선 숨김)</li>
+      <li><strong style="color:#fff;">블로거 분기</strong>: 협찬 탭에 "잠김" 배지(완전 숨김 아님), 콘텐츠 빈 상태에 프리미엄 업그레이드 hint</li>
+    </ul>
+  </div>
+
+</div>
+
+</body>
+</html>

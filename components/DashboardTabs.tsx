@@ -27,7 +27,8 @@ export default function DashboardTabs({
     // CHANGED: 프리미엄/파트너 차이점 안내 모달 상태 추가
     const [isGuideOpen, setIsGuideOpen] = useState(false);
 
-    const showPartnerTab = hasPartnerEligibleChannel(channelTypes);
+    // CHANGED (IA v3): 파트너 탭은 항상 노출. 비적격 시 잠김 표시 + 클릭 시 안내 화면 (page.tsx 측 분기)
+    const partnerEligible = hasPartnerEligibleChannel(channelTypes);
 
     // CHANGED: premiumId 없으면 프리미엄 탭에 "미등록" 뱃지 표시
     const showPremiumBadge = !premiumId;
@@ -57,30 +58,40 @@ export default function DashboardTabs({
                         )}
                     </span>
                 </button>
-                {/* CHANGED: 블로거는 파트너 탭 숨김 유지 */}
-                {showPartnerTab && (
-                    <button
-                        onClick={() => onTabChange('partner')}
-                        className={`flex-1 py-2.5 text-sm font-semibold rounded-md transition-colors ${
-                            activeTab === 'partner'
-                                ? 'bg-[#01DF82] text-black'
-                                : 'text-[#888888] hover:text-white'
-                        }`}
-                    >
+                {/* CHANGED (IA v3): 블로거에게도 파트너 탭 노출 — 잠김 배지 + 클릭 시 page.tsx에서 안내 화면 */}
+                <button
+                    onClick={() => onTabChange('partner')}
+                    className={`flex-1 py-2.5 text-sm font-semibold rounded-md transition-colors ${
+                        activeTab === 'partner'
+                            ? 'bg-[#01DF82] text-black'
+                            : 'text-[#888888] hover:text-white'
+                    }`}
+                >
+                    <span className="flex items-center justify-center gap-1">
                         파트너 협찬
-                    </button>
-                )}
+                        {!partnerEligible && (
+                            <span
+                                className={`text-[10px] font-normal px-1.5 py-0.5 rounded-full ${
+                                    activeTab === 'partner'
+                                        ? 'bg-black/15 text-black/70'
+                                        : 'bg-[#333333] text-[#888888]'
+                                }`}
+                                aria-label="파트너 협찬 비적격"
+                            >
+                                🔒
+                            </span>
+                        )}
+                    </span>
+                </button>
             </div>
 
-            {/* CHANGED: 프리미엄/파트너 차이점 안내 — 파트너 탭이 보이는 경우에만 표시 */}
-            {showPartnerTab && (
-                <button
-                    onClick={() => setIsGuideOpen(true)}
-                    className="w-full text-center text-xs text-[#666666] hover:text-[#01DF82] transition-colors mb-6 py-1"
-                >
-                    프리미엄 협찬과 파트너 협찬의 차이점 →
-                </button>
-            )}
+            {/* CHANGED (IA v3): 차이점 안내는 모든 사용자에게 노출 — 블로거도 파트너 탭이 보이므로 둘의 차이를 알 필요가 있음 */}
+            <button
+                onClick={() => setIsGuideOpen(true)}
+                className="w-full text-center text-xs text-[#666666] hover:text-[#01DF82] transition-colors mb-6 py-1"
+            >
+                프리미엄 협찬과 파트너 협찬의 차이점 →
+            </button>
 
             <SponsorshipGuideModal
                 isOpen={isGuideOpen}
