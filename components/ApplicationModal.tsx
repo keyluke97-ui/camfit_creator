@@ -242,10 +242,10 @@ export default function ApplicationModal({ isOpen, onClose, campaign, channelTyp
                                 </div>
                             </div>
 
-                            {/* 14일 자동 취소 강조 */}
+                            {/* CHANGED: '자동 취소 간주' → '14일 이내 예약 진행 요청' 톤으로 변경 */}
                             <div className="bg-red-500/10 border border-red-500/30 p-4 rounded-lg">
                                 <p className="text-red-400 text-sm font-bold">
-                                    🚨 프리미엄 협찬은 별도 쿠폰 코드를 통해 예약이 필요하며, 최종 신청일로부터 <span className="underline decoration-2 underline-offset-2">14일</span> 동안 신청하지 않을 시 자동 취소로 간주되며, 잦은 취소는 추후 프리미엄 협찬 참여가 어려울 수 있습니다.
+                                    🚨 프리미엄 협찬은 별도 쿠폰 코드를 통해 예약이 필요하며, 최종 신청일로부터 <span className="underline decoration-2 underline-offset-2">14일 이내 예약을 진행</span>해주세요. 잦은 미진행/취소는 추후 프리미엄 협찬 참여가 어려울 수 있습니다.
                                 </p>
                             </div>
 

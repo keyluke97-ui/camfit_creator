@@ -664,7 +664,8 @@ function DashboardContent() {
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                                 </svg>
-                                콘텐츠 제출
+                                {/* CHANGED: 용어 통일 '제출' → '전달' */}
+                                콘텐츠 전달
                             </button>
                         </div>
 
@@ -713,6 +714,7 @@ function DashboardContent() {
                                 );
                             })()
                         ) : (
+                            // CHANGED: 빈 상태에 CTA 버튼 추가 + 용어 통일 '제출' → '전달'
                             <div className="flex flex-col items-center justify-center py-20 gap-5">
                                 <div className="w-20 h-20 bg-[#1E1E1E] border border-[#333333] rounded-2xl flex items-center justify-center">
                                     <svg className="w-8 h-8 text-[#555555]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -720,11 +722,20 @@ function DashboardContent() {
                                     </svg>
                                 </div>
                                 <div className="text-center">
-                                    <h3 className="text-base font-bold text-white mb-1.5">아직 제출한 콘텐츠가 없어요</h3>
+                                    <h3 className="text-base font-bold text-white mb-1.5">아직 전달한 콘텐츠가 없어요</h3>
                                     <p className="text-sm text-[#666666] leading-relaxed">
                                         협찬 후 업로드한 콘텐츠를<br />여기서 관리할 수 있어요
                                     </p>
                                 </div>
+                                <button
+                                    onClick={() => setIsContentSubmitModalOpen(true)}
+                                    className="mt-2 px-5 py-2.5 bg-[#01DF82] text-black font-bold text-sm rounded-lg hover:bg-[#00C972] transition-colors flex items-center gap-1.5"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                    </svg>
+                                    콘텐츠 전달하기
+                                </button>
                             </div>
                         )}
                     </>

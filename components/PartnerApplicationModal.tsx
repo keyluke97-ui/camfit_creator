@@ -399,10 +399,10 @@ export default function PartnerApplicationModal({
                         <div className="space-y-4">
                             {/* CHANGED: Step 진행률 인디케이터 추가 */}
                             <p className="text-xs text-[#666666] text-center">Step 3 / 4</p>
-                            {/* CHANGED: 상단 경고 단축 — '잦은 취소' 중복 제거 (세부 항목에서 유지) */}
+                            {/* CHANGED: '자동 취소 간주' → '14일 이내 예약 진행 요청' 톤으로 변경 (ApplicationModal과 통일) */}
                             <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
                                 <p className="text-sm text-red-400 font-medium">
-                                    🚨 최종 신청일로부터 14일 동안 예약하지 않을 시 자동 취소됩니다.
+                                    🚨 최종 신청일로부터 14일 이내 예약을 진행해주세요.
                                 </p>
                             </div>
 

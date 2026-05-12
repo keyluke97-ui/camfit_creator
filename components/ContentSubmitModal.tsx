@@ -183,7 +183,8 @@ export default function ContentSubmitModal({
             const data = await response.json();
 
             if (!response.ok) {
-                setError(data.error || '제출 중 오류가 발생했습니다.');
+                // CHANGED: 용어 통일 '제출' → '전달'
+                setError(data.error || '전달 중 오류가 발생했습니다.');
                 isSubmittingRef.current = false;
                 return;
             }
@@ -216,7 +217,8 @@ export default function ContentSubmitModal({
 
                 {step === 'form' && (
                     <>
-                        <h2 className="text-lg font-bold text-white mb-6">콘텐츠 제출</h2>
+                        {/* CHANGED: 용어 통일 '제출' → '전달' (진입 배너와 일치) */}
+                        <h2 className="text-lg font-bold text-white mb-6">콘텐츠 전달</h2>
 
                         {/* 협찬 종류 선택 */}
                         <div className="mb-4">
@@ -262,8 +264,9 @@ export default function ContentSubmitModal({
 
                         {/* 콘텐츠 링크 */}
                         <div className="mb-4">
+                            {/* CHANGED: 톤 통일 — '알려주세요~' 친근체 제거 */}
                             <label className="block text-sm font-medium text-white mb-2">
-                                콘텐츠 링크를 알려주세요~ <span className="text-red-400">*</span>
+                                업로드한 콘텐츠 링크 <span className="text-red-400">*</span>
                             </label>
                             <input
                                 type="url"
@@ -279,8 +282,9 @@ export default function ContentSubmitModal({
                             <>
                                 {/* 숙소 검색 드롭다운 */}
                                 <div className="mb-4 relative" ref={accommodationDropdownRef}>
+                                    {/* CHANGED: 톤 통일 — 명령형 + 느낌표 제거 */}
                                     <label className="block text-sm font-medium text-white mb-2">
-                                        다녀온 숙소를 클릭! <span className="text-red-400">*</span>
+                                        다녀온 숙소 <span className="text-red-400">*</span>
                                     </label>
                                     <input
                                         type="text"
@@ -347,8 +351,9 @@ export default function ContentSubmitModal({
                         {/* ── 프리미엄 협찬 조건부 필드 ── */}
                         {sponsorshipType === '프리미엄 협찬' && (
                             <div className="mb-4 relative" ref={campaignDropdownRef}>
+                                {/* CHANGED: 조건절 라벨 → 입력 대상 명확화 */}
                                 <label className="block text-sm font-medium text-white mb-2">
-                                    프리미엄 협찬일 경우 <span className="text-red-400">*</span>
+                                    프리미엄 협찬 캠핑장 <span className="text-red-400">*</span>
                                 </label>
                                 <input
                                     type="text"
@@ -384,17 +389,15 @@ export default function ContentSubmitModal({
                                                 </div>
                                             ))
                                         ) : (
-                                            <div className="px-4 py-4 text-sm text-[#666666] text-center">
-                                                검색 결과가 없습니다.
+                                            // CHANGED: 빈 결과 시 노출 정책 안내 추가
+                                            <div className="px-4 py-4 text-xs text-[#888888] text-center leading-relaxed">
+                                                검색 결과가 없어요.<br />
+                                                <span className="text-[#666666]">신청한 프리미엄 캠페인만 표시되며,<br />이미 콘텐츠를 전달한 캠페인은 제외돼요.</span>
                                             </div>
                                         )}
                                     </div>
                                 )}
-                                {userInfo.premiumId && (
-                                    <p className="text-[11px] text-[#888888] mt-1">
-                                        프리미엄 등록 정보가 자동으로 연결됩니다.
-                                    </p>
-                                )}
+                                {/* CHANGED: '프리미엄 등록 정보가 자동으로 연결됩니다' 안내 삭제 (모호한 정보) */}
                             </div>
                         )}
 
@@ -498,7 +501,8 @@ export default function ContentSubmitModal({
                             {isLoading ? (
                                 <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin" />
                             ) : (
-                                '콘텐츠 제출하기'
+                                // CHANGED: 용어 통일 '제출' → '전달'
+                                '콘텐츠 전달하기'
                             )}
                         </button>
                     </>
@@ -511,10 +515,16 @@ export default function ContentSubmitModal({
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                             </svg>
                         </div>
-                        <h3 className="text-lg font-bold text-white">제출 완료!</h3>
+                        {/* CHANGED: 용어 통일 + 정산 일정 후속 안내 추가 */}
+                        <h3 className="text-lg font-bold text-white">전달 완료!</h3>
                         <p className="text-sm text-[#888888] text-center">
-                            콘텐츠가 성공적으로 제출되었습니다.
+                            콘텐츠가 성공적으로 전달되었습니다.
                         </p>
+                        <div className="w-full bg-[#01DF82]/10 border border-[#01DF82]/20 rounded-lg px-4 py-3">
+                            <p className="text-xs text-[#01DF82] text-center font-medium">
+                                💰 검수 후 익월 10일에 정산이 진행돼요
+                            </p>
+                        </div>
                         <button
                             onClick={onClose}
                             className="w-full h-12 bg-[#01DF82] text-black font-bold rounded-xl hover:bg-[#00C972] transition-colors mt-2"
