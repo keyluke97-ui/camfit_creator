@@ -202,7 +202,11 @@ export async function authenticateCreator(
 
         return {
             creatorId: record.id,
-            channelName,
+            // CHANGED: JWT에 박힐 채널명을 trim된 값으로 정규화 (BUG-B 픽스)
+            // — 인증은 TRIM으로 흡수해도 JWT에 원본이 박히면 후속 검색에서 미스매치 발생.
+            //   예: 사용자가 "ssundan_camper " 공백 포함 입력 시 로그인은 성공해도
+            //   콘텐츠 모달 검색이 0건이 되는 문제([airtable.ts:1113] 등).
+            channelName: trimmedName,
             tier,
             channelTypes,
             premiumId,
@@ -1103,14 +1107,25 @@ export async function searchAccommodations(query?: string): Promise<{ id: string
 }
 
 // CHANGED: 프리미엄 캠페인 검색 — 크리에이터의 신청 내역 기반으로 본인이 신청한 캠페인만 반환
+// CHANGED: creatorRecordId 인자 제거 — 2단계 FIND가 primary field(채널명)로 매칭되므로 불필요 (BUG-A)
 export async function searchCreatorPremiumCampaigns(
     channelName: string,
-    creatorRecordId: string,
     query?: string
 ): Promise<{ id: string; name: string }[]> {
     try {
+        // CHANGED: channelName 가드 — JWT payload 누락/구버전 토큰 시 빈 문자열로 매칭되어
+        //         타인 신청건이 노출되는 보안 사고 방지
+        if (!channelName || !channelName.trim()) return [];
+        const trimmedName = channelName.trim();
+
         // 1단계: 크리에이터의 프리미엄 신청 내역에서 캠페인 ID + 입실일 추출
-        const formula = `{크리에이터 채널명} = "${escapeAirtableValue(channelName)}"`;
+        // CHANGED: TRIM으로 양쪽 공백 흡수 (E5) + 예약 취소건 제외 (E1)
+        //   — 옛 JWT에 trim 안 된 channelName이 박혀있어도 매칭 보장
+        //   — 사용자가 취소한 신청건은 콘텐츠 제출 후보에서 제외
+        const formula = `AND(
+            TRIM({크리에이터 채널명}) = "${escapeAirtableValue(trimmedName)}",
+            {예약 취소/변경} != '취소'
+        )`;
         const applicationRecords = await applicationTable()
             .select({
                 filterByFormula: formula,
@@ -1138,7 +1153,12 @@ export async function searchCreatorPremiumCampaigns(
         // 2단계: 콘텐츠 업로드 테이블에서 이미 제출된 캠페인 ID 추출
         const submittedCampaignIds = new Set<string>();
         try {
-            const creatorFormula = `FIND("${escapeAirtableValue(creatorRecordId)}", ARRAYJOIN({크리에이터 명단}))`;
+            // CHANGED: BUG-A 픽스 — ARRAYJOIN({link 필드})는 record ID가 아니라
+            //   linked record의 primary field 값으로 변환됨 (Airtable formula 사양).
+            //   크리에이터 명단의 primary field가 `크리에이터 채널명`이므로,
+            //   creatorRecordId(rec...) 대신 채널명으로 FIND해야 매칭됨.
+            //   기존 코드는 항상 0건을 반환해 중복 제출 제외 로직이 무력화 상태였음.
+            const creatorFormula = `FIND("${escapeAirtableValue(trimmedName)}", ARRAYJOIN({크리에이터 명단}))`;
             const contentRecords = await contentUploadTable()
                 .select({
                     filterByFormula: creatorFormula

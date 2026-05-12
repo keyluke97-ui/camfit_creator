@@ -20,13 +20,18 @@ export async function GET(request: Request) {
         }
 
         const { payload } = await jwtVerify(token, JWT_SECRET);
-        const channelName = payload.channelName as string;
-        const creatorId = payload.creatorId as string;
+        const channelName = payload.channelName as string | undefined;
+
+        // CHANGED: channelName 누락 가드 — 옛 JWT/마이그레이션 중 토큰 방어
+        if (!channelName) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
 
         const { searchParams } = new URL(request.url);
         const query = searchParams.get('q') || undefined;
 
-        const campaigns = await searchCreatorPremiumCampaigns(channelName, creatorId, query);
+        // CHANGED: creatorId 인자 제거 — searchCreatorPremiumCampaigns가 채널명만으로 동작 (BUG-A 픽스)
+        const campaigns = await searchCreatorPremiumCampaigns(channelName, query);
         return NextResponse.json({ campaigns });
     } catch (error) {
         console.error('Premium campaigns search error:', error);
