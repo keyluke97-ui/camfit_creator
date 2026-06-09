@@ -505,15 +505,18 @@ export async function getUserApplications(channelName: string): Promise<Applicat
 export async function updateApplicationCheckin(
     recordId: string,
     checkInDate: string,
-    checkInSite: string
+    checkInSite: string,
+    isReRegister: boolean = false // CHANGED: 변경 후 재등록이면 '재등록' 마커 기록 (운영자 추적용)
 ): Promise<boolean> {
     try {
         // CHANGED: Airtable REST API는 null로 필드를 초기화하지만, SDK FieldSet 타입은 null 미지원
         // → unknown 경유 단언 (SDK 타입 한계, REST API에서는 null이 유효한 값)
+        // CHANGED: 변경 후 재등록은 '재등록'으로 표기(이전엔 null로 덮어써 변경 이력이 사라지던 버그).
+        //          첫 등록은 기존대로 빈 값(null) 유지 — 깨끗한 신규 예약과 구분.
         const checkinFields = {
             '입실일': checkInDate,
             '입실 사이트': checkInSite,
-            '예약 취소/변경': null
+            '예약 취소/변경': isReRegister ? '재등록' : null
         } as unknown as Partial<FieldSet>;
         await applicationTable().update([
             { id: recordId, fields: checkinFields }
