@@ -1,9 +1,12 @@
 import Airtable, { FieldSet } from 'airtable';
+import { hasPartnerEligibleChannel } from '@/lib/constants'; // CHANGED: 통합 — 블로거 차단 헬퍼
 import type {
     TierLevel,
     ChannelType,
     Influencer,
     Campaign,
+    CouponEvent,
+    CouponApplyDays,
     CampaignTierData,
     AirtableUserRecord,
     AirtableCreatorRecord,
@@ -109,23 +112,21 @@ export function getTierFields(tier: TierLevel) {
 }
 
 /**
- * 파트너 협찬 등급별 필드명 매핑 (신규)
- * - 프리미엄 getTierFields와 구분: 파트너는 '쿠폰 수량' / '모집 희망 인원' / '신청 가능 인원' 3셋.
+ * 파트너 협찬 등급별 필드명 매핑
+ * - 프리미엄 getTierFields와 구분: 파트너는 '모집 희망 인원' / '신청 가능 인원' 2셋.
+ * - CHANGED: '쿠폰 수량' 키 제거 — 어드민 자동 발행 도입으로 Airtable 필드 자체 삭제됨.
  */
 export function getPartnerTierFields(tier: TierLevel) {
     const fieldMap = {
         '3': { // ⭐️ Icon
-            couponAmount: '⭐️ 쿠폰 수량',
             total: '⭐️ 모집 희망 인원',
             available: '⭐️ 신청 가능 인원',
         },
         '2': { // ✔️ Partner
-            couponAmount: '✔️ 쿠폰 수량',
             total: '✔️ 모집 희망 인원',
             available: '✔️ 신청 가능 인원',
         },
         '1': { // 🔥 Rising
-            couponAmount: '🔥 쿠폰 수량',
             total: '🔥 모집 희망 인원',
             available: '🔥 신청 가능 인원',
         },
@@ -244,6 +245,35 @@ export async function getCampaigns(tier: TierLevel): Promise<Campaign[]> {
             // CHANGED: 캠지기 인스타그램 계정 매핑 추가
             const hostInstagram = fields['캠지기인스타그램'] || '';
 
+            // CHANGED: 통합 — 쿠폰이벤트희망=true이면 "팔로워 쿠폰 협찬" 조건 블록 구성.
+            // CHANGED: 필수 필드 완전성 가드 — 운영자가 토글만 켜고 다른 필드 누락 시
+            // UI에 "0원 할인", 빈 날짜 등 silent failure 방지. 한 필드라도 누락이면 일반 캠페인처럼 처리.
+            const hasAllCouponFields = !!(
+                fields['쿠폰이벤트희망'] &&
+                fields['할인 금액'] &&
+                fields['쿠폰 적용 요일'] &&
+                fields['인당 팔로워 쿠폰'] &&
+                fields['크리에이터 방문 가능 시작일'] &&
+                fields['크리에이터 방문 가능 종료일'] &&
+                fields['쿠폰 유효 시작일'] &&
+                fields['쿠폰 유효 종료일']
+            );
+            if (fields['쿠폰이벤트희망'] && !hasAllCouponFields) {
+                console.warn(`[Coupon Event] campaignId=${rec.id} — 쿠폰이벤트희망=true인데 필수 필드 누락. couponEvent 미생성.`);
+            }
+            const couponEvent: CouponEvent | undefined = hasAllCouponFields
+                ? {
+                    discount: fields['할인 금액']!,
+                    couponApplyDays: fields['쿠폰 적용 요일'] as CouponApplyDays,
+                    couponPerCreator: fields['인당 팔로워 쿠폰']!,
+                    totalFollowerCoupon: fields['총 팔로워 쿠폰 수'] || 0,
+                    visitStartDate: fields['크리에이터 방문 가능 시작일']!,
+                    visitEndDate: fields['크리에이터 방문 가능 종료일']!,
+                    couponStartDate: fields['쿠폰 유효 시작일']!,
+                    couponEndDate: fields['쿠폰 유효 종료일']!,
+                }
+                : undefined;
+
             return {
                 id: rec.id,
                 accommodationName: fields['숙소 이름을 적어주세요.'] || '',
@@ -255,7 +285,8 @@ export async function getCampaigns(tier: TierLevel): Promise<Campaign[]> {
                 isClosed: isCampaignClosed(availableCount, price),
                 siteTypes,
                 highlights: highlights || undefined,
-                hostInstagram: hostInstagram || undefined
+                hostInstagram: hostInstagram || undefined,
+                couponEvent
             };
         });
     } catch (error) {
@@ -323,6 +354,7 @@ interface ApplyCampaignParams {
     userRecordId: string;
     email: string;
     tier: TierLevel; // CHANGED: 잔여 인원 체크를 위해 등급 정보 추가
+    channelTypes?: string[]; // CHANGED: 통합 — 블로거(인스타/유튜브 없음)가 couponEvent 캠페인 신청 시 BLOCKER
 }
 
 /**
@@ -333,8 +365,9 @@ export async function applyCampaign({
     channelName,
     userRecordId,
     email,
-    tier
-}: ApplyCampaignParams): Promise<{ success: boolean; couponCode: string }> {
+    tier,
+    channelTypes
+}: ApplyCampaignParams): Promise<{ success: boolean; couponCode: string; followerCouponCode?: string }> {
     let createdApplicationId: string | null = null;
 
     try {
@@ -358,16 +391,41 @@ export async function applyCampaign({
             throw new Error('CAMPAIGN_FULL');
         }
 
+        // CHANGED: 통합 — 쿠폰이벤트희망=true이면 풀에서 본인 몫 1줄 슬라이싱 (옛 applyPartnerCampaign 분배 로직 이식)
+        const isCouponEvent = campaignRecord.fields['쿠폰이벤트희망'] === true;
+
+        // CHANGED: 통합 — couponEvent 캠페인은 블로거(인스타/유튜브 미보유) 신청 차단 (이중 방어의 백엔드단)
+        if (isCouponEvent && channelTypes && !hasPartnerEligibleChannel(channelTypes)) {
+            throw new Error('BLOGGER_NOT_ELIGIBLE');
+        }
+
+        let myFollowerCode = '';
+        let remainingPool = '';
+        let dispensedUpdated = '';
+        if (isCouponEvent) {
+            const pool = (campaignRecord.fields['팔로워 쿠폰 코드'] || '')
+                .split('\n')
+                .map((line) => line.trim())
+                .filter(Boolean);
+            if (pool.length === 0) throw new Error('COUPON_POOL_EMPTY');
+            myFollowerCode = pool[0];
+            remainingPool = pool.slice(1).join('\n');
+            const dispensedExisting = (campaignRecord.fields['배포 완료된 쿠폰'] || '').trim();
+            dispensedUpdated = dispensedExisting ? `${dispensedExisting}\n${myFollowerCode}` : myFollowerCode;
+        }
+
         // 3. 유료 오퍼 신청 건 테이블에 레코드 생성
+        const applicationFields: Record<string, unknown> = {
+            '크리에이터 채널명': channelName,
+            '크리에이터 채널명(프리미엄 협찬 신청)': [userRecordId],
+            '이메일': email,
+            '숙소 이름 (유료 오퍼)': [campaignId]
+        };
+        if (isCouponEvent) {
+            applicationFields['팔로워 쿠폰 코드'] = myFollowerCode;
+        }
         const createdRecords = await applicationTable().create([
-            {
-                fields: {
-                    '크리에이터 채널명': channelName,
-                    '크리에이터 채널명(프리미엄 협찬 신청)': [userRecordId],
-                    '이메일': email,
-                    '숙소 이름 (유료 오퍼)': [campaignId]
-                }
-            }
+            { fields: applicationFields as Partial<FieldSet> }
         ]);
 
         if (!createdRecords || createdRecords.length === 0) {
@@ -376,23 +434,46 @@ export async function applyCampaign({
 
         createdApplicationId = createdRecords[0].id;
 
-        // 4. 캠지기 모집 폼 테이블에 유저 추가 (PATCH)
+        // 4. 캠지기 모집 폼 테이블에 유저 추가 (PATCH) — couponEvent면 풀/배포 완료도 함께 update
         const existingApplicants = campaignRecord.fields['유료 오퍼 신청 인플루언서'] as string[] || [];
         const updatedApplicants = [...new Set([...existingApplicants, createdApplicationId])];
 
+        const campaignUpdateFields: Record<string, unknown> = {
+            '유료 오퍼 신청 인플루언서': updatedApplicants
+        };
+        if (isCouponEvent) {
+            campaignUpdateFields['팔로워 쿠폰 코드'] = remainingPool;
+            campaignUpdateFields['배포 완료된 쿠폰'] = dispensedUpdated;
+        }
         await campaignTable().update([
-            {
-                id: campaignId,
-                fields: {
-                    '유료 오퍼 신청 인플루언서': updatedApplicants
-                }
-            }
+            { id: campaignId, fields: campaignUpdateFields as Partial<FieldSet> }
         ]);
 
         // CHANGED: 사후 검증 (2차 방어) — 레코드 생성 후 잔여 인원 재확인
         // Airtable에 트랜잭션이 없으므로, 동시 신청 시 availableCount가 음수가 될 수 있음
         const updatedCampaignRecord = await campaignTable().find(campaignId) as unknown as AirtableCampaignRecord;
         const availableCountAfterApply = updatedCampaignRecord.fields[tierFields.available as keyof typeof updatedCampaignRecord.fields] as number || 0;
+
+        // CHANGED: 통합 — couponEvent 분배 race 검증 (배포 완료에 본인 코드 등장 횟수)
+        // CHANGED: 카운트 체크 — 0(내 update가 다른 동시 update에 덮여 사라짐) / 2+(동시 슬라이싱으로 같은 코드 중복 분배)
+        // 모두 race로 판단. includes() 단순 체크는 두 명이 같은 코드 받아도 통과되는 결함이 있어 강화.
+        if (isCouponEvent) {
+            const dispensedAfter = updatedCampaignRecord.fields['배포 완료된 쿠폰'] || '';
+            const dispensedAfterLines = dispensedAfter.split('\n').map((line) => line.trim());
+            const dispensedCount = dispensedAfterLines.filter((line) => line === myFollowerCode).length;
+            if (dispensedCount !== 1) {
+                console.error(`[Coupon Race Condition] campaignId=${campaignId}, myCode=${myFollowerCode}, count=${dispensedCount} — 동시 분배 충돌, 롤백`);
+                const rollbackApplicants = updatedApplicants.filter((applicantId) => applicantId !== createdApplicationId);
+                await campaignTable().update([
+                    { id: campaignId, fields: { '유료 오퍼 신청 인플루언서': rollbackApplicants } as unknown as Partial<FieldSet> }
+                ]);
+                if (createdApplicationId) {
+                    await applicationTable().destroy(createdApplicationId);
+                    createdApplicationId = null;
+                }
+                throw new Error('CAMPAIGN_RACE');
+            }
+        }
 
         if (availableCountAfterApply < 0) {
             // 정원 초과 → 롤백: 신청 레코드 삭제 + 캠페인 링크 원복
@@ -413,7 +494,11 @@ export async function applyCampaign({
             throw new Error('CAMPAIGN_FULL');
         }
 
-        return { success: true, couponCode };
+        return {
+            success: true,
+            couponCode,
+            followerCouponCode: isCouponEvent ? myFollowerCode : undefined
+        };
     } catch (error: unknown) {
         console.error('Apply campaign error:', error);
 
@@ -450,33 +535,77 @@ export async function getUserApplications(channelName: string): Promise<Applicat
             })
             .all();
 
-        // 메모리 정렬 제거 (서버 측 정렬 사용)
-        const applications = await Promise.all(records.map(async (record) => {
+        // CHANGED: N+1 제거 — 신청 N개당 캠페인 N회 fetch → batch 1회 (enrichPartnerApplications 패턴)
+        const campaignIds = [...new Set(
+            records
+                .map((r) => (r as unknown as AirtableApplicationRecord).fields['숙소 이름 (유료 오퍼)']?.[0])
+                .filter(Boolean) as string[]
+        )];
+
+        const campaignMap = new Map<string, AirtableCampaignRecord>();
+        if (campaignIds.length > 0) {
+            try {
+                const orConditions = campaignIds
+                    .map((id) => `RECORD_ID() = '${escapeAirtableValue(id)}'`)
+                    .join(', ');
+                const campaignRecords = await campaignTable()
+                    .select({ filterByFormula: `OR(${orConditions})` })
+                    .all();
+                for (const rec of campaignRecords) {
+                    const c = rec as unknown as AirtableCampaignRecord;
+                    campaignMap.set(c.id, c);
+                }
+            } catch (campaignFetchError) {
+                // CHANGED: 캠페인 batch fetch 실패 시 로깅, 신청 자체는 partial로 반환 (accommodationName 등 빈 값)
+                console.error('Failed to batch-fetch campaigns for user applications:', campaignFetchError);
+            }
+        }
+
+        const applications: Application[] = records.map((record) => {
             const r = record as unknown as AirtableApplicationRecord;
             const fields = r.fields;
 
-            // 숙소 이름 & 쿠폰코드 가져오기 (Linked Record)
+            const campaignId = fields['숙소 이름 (유료 오퍼)']?.[0] || '';
+
+            // 캠페인 details (batch lookup)
             let accommodationName = 'Unknown';
             let couponCode = '';
-            let campaignId = '';
-            // CHANGED: 협찬 조건 복사용 추가 필드
             let detailUrl = '';
             let highlights = '';
             let deadline = '';
+            let couponEvent: CouponEvent | undefined = undefined;
 
-            if (fields['숙소 이름 (유료 오퍼)'] && fields['숙소 이름 (유료 오퍼)'].length > 0) {
-                campaignId = fields['숙소 이름 (유료 오퍼)'][0];
-                try {
-                    const campRecord = await campaignTable().find(campaignId) as unknown as AirtableCampaignRecord;
-                    accommodationName = campRecord.fields['숙소 이름을 적어주세요.'] || 'Unknown';
-                    couponCode = campRecord.fields['쿠폰코드'] || '';
-                    // CHANGED: 협찬 조건 복사용 필드 매핑
-                    detailUrl = campRecord.fields['숙소 링크 (캠핏 내 상세페이지만 삽입 가능)'] || '';
-                    highlights = campRecord.fields['숙소의 특장점'] || '';
-                    deadline = campRecord.fields['⏰ 콘텐츠 제작 기한'] || '';
-                } catch (campaignFetchError) {
-                    // CHANGED: 에러 삼킴 방지 — 캠페인 조회 실패 시 로깅 복구
-                    console.error('Failed to fetch campaign details for ID:', campaignId, campaignFetchError);
+            const campRecord = campaignId ? campaignMap.get(campaignId) : undefined;
+            if (campRecord) {
+                accommodationName = campRecord.fields['숙소 이름을 적어주세요.'] || 'Unknown';
+                couponCode = campRecord.fields['쿠폰코드'] || '';
+                detailUrl = campRecord.fields['숙소 링크 (캠핏 내 상세페이지만 삽입 가능)'] || '';
+                highlights = campRecord.fields['숙소의 특장점'] || '';
+                deadline = campRecord.fields['⏰ 콘텐츠 제작 기한'] || '';
+
+                // CHANGED: 통합 — couponEvent 매핑 (getCampaigns와 동일 가드 패턴)
+                const cf = campRecord.fields;
+                const hasAllCouponFields = !!(
+                    cf['쿠폰이벤트희망'] &&
+                    cf['할인 금액'] &&
+                    cf['쿠폰 적용 요일'] &&
+                    cf['인당 팔로워 쿠폰'] &&
+                    cf['크리에이터 방문 가능 시작일'] &&
+                    cf['크리에이터 방문 가능 종료일'] &&
+                    cf['쿠폰 유효 시작일'] &&
+                    cf['쿠폰 유효 종료일']
+                );
+                if (hasAllCouponFields) {
+                    couponEvent = {
+                        discount: cf['할인 금액']!,
+                        couponApplyDays: cf['쿠폰 적용 요일'] as CouponApplyDays,
+                        couponPerCreator: cf['인당 팔로워 쿠폰']!,
+                        totalFollowerCoupon: cf['총 팔로워 쿠폰 수'] || 0,
+                        visitStartDate: cf['크리에이터 방문 가능 시작일']!,
+                        visitEndDate: cf['크리에이터 방문 가능 종료일']!,
+                        couponStartDate: cf['쿠폰 유효 시작일']!,
+                        couponEndDate: cf['쿠폰 유효 종료일']!,
+                    };
                 }
             }
 
@@ -492,9 +621,12 @@ export async function getUserApplications(channelName: string): Promise<Applicat
                 isDepositConfirmed: fields['입금내역 확인'] || false,
                 detailUrl: detailUrl || undefined,
                 highlights: highlights || undefined,
-                deadline: deadline || undefined
+                deadline: deadline || undefined,
+                // CHANGED: 통합 — 신청 시 분배된 본인 팔로워 쿠폰 코드 + 캠페인 쿠폰 조건
+                followerCouponCode: fields['팔로워 쿠폰 코드'] || undefined,
+                couponEvent
             };
-        }));
+        });
 
         return applications;
     } catch (error) {
@@ -647,6 +779,9 @@ export async function registerPremiumCreator(
 
 // ──────────────────────────────────────────────
 // 파트너 협찬 전용 함수
+// LEGACY: 2026-05 프리미엄·파트너 통합 이후 신규 유입 없음(파트너 테이블에 모집중 캠페인/신청 0건).
+//   신규 쿠폰 이벤트는 프리미엄 Campaign.couponEvent로 처리(getCampaigns). 아래는 통합 후 활성 경로 아님 —
+//   자동발행 프리미엄 이전 후 정리 대상. 쿠폰 풀 분배 로직은 그때 프리미엄 재구현 레퍼런스로 보존.
 // ──────────────────────────────────────────────
 
 /**
@@ -695,7 +830,10 @@ function mapPartnerCampaignRecord(
         totalFollowerCoupon: fields['총 팔로워 쿠폰 수'] || 0,
 
         creatorCouponCode: fields['크리에이터 쿠폰 코드'] || '',
-        followerCouponCode: fields['팔로워 쿠폰 코드'] || '',
+        // CHANGED: 캠페인 풀 전체 노출 차단. 풀(N개 코드 줄바꿈)을 그대로 도메인 객체에 담으면
+        // /api/partner/campaigns 응답에 모든 코드가 노출됨. 신청자별 분배 코드는
+        // PartnerApplication.followerCouponCode (신청 레코드 자체 필드)로 받는다.
+        followerCouponCode: '',
         visitStartDate: fields['크리에이터 방문 가능 시작일'] || '',
         visitEndDate: fields['크리에이터 방문 가능 종료일'] || '',
         couponStartDate: fields['쿠폰 유효 시작일'] || '',
@@ -709,6 +847,7 @@ function mapPartnerCampaignRecord(
 
 /**
  * 파트너 캠페인 목록 조회 (v3: tier 인자, 등급별 합산 기반 auto-close)
+ * LEGACY: 통합 후 비활성. 신규 유입 없어 사실상 빈 배열 반환(오픈전 필터 + 신규 유입 0).
  */
 export async function getPartnerCampaigns(tier: TierLevel): Promise<PartnerCampaign[]> {
     try {
@@ -793,7 +932,18 @@ interface ApplyPartnerCampaignParams {
 }
 
 /**
- * 파트너 캠페인 신청 (2단계 검증 + 자동 마감) — v3 tier 기반
+ * 파트너 캠페인 신청 + 동기 쿠폰 분배 — v3.1
+ * LEGACY: 통합 후 비활성 경로(신규 유입 없음). 자동발행 프리미엄 이전 시 쿠폰 풀 분배 재구현 레퍼런스.
+ *
+ * 분배 알고리즘 (캠페인 풀 → 배포 완료 큐):
+ *   캠페인.팔로워 쿠폰 코드 = "CODE001\nCODE002\n...\nCODE0N"  (어드민 자동 발행이 채움)
+ *   1) 풀 첫 줄(myCode) 추출
+ *   2) 신청 레코드.팔로워 쿠폰 코드 = myCode 로 생성
+ *   3) 캠페인.팔로워 쿠폰 코드 = 나머지 줄 (myCode 제거)
+ *   4) 캠페인.배포 완료된 쿠폰 = 기존 + myCode 추가
+ *   5) 사후 검증: 캠페인 다시 find → 배포 완료에 myCode 들어있는지 확인. 미포함이면 race로 판단하고 롤백.
+ *
+ * 새 에러 코드: COUPON_POOL_EMPTY (풀 비어있음), CAMPAIGN_RACE (사후 검증 실패)
  */
 export async function applyPartnerCampaign({
     campaignId,
@@ -816,7 +966,7 @@ export async function applyPartnerCampaign({
         const tierAvailableBefore = (campaignRecord.fields[tierFields.available as keyof typeof campaignRecord.fields] as number) || 0;
         if (tierAvailableBefore < 1) throw new Error('CAMPAIGN_FULL');
 
-        // 서버 사이드 날짜 범위 검증
+        // 3. 서버 사이드 날짜 범위 검증
         if (checkInDate) {
             const visitStart = campaignRecord.fields['크리에이터 방문 가능 시작일'] || '';
             const visitEnd = campaignRecord.fields['크리에이터 방문 가능 종료일'] || '';
@@ -825,13 +975,26 @@ export async function applyPartnerCampaign({
             }
         }
 
-        // 3. 신청 레코드 생성
+        // 4. 풀에서 본인 몫 1줄(myCode) 슬라이싱
+        // CHANGED: 어드민 자동 발행이 N줄 풀을 채우면, 신청자마다 첫 줄을 잘라서 분배.
+        const pool = (campaignRecord.fields['팔로워 쿠폰 코드'] || '')
+            .split('\n')
+            .map((line) => line.trim())
+            .filter(Boolean);
+        if (pool.length === 0) throw new Error('COUPON_POOL_EMPTY');
+        const myCode = pool[0];
+        const remainingPool = pool.slice(1).join('\n');
+        const dispensedExisting = (campaignRecord.fields['배포 완료된 쿠폰'] || '').trim();
+        const dispensedUpdated = dispensedExisting ? `${dispensedExisting}\n${myCode}` : myCode;
+
+        // 5. 신청 레코드 생성 — 본인 분배 코드 포함
         const applicationFields: Record<string, unknown> = {
             '크리에이터': [userRecordId],
             '캠페인': [campaignId],
             '크리에이터 채널명': channelName,
             '신청 상태': '신청완료',
             '정책 확인 동의': true,
+            '팔로워 쿠폰 코드': myCode,
         };
         if (checkInDate) applicationFields['입실일'] = checkInDate;
         if (checkInSite) applicationFields['입실 사이트'] = checkInSite;
@@ -842,18 +1005,38 @@ export async function applyPartnerCampaign({
         if (!createdRecords || createdRecords.length === 0) throw new Error('FAILED_TO_CREATE_APPLICATION');
         createdApplicationId = createdRecords[0].id;
 
-        // 4. 사후 검증: 해당 등급 잔여 재확인
-        const updatedCampaign = (await partnerCampaignTable().find(campaignId)) as unknown as AirtablePartnerCampaignRecord;
-        const tierAvailableAfter = (updatedCampaign.fields[tierFields.available as keyof typeof updatedCampaign.fields] as number) || 0;
+        // 6. 캠페인 풀 update — 풀에서 myCode 제거 + 배포 완료에 append
+        await partnerCampaignTable().update([
+            {
+                id: campaignId,
+                fields: {
+                    '팔로워 쿠폰 코드': remainingPool,
+                    '배포 완료된 쿠폰': dispensedUpdated,
+                } as unknown as Partial<FieldSet>,
+            },
+        ]);
 
+        // 7. 사후 검증: 본인 myCode가 배포 완료에 들어가 있는지 확인 (race 방어)
+        const updatedCampaign = (await partnerCampaignTable().find(campaignId)) as unknown as AirtablePartnerCampaignRecord;
+        const dispensedAfter = updatedCampaign.fields['배포 완료된 쿠폰'] || '';
+        const dispensedAfterLines = dispensedAfter.split('\n').map((line) => line.trim());
+        if (!dispensedAfterLines.includes(myCode)) {
+            console.error(`[Partner Race Condition] campaignId=${campaignId}, myCode=${myCode} — 배포 완료에 미반영, 롤백`);
+            await partnerApplicationTable().destroy(createdApplicationId);
+            createdApplicationId = null;
+            throw new Error('CAMPAIGN_RACE');
+        }
+
+        // 8. 등급 잔여 사후 검증 (기존 패턴 유지)
+        const tierAvailableAfter = (updatedCampaign.fields[tierFields.available as keyof typeof updatedCampaign.fields] as number) || 0;
         if (tierAvailableAfter < 0) {
-            console.error(`[Partner Race Condition] tier=${tier}, campaignId=${campaignId}, available=${tierAvailableAfter} — 롤백`);
+            console.error(`[Partner Tier Overflow] tier=${tier}, campaignId=${campaignId}, available=${tierAvailableAfter} — 롤백`);
             await partnerApplicationTable().destroy(createdApplicationId);
             createdApplicationId = null;
             throw new Error('CAMPAIGN_FULL');
         }
 
-        // 5. 자동 마감: 3등급 합계 0일 때만
+        // 9. 자동 마감: 3등급 합계 0일 때만
         const totalAvailable =
             (updatedCampaign.fields['⭐️ 신청 가능 인원'] || 0) +
             (updatedCampaign.fields['✔️ 신청 가능 인원'] || 0) +
@@ -866,7 +1049,7 @@ export async function applyPartnerCampaign({
         return {
             success: true,
             creatorCouponCode: updatedCampaign.fields['크리에이터 쿠폰 코드'] || '',
-            followerCouponCode: updatedCampaign.fields['팔로워 쿠폰 코드'] || '',
+            followerCouponCode: myCode,
         };
     } catch (error) {
         console.error('Apply partner campaign error:', error);
@@ -913,7 +1096,8 @@ export async function getPartnerApplications(
                 applicationStatus: fields['신청 상태'] || '',
                 reservationStatus: fields['예약 취소/변경'] || '',
                 creatorCouponCode: (fields['크리에이터 쿠폰 코드 (from 캠페인)'] || [])[0] || '',
-                followerCouponCode: (fields['팔로워 쿠폰 코드 (from 캠페인)'] || [])[0] || '',
+                // CHANGED: 신청 레코드 자체 필드(분배된 본인 코드). 캠페인 풀 lookup 더 이상 사용 안 함.
+                followerCouponCode: fields['팔로워 쿠폰 코드'] || '',
                 visitStartDate: (fields['방문 가능 시작일 (from 캠페인)'] || [])[0] || '',
                 visitEndDate: (fields['방문 가능 종료일 (from 캠페인)'] || [])[0] || '',
                 couponStartDate: (fields['쿠폰 유효 시작일 (from 캠페인)'] || [])[0] || '',

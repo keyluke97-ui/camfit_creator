@@ -37,6 +37,8 @@ export async function POST(req: NextRequest) {
         const premiumId = (payload.premiumId || payload.id) as string | null;
         const channelName = payload.channelName as string;
         const tier = payload.tier as TierLevel;
+        // CHANGED: 통합 — 블로거 차단(쿠폰 이벤트 캠페인 한정)에 사용
+        const channelTypes = (payload.channelTypes || []) as string[];
 
         if (!premiumId || !channelName) {
             return NextResponse.json(
@@ -58,29 +60,33 @@ export async function POST(req: NextRequest) {
 
         // 3. 에어테이블 로직 호출
         // CHANGED: userRecordId → premiumId (프리미엄 테이블 record ID)
+        // CHANGED: 통합 — channelTypes 전달 → applyCampaign 내부에서 블로거+couponEvent 시 403 처리
         const result = await applyCampaign({
             campaignId,
             channelName,
             userRecordId: premiumId,
             email,
-            tier
+            tier,
+            channelTypes
         });
 
         // 4. 성공 응답
         return NextResponse.json(result);
 
-    } catch (error: any) {
+    } catch (error) {
         console.error('Campaign application error:', error);
+        // CHANGED: 명시적 타입 어노테이션 제거 — unknown 내로잉으로 메시지 추출
+        const message = error instanceof Error ? error.message : '';
 
         // 에러 코드에 따른 메시지 처리
-        if (error.message === 'ALREADY_APPLIED') {
+        if (message === 'ALREADY_APPLIED') {
             return NextResponse.json(
                 { error: '이미 신청한 캠페인입니다.' },
                 { status: 409 }
             );
         }
 
-        if (error.message === 'COUPON_NOT_FOUND') {
+        if (message === 'COUPON_NOT_FOUND') {
             return NextResponse.json(
                 { error: '쿠폰 코드를 찾을 수 없습니다. 관리자에게 문의해주세요.' },
                 { status: 404 }
@@ -88,10 +94,34 @@ export async function POST(req: NextRequest) {
         }
 
         // CHANGED: 모집 인원 초과 에러 처리
-        if (error.message === 'CAMPAIGN_FULL') {
+        if (message === 'CAMPAIGN_FULL') {
             return NextResponse.json(
                 { error: '해당 캠페인의 모집 인원이 마감되었습니다.' },
                 { status: 409 }
+            );
+        }
+
+        // CHANGED: 통합 — 쿠폰 풀 비어있음 (운영 실수로 쿠폰 자동 발행 전 모집중 전환)
+        if (message === 'COUPON_POOL_EMPTY') {
+            return NextResponse.json(
+                { error: '팔로워 쿠폰이 일시적으로 부족합니다. 잠시 후 다시 시도해주세요. 계속되면 카카오톡 채널로 문의해주세요.' },
+                { status: 409 }
+            );
+        }
+
+        // CHANGED: 통합 — 동시 신청 race condition (배포 완료 사후 검증 실패)
+        if (message === 'CAMPAIGN_RACE') {
+            return NextResponse.json(
+                { error: '동시 신청으로 일시적 충돌이 발생했습니다. 다시 시도해주세요.' },
+                { status: 409 }
+            );
+        }
+
+        // CHANGED: 통합 — 블로거가 쿠폰 이벤트 캠페인 신청 시 차단 (이중 방어의 백엔드단)
+        if (message === 'BLOGGER_NOT_ELIGIBLE') {
+            return NextResponse.json(
+                { error: '팔로워 쿠폰 협찬은 인스타그램/유튜브 채널 보유자만 신청 가능합니다.' },
+                { status: 403 }
             );
         }
 

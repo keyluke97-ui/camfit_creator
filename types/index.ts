@@ -32,6 +32,22 @@ export interface CampaignTierData {
   availableCount: number;
 }
 
+// CHANGED: 쿠폰 적용 요일 정식 타입 — 프리미엄·파트너 통합으로 PartnerStayType는 이 타입의 별칭
+export type CouponApplyDays = '평일전용' | '평일+주말(금토)' | '평일+주말+공휴일';
+
+// CHANGED: 프리미엄·파트너 통합 — 프리미엄 캠페인이 쿠폰 이벤트를 함께 진행할 때의 조건 블록.
+// 쿠폰이벤트희망=true인 캠페인에만 존재. (브리프 2026-05 통합)
+export interface CouponEvent {
+  discount: number;              // 할인 금액 (1장당, 원)
+  couponApplyDays: CouponApplyDays;
+  couponPerCreator: number;      // 인당 팔로워 쿠폰
+  totalFollowerCoupon: number;   // 총 팔로워 쿠폰 수 (Formula)
+  visitStartDate: string;        // 크리에이터 방문 가능 시작일
+  visitEndDate: string;          // 크리에이터 방문 가능 종료일
+  couponStartDate: string;       // 쿠폰 유효 시작일
+  couponEndDate: string;         // 쿠폰 유효 종료일
+}
+
 export interface Campaign {
   id: string;
   accommodationName: string;
@@ -44,6 +60,7 @@ export interface Campaign {
   siteTypes?: string[]; // CHANGED: 제공 가능한 사이트 종류 추가
   highlights?: string; // CHANGED: 숙소의 특장점 필드 추가
   hostInstagram?: string; // CHANGED: 캠지기 인스타그램 계정 필드 추가
+  couponEvent?: CouponEvent; // CHANGED: 통합 — 쿠폰이벤트희망=true이면 채워짐. "팔로워 쿠폰 협찬" 뱃지 트리거.
 }
 
 export interface AirtableUserRecord {
@@ -90,6 +107,21 @@ export interface AirtableCampaignRecord {
     '숙소의 특장점'?: string;
     // CHANGED: 캠지기 인스타그램 계정 필드 추가
     '캠지기인스타그램'?: string;
+
+    // CHANGED: 통합 — 쿠폰 이벤트 필드 (캠지기 모집 폼에 직접 적재). 쿠폰이벤트희망=true일 때 의미.
+    '쿠폰이벤트희망'?: boolean;
+    '할인 금액'?: number;
+    '인당 팔로워 쿠폰'?: number;
+    '쿠폰 적용 요일'?: string;
+    '총 팔로워 쿠폰 수'?: number;
+    '크리에이터 방문 가능 시작일'?: string;
+    '크리에이터 방문 가능 종료일'?: string;
+    '쿠폰 유효 시작일'?: string;
+    '쿠폰 유효 종료일'?: string;
+    // CHANGED: 통합 분배 — 어드민 자동 발행이 N줄로 채우는 풀(applyCampaign 신청 시 첫 줄 슬라이싱)
+    '팔로워 쿠폰 코드'?: string;
+    // CHANGED: 분배된 코드 이력 누적 (Long text, race 검증 소스)
+    '배포 완료된 쿠폰'?: string;
   };
 }
 
@@ -105,6 +137,8 @@ export interface AirtableApplicationRecord {
     'Status'?: string;
     '예약 취소/변경'?: string; // New
     '입금내역 확인'?: boolean; // New
+    // CHANGED: 통합 — 신청 시 분배된 본인 팔로워 쿠폰 코드 (자체 single line, lookup 아님)
+    '팔로워 쿠폰 코드'?: string;
   };
 }
 
@@ -122,6 +156,8 @@ export interface Application {
   detailUrl?: string; // CHANGED: 협찬 조건 복사용 숙소 링크
   highlights?: string; // CHANGED: 협찬 조건 복사용 캠지기 포인트
   deadline?: string; // CHANGED: 제작 기한
+  followerCouponCode?: string; // CHANGED: 통합 — 신청 시 분배된 본인 팔로워 쿠폰 코드 (couponEvent 캠페인만)
+  couponEvent?: CouponEvent; // CHANGED: 통합 — 신청 내역 화면에서 쿠폰 조건 재확인용 (enrich 단계에서 캠페인 조인)
 }
 
 // ──────────────────────────────────────────────
@@ -129,8 +165,8 @@ export interface Application {
 // ──────────────────────────────────────────────
 
 export type PartnerRecruitmentStatus = '오픈전' | '모집중' | '마감';
-// v3: '쿠폰 적용 요일' 필드 옵션
-export type PartnerStayType = '평일전용' | '평일+주말(금토)' | '평일+주말+공휴일';
+// v3: '쿠폰 적용 요일' 필드 옵션 — CHANGED: 통합으로 CouponApplyDays의 별칭 (레거시 호환)
+export type PartnerStayType = CouponApplyDays;
 
 export interface PartnerCampaign {
   id: string;
@@ -151,9 +187,11 @@ export interface PartnerCampaign {
 
   // v3: 쿠폰
   couponPerCreator: number;         // 인당 팔로워 쿠폰 (10/20/30)
-  totalFollowerCoupon: number;      // Formula: 등급별 쿠폰 수량 합산
+  totalFollowerCoupon: number;      // Formula: 등급별 모집 희망 인원 × 인당 팔로워 쿠폰
 
   creatorCouponCode: string;
+  // CHANGED: 캠페인 풀 전체 노출 차단 — 신청 안 한 사람도 N개 코드를 받게 되는 보안 이슈 방지.
+  // 캠페인 단계에서는 항상 빈 string. 신청자 본인 코드는 PartnerApplication.followerCouponCode 사용.
   followerCouponCode: string;
   visitStartDate: string;
   visitEndDate: string;
@@ -279,10 +317,7 @@ export interface AirtablePartnerCampaignRecord {
     '숙소 소개': string;
     '모집 상태': string;
 
-    // v3 등급별 9필드
-    '⭐️ 쿠폰 수량'?: number;
-    '✔️ 쿠폰 수량'?: number;
-    '🔥 쿠폰 수량'?: number;
+    // v3 등급별 6필드 (쿠폰 수량은 어드민 자동 발행 도입으로 삭제됨)
     '⭐️ 모집 희망 인원'?: number;
     '✔️ 모집 희망 인원'?: number;
     '🔥 모집 희망 인원'?: number;
@@ -295,7 +330,10 @@ export interface AirtablePartnerCampaignRecord {
     '총 팔로워 쿠폰 수'?: number;
 
     '크리에이터 쿠폰 코드'?: string;
+    // CHANGED: 어드민 자동 발행이 N줄로 채우는 풀. 신청 시 첫 줄을 슬라이싱해 분배.
     '팔로워 쿠폰 코드'?: string;
+    // CHANGED: 분배된 코드 이력 누적 (Long text)
+    '배포 완료된 쿠폰'?: string;
     '파트너 신청'?: string[];
     '크리에이터 방문 가능 시작일': string;
     '크리에이터 방문 가능 종료일': string;
@@ -323,9 +361,10 @@ export interface AirtablePartnerApplicationRecord {
     '크리에이터 채널명 (from 크리에이터)'?: string[];
     '채널 종류'?: string[];
     '등급'?: string[];
+    // CHANGED: 신청 시 분배되는 본인 팔로워 쿠폰 코드 (자체 single line text — 캠페인 lookup이 아님)
+    '팔로워 쿠폰 코드'?: string;
     // CHANGED: Lookup 필드명을 실제 Airtable 필드명과 일치시킴
     '크리에이터 쿠폰 코드 (from 캠페인)'?: string[];
-    '팔로워 쿠폰 코드 (from 캠페인)'?: string[];
     '방문 가능 시작일 (from 캠페인)'?: string[];
     '방문 가능 종료일 (from 캠페인)'?: string[];
     '쿠폰 유효 시작일 (from 캠페인)'?: string[];

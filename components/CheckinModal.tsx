@@ -2,6 +2,9 @@
 
 import { useState, useEffect, useRef } from 'react';
 import type { Application } from '@/types';
+import { COUPON_APPLY_DAYS_CONFIG, formatDiscount } from '@/lib/constants'; // CHANGED: 통합 — 쿠폰 정보 표시 헬퍼
+// CHANGED: 통합 — 쿠폰 박스 + 완료 목록 추출 (파일 크기 컨벤션 준수)
+import { CheckinCouponBox, CompletedAppsList } from './CheckinSections';
 
 interface CheckinModalProps {
     isOpen: boolean;
@@ -96,6 +99,20 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
         const data = formData[appId];
         if (!data?.date || !data?.site) {
             return;
+        }
+
+        // CHANGED: 통합 — couponEvent 캠페인이면 방문 가능 기간 클라이언트 검증 (서버는 미적용 — 프리미엄 신청은 입실 미리 등록 안 함)
+        const app = applications.find(a => a.id === appId);
+        if (app?.couponEvent) {
+            const { visitStartDate, visitEndDate } = app.couponEvent;
+            if (visitStartDate && data.date < visitStartDate) {
+                setErrorMessage(`방문 가능 시작일(${visitStartDate}) 이후로 선택해주세요.`);
+                return;
+            }
+            if (visitEndDate && data.date > visitEndDate) {
+                setErrorMessage(`방문 가능 종료일(${visitEndDate}) 이전으로 선택해주세요.`);
+                return;
+            }
         }
 
         // CHANGED: 동기적 잠금으로 더블클릭 차단
@@ -218,6 +235,20 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
         lines.push(`📌 숙소: ${app.accommodationName}`);
         if (app.couponCode) lines.push(`📌 쿠폰 코드: ${app.couponCode}`);
         if (app.deadline) lines.push(`📌 제작 기한: ${app.deadline}`);
+
+        // CHANGED: 통합 — couponEvent 캠페인이면 팔로워 쿠폰 정보 함께 복사
+        if (app.couponEvent && app.followerCouponCode) {
+            const ce = app.couponEvent;
+            const dayLabel = COUPON_APPLY_DAYS_CONFIG[ce.couponApplyDays]?.label || ce.couponApplyDays;
+            lines.push('');
+            lines.push('🎟️ 팔로워 쿠폰');
+            lines.push(`• 내 배포 코드: ${app.followerCouponCode}`);
+            lines.push(`• 할인: ${formatDiscount(ce.discount)} (${dayLabel})`);
+            lines.push(`• 인당 ${ce.couponPerCreator}장`);
+            lines.push(`• 쿠폰 유효: ${ce.couponStartDate} ~ ${ce.couponEndDate}`);
+            lines.push(`• 내 방문 가능: ${ce.visitStartDate} ~ ${ce.visitEndDate}`);
+        }
+
         if (app.highlights) {
             lines.push('');
             lines.push('✨ 캠지기님이 자랑하고 싶은 포인트');
@@ -310,7 +341,18 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
                                         key={app.id}
                                         className="bg-[#111111] border border-[#333333] rounded-xl p-4 space-y-4"
                                     >
-                                        <h3 className="text-white font-bold text-lg">{app.accommodationName}</h3>
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            <h3 className="text-white font-bold text-lg">{app.accommodationName}</h3>
+                                            {/* CHANGED: 통합 — 쿠폰 협찬 캠페인 식별 뱃지 (코드 있거나 couponEvent 둘 중 하나만 있어도) */}
+                                            {(app.couponEvent || app.followerCouponCode) && (
+                                                <span className="text-xs px-2 py-0.5 bg-[#01DF82]/15 text-[#01DF82] border border-[#01DF82]/30 rounded-full">
+                                                    🎟️ 팔로워 쿠폰 협찬
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        {/* CHANGED: 통합 — followerCouponCode 있으면 코드 박스 노출 (추출: CheckinCouponBox) */}
+                                        {app.followerCouponCode && <CheckinCouponBox app={app} />}
 
                                         {isRegistered(app) ? (
                                             <div className="space-y-3">
@@ -413,33 +455,8 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
                                     </div>
                                 ))}
 
-                                {/* CHANGED: 완료된 캠페인 (입실일 지난 것) */}
-                                {completedApps.length > 0 && (
-                                    <div className="space-y-3 pt-4 border-t border-[#333333]">
-                                        <p className="text-xs text-[#888888] font-medium">완료된 캠페인</p>
-                                        {completedApps.map(app => (
-                                            <div
-                                                key={app.id}
-                                                className="bg-[#111111] border border-[#333333] rounded-xl p-4 opacity-60"
-                                            >
-                                                <div className="flex items-center justify-between">
-                                                    <h3 className="text-white font-bold">{app.accommodationName}</h3>
-                                                    <span className="text-xs text-[#888888] bg-[#2A2A2A] px-2 py-0.5 rounded-full">완료</span>
-                                                </div>
-                                                <div className="flex gap-4 mt-2">
-                                                    <div className="flex-1">
-                                                        <span className="text-xs text-[#888888]">입실일</span>
-                                                        <p className="text-[#B0B0B0] text-sm">{app.checkInDate}</p>
-                                                    </div>
-                                                    <div className="flex-1">
-                                                        <span className="text-xs text-[#888888]">입실 사이트</span>
-                                                        <p className="text-[#B0B0B0] text-sm">{app.checkInSite}</p>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
+                                {/* CHANGED: 완료된 캠페인 (입실일 지난 것) — 추출: CompletedAppsList */}
+                                <CompletedAppsList apps={completedApps} />
                             </div>
                         )
                     ) : step === 2 ? (

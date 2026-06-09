@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 import { getCampaigns } from '@/lib/airtable';
+import { hasPartnerEligibleChannel } from '@/lib/constants';
 import type { TierLevel } from '@/types';
 
 // CHANGED: 폴백 값 제거 — 환경변수 미설정 시 서버 시작 단계에서 에러 발생하도록
@@ -34,7 +35,14 @@ export async function GET(request: NextRequest) {
         }
 
         // 등급별 캠페인 목록 조회
-        const campaigns = await getCampaigns(tier);
+        const allCampaigns = await getCampaigns(tier);
+
+        // CHANGED: 통합 — 블로거에겐 쿠폰 이벤트 캠페인 숨김 (옛 파트너 정책 유지, 이중 방어의 프론트단)
+        const channelTypes = (payload.channelTypes || []) as string[];
+        const isPartnerEligible = hasPartnerEligibleChannel(channelTypes);
+        const campaigns = isPartnerEligible
+            ? allCampaigns
+            : allCampaigns.filter((c) => !c.couponEvent);
 
         return NextResponse.json({ campaigns });
     } catch (error) {

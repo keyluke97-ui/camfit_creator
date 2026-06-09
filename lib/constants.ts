@@ -20,3 +20,22 @@ export function hasPartnerEligibleChannel(channelTypes: string[]): boolean {
  * 카카오톡 채널 문의 URL
  */
 export const KAKAO_CHANNEL_URL = 'http://pf.kakao.com/_fBxaQG';
+
+/**
+ * 쿠폰 적용 요일 → 표시 라벨 + 색상 (CampaignCard / ApplicationModal 공용)
+ */
+export const COUPON_APPLY_DAYS_CONFIG: Record<string, { label: string; color: string }> = {
+    '평일전용': { label: '평일전용', color: 'bg-blue-500/15 text-blue-400 border-blue-500/30' },
+    '평일+주말(금토)': { label: '평일+주말', color: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30' },
+    '평일+주말+공휴일': { label: '전체 기간', color: 'bg-teal-500/15 text-teal-400 border-teal-500/30' },
+};
+
+/**
+ * 금액 포맷 (10000 → 1만원, 그 외 → 12,000원)
+ */
+export function formatDiscount(amount: number): string {
+    if (amount >= 10000 && amount % 10000 === 0) {
+        return `${amount / 10000}만원`;
+    }
+    return `${amount.toLocaleString()}원`;
+}
