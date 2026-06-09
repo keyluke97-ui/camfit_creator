@@ -84,6 +84,20 @@ export async function POST(request: NextRequest) {
                 { status: 400 }
             );
         }
+        // CHANGED: 풀 비어있음 — 운영 실수로 모집중 전환했지만 어드민 자동 발행이 풀을 안 채운 케이스
+        if (errorMessage === 'COUPON_POOL_EMPTY') {
+            return NextResponse.json(
+                { error: '쿠폰 발행이 완료되지 않았습니다. 잠시 후 다시 시도해주세요. 계속되면 카카오톡 채널로 문의해주세요.' },
+                { status: 409 }
+            );
+        }
+        // CHANGED: 동시 신청 race — 다른 신청자가 같은 코드를 가져감. 사용자에게 재시도 안내.
+        if (errorMessage === 'CAMPAIGN_RACE') {
+            return NextResponse.json(
+                { error: '동시 신청이 발생했습니다. 다시 시도해주세요.' },
+                { status: 409 }
+            );
+        }
 
         return NextResponse.json(
             // CHANGED: 500 에러에 행동 안내 접미 통일

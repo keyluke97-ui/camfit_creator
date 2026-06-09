@@ -2,6 +2,9 @@
 
 import { useState, useRef, useEffect } from 'react';
 import type { Campaign, ChannelType } from '@/types';
+import { COUPON_APPLY_DAYS_CONFIG, formatDiscount } from '@/lib/constants';
+// CHANGED: 통합 — 쿠폰 이벤트 UI 블록 추출 (파일 크기 컨벤션 준수)
+import { CouponEventSummary, FollowerCouponCallout } from './ApplicationCouponSections';
 
 interface ApplicationModalProps {
     isOpen: boolean;
@@ -18,6 +21,7 @@ export default function ApplicationModal({ isOpen, onClose, campaign, channelTyp
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const [couponCode, setCouponCode] = useState('');
+    const [followerCouponCode, setFollowerCouponCode] = useState(''); // CHANGED: 통합 — 분배된 본인 팔로워 쿠폰 코드
     const [isCopied, setIsCopied] = useState(false);
     const [isHighlightsExpanded, setIsHighlightsExpanded] = useState(false); // CHANGED: Step 3 캠지기 포인트 접기/펼치기
 
@@ -36,6 +40,7 @@ export default function ApplicationModal({ isOpen, onClose, campaign, channelTyp
             setEmail('');
             setError('');
             setCouponCode('');
+            setFollowerCouponCode(''); // CHANGED: 통합
             isSubmittingRef.current = false; // CHANGED: 모달 재오픈 시 잠금 해제
         }
     }, [isOpen]);
@@ -93,9 +98,11 @@ export default function ApplicationModal({ isOpen, onClose, campaign, channelTyp
                 }
 
                 setCouponCode(data.couponCode);
+                setFollowerCouponCode(data.followerCouponCode || ''); // CHANGED: 통합 — couponEvent 캠페인이면 분배된 본인 코드
                 setStep(4);
-            } catch (err: any) {
-                setError(err.message);
+            } catch (err) {
+                // CHANGED: 명시적 타입 어노테이션 제거 — unknown 내로잉
+                setError(err instanceof Error ? err.message : '신청에 실패했습니다.');
                 isSubmittingRef.current = false; // CHANGED: 에러 시 잠금 해제하여 재시도 가능
             } finally {
                 setIsLoading(false);
@@ -120,6 +127,20 @@ export default function ApplicationModal({ isOpen, onClose, campaign, channelTyp
         const lines: string[] = [];
         lines.push(`📌 쿠폰 코드: ${couponCode}`);
         lines.push(`📌 숙소: ${campaign.accommodationName}`);
+
+        // CHANGED: 통합 — couponEvent 캠페인이면 팔로워 쿠폰 정보 함께 저장
+        if (campaign.couponEvent && followerCouponCode) {
+            const ce = campaign.couponEvent;
+            const dayLabel = COUPON_APPLY_DAYS_CONFIG[ce.couponApplyDays]?.label || ce.couponApplyDays;
+            lines.push('');
+            lines.push('🎟️ 팔로워 쿠폰');
+            lines.push(`• 내 배포 코드: ${followerCouponCode}`);
+            lines.push(`• 할인: ${formatDiscount(ce.discount)} (${dayLabel})`);
+            lines.push(`• 인당 ${ce.couponPerCreator}장`);
+            lines.push(`• 쿠폰 유효: ${ce.couponStartDate} ~ ${ce.couponEndDate}`);
+            lines.push(`• 내 방문 가능: ${ce.visitStartDate} ~ ${ce.visitEndDate}`);
+        }
+
         if (campaign.highlights) {
             lines.push('');
             lines.push(`✨ 캠지기님이 자랑하고 싶은 포인트`);
@@ -263,6 +284,9 @@ export default function ApplicationModal({ isOpen, onClose, campaign, channelTyp
                                     프리미엄 협찬 관련 안내 메일을 받으실 이메일 주소를 입력해주세요.
                                 </p>
                             </div>
+
+                            {/* CHANGED: 통합 — 쿠폰 이벤트 캠페인이면 쿠폰 조건 + 날짜 2개 안내 (추출: CouponEventSummary) */}
+                            {campaign.couponEvent && <CouponEventSummary couponEvent={campaign.couponEvent} />}
 
                             <div className="bg-[#2A2A2A] p-4 rounded-lg space-y-3">
                                 <p className="text-sm font-bold text-[#01DF82]">🚨 예약 완료 소식 알리기 (필수)</p>
@@ -414,6 +438,11 @@ export default function ApplicationModal({ isOpen, onClose, campaign, channelTyp
                                 </p>
                             </div>
 
+                            {/* CHANGED: 통합 — couponEvent 캠페인이면 팔로워 쿠폰 callout (추출: FollowerCouponCallout) */}
+                            {campaign.couponEvent && followerCouponCode && (
+                                <FollowerCouponCallout couponEvent={campaign.couponEvent} followerCouponCode={followerCouponCode} />
+                            )}
+
                             <div className="bg-[#2A2A2A] p-4 rounded-lg">
                                 <p className="text-sm font-bold text-white mb-1">📢 잊지 마세요!</p>
                                 <p className="text-sm text-[#B0B0B0]">
@@ -433,6 +462,19 @@ export default function ApplicationModal({ isOpen, onClose, campaign, channelTyp
                                     <div className={`space-y-2 ${!isContentExpanded ? 'max-h-20 overflow-hidden' : ''}`}>
                                         <p><span className="text-[#01DF82]">📌 쿠폰 코드:</span> <span className="font-mono text-white">{couponCode}</span></p>
                                         <p><span className="text-[#01DF82]">📌 숙소:</span> {campaign.accommodationName}</p>
+
+                                        {/* CHANGED: 통합 — couponEvent 캠페인 미리보기 */}
+                                        {campaign.couponEvent && followerCouponCode && (
+                                            <>
+                                                <div className="border-t border-[#333] my-1" />
+                                                <p className="text-[#01DF82]">🎟️ 팔로워 쿠폰</p>
+                                                <p>• 내 배포 코드: <span className="font-mono text-white">{followerCouponCode}</span></p>
+                                                <p>• 할인: {formatDiscount(campaign.couponEvent.discount)} ({COUPON_APPLY_DAYS_CONFIG[campaign.couponEvent.couponApplyDays]?.label || campaign.couponEvent.couponApplyDays})</p>
+                                                <p>• 인당 {campaign.couponEvent.couponPerCreator}장</p>
+                                                <p>• 쿠폰 유효: {campaign.couponEvent.couponStartDate} ~ {campaign.couponEvent.couponEndDate}</p>
+                                                <p>• 내 방문 가능: {campaign.couponEvent.visitStartDate} ~ {campaign.couponEvent.visitEndDate}</p>
+                                            </>
+                                        )}
 
                                         {campaign.highlights && (
                                             <>

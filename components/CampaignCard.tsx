@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { Campaign, ChannelType } from '@/types';
+import { COUPON_APPLY_DAYS_CONFIG, formatDiscount } from '@/lib/constants';
 import ApplicationModal from './ApplicationModal';
 import HighlightsModal from './HighlightsModal';
 // CHANGED: 모집현황 텍스트 → 프로그레스 바로 교체
@@ -44,7 +45,14 @@ export default function CampaignCard({ campaign, channelTypes }: CampaignCardPro
     // 활성 상태
     return (
         <div className="bg-[#1E1E1E] border border-[#333333] rounded-lg p-5 hover:border-[#01DF82] transition-colors">
-            {/* CHANGED: 경제 모델 배지 제거 — 탭이 이미 구분자 역할이라 카드마다 반복 노출은 중복 노이즈 */}
+            {/* CHANGED: 통합 — 쿠폰 이벤트 캠페인이면 "팔로워 쿠폰 협찬" 뱃지 */}
+            {campaign.couponEvent && (
+                <div className="mb-3">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold bg-[#01DF82]/15 text-[#01DF82] border border-[#01DF82]/30 rounded-full">
+                        🎟️ 팔로워 쿠폰 협찬
+                    </span>
+                </div>
+            )}
 
             {/* 숙소 이름 */}
             <h3 className="text-xl font-bold text-white mb-3 leading-tight">
@@ -102,6 +110,36 @@ export default function CampaignCard({ campaign, channelTypes }: CampaignCardPro
                     {campaign.tierData.price.toLocaleString()}원
                 </p>
             </div>
+
+            {/* CHANGED: 통합 — 쿠폰 이벤트 핵심 3개만 (할인/적용 요일/내가 배포할 쿠폰). 날짜는 신청창에서. */}
+            {campaign.couponEvent && (() => {
+                const couponEvent = campaign.couponEvent;
+                const dayConfig = COUPON_APPLY_DAYS_CONFIG[couponEvent.couponApplyDays] || COUPON_APPLY_DAYS_CONFIG['평일전용'];
+                return (
+                    <div className="bg-[#252525] border border-[#3A3A3A] rounded-lg p-4 mb-4">
+                        <div className="flex items-center gap-1.5 mb-3">
+                            <span className="text-base">🎟️</span>
+                            <span className="text-sm font-bold text-white">팔로워 쿠폰 이벤트</span>
+                        </div>
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs text-[#9CA3AF]">팔로워 할인</span>
+                                <span className="text-sm font-bold text-[#01DF82]">{formatDiscount(couponEvent.discount)} 할인</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs text-[#9CA3AF]">적용 요일</span>
+                                <span className={`px-2.5 py-0.5 text-xs font-medium border rounded-full ${dayConfig.color}`}>
+                                    {dayConfig.label}
+                                </span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs text-[#9CA3AF]">내가 배포할 쿠폰</span>
+                                <span className="text-sm font-semibold text-white">{couponEvent.couponPerCreator}장</span>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
 
             {/* CHANGED: 모집현황 텍스트 → 프로그레스 바로 교체 */}
             <div className="mb-4 pb-4 border-b border-[#333333]">
