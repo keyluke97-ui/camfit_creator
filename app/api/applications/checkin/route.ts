@@ -22,7 +22,8 @@ export async function PATCH(request: Request) {
 
         // 2. Body 파싱
         const body = await request.json();
-        const { recordId, checkInDate, checkInSite } = body;
+        // CHANGED: isReRegister — 변경 후 재등록 여부 (true면 '예약 취소/변경'에 '재등록' 기록)
+        const { recordId, checkInDate, checkInSite, isReRegister } = body;
 
         if (!recordId || !checkInDate || !checkInSite) {
             return NextResponse.json(
@@ -32,7 +33,7 @@ export async function PATCH(request: Request) {
         }
 
         // 3. 입실 정보 업데이트
-        await updateApplicationCheckin(recordId, checkInDate, checkInSite);
+        await updateApplicationCheckin(recordId, checkInDate, checkInSite, isReRegister === true);
 
         return NextResponse.json({ success: true });
     } catch (error: any) {

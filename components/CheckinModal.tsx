@@ -111,15 +111,23 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
                 body: JSON.stringify({
                     recordId: appId,
                     checkInDate: data.date,
-                    checkInSite: data.site
+                    checkInSite: data.site,
+                    // CHANGED: 변경(reservationStatus='변경') 상태에서 재등록하면 '재등록' 마커 기록
+                    isReRegister: applications.find((a) => a.id === appId)?.reservationStatus === '변경'
                 })
             });
 
             if (res.ok) {
-                setApplications(prev => prev.map(app =>
-                    app.id === appId
-                        ? { ...app, checkInDate: data.date, checkInSite: data.site }
-                        : app
+                setApplications(prev => prev.map(a =>
+                    a.id === appId
+                        ? {
+                            ...a,
+                            checkInDate: data.date,
+                            checkInSite: data.site,
+                            // CHANGED: 재등록이면 로컬 상태도 '재등록'으로 반영
+                            reservationStatus: a.reservationStatus === '변경' ? '재등록' : a.reservationStatus
+                        }
+                        : a
                 ));
                 setSavedIds(prev => new Set(prev).add(appId));
             } else {
@@ -392,6 +400,14 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
                                                 {savedIds.has(app.id) && (
                                                     <p className="text-sm text-[#01DF82] text-center font-medium">✅ 저장 완료!</p>
                                                 )}
+
+                                                {/* CHANGED: 입실 미등록 상태에서도 예약 취소 가능 (변경 후 재예약 안 하고 취소하는 경우 포함) */}
+                                                <button
+                                                    onClick={() => handleActionStart(app, 'cancel')}
+                                                    className="w-full h-9 border border-red-500/30 text-red-400 rounded-lg text-xs hover:bg-red-500/10 transition-colors"
+                                                >
+                                                    예약 취소
+                                                </button>
                                             </div>
                                         )}
                                     </div>
