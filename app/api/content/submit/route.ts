@@ -30,6 +30,11 @@ export async function POST(request: Request) {
         const body = await request.json();
         const { sponsorshipType, uploadDate, contentLink, accommodationRecordId, camfitLoungeUrl, officialCollabRequest, premiumCampaignRecordId } = body;
 
+        // CHANGED: 콘텐츠2/3/4 다중 채널 링크 — optional, trim + 빈 값 제외 + 최대 3개
+        const additionalContentLinks = Array.isArray(body.additionalContentLinks)
+            ? body.additionalContentLinks.map((l: unknown) => String(l).trim()).filter(Boolean).slice(0, 3)
+            : [];
+
         // 필수 필드 검증
         if (!sponsorshipType || !uploadDate || !contentLink) {
             return NextResponse.json(
@@ -66,6 +71,8 @@ export async function POST(request: Request) {
             sponsorshipType,
             uploadDate,
             contentLink,
+            // CHANGED: 콘텐츠2/3/4 다중 채널 링크 — 협찬 타입 무관 공통 적용
+            additionalContentLinks,
             accommodationRecordId: sponsorshipType === '캠핑장 예약' ? accommodationRecordId : undefined,
             camfitLoungeUrl: sponsorshipType === '캠핑장 예약' ? camfitLoungeUrl : undefined,
             officialCollabRequest: sponsorshipType === '캠핑장 예약' ? officialCollabRequest : undefined,

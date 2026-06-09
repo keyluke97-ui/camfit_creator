@@ -77,6 +77,32 @@ export default function ContentCard({ content }: ContentCardProps) {
                         </svg>
                     </a>
 
+                    {/* CHANGED: 콘텐츠2/3/4 다중 채널 링크 */}
+                    {content.additionalContentLinks?.map((link, i) => (
+                        <a
+                            key={i}
+                            href={link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2.5 px-3.5 py-2.5 bg-[#252525] rounded-lg hover:bg-[#2A2A2A] transition-colors group"
+                        >
+                            <div className="w-8 h-8 bg-[#01DF82]/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                                <svg className="w-4 h-4 text-[#01DF82]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                </svg>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-xs text-[#888888] mb-0.5">추가 채널 {i + 2}</p>
+                                <p className="text-xs text-[#01DF82] truncate group-hover:underline">
+                                    {link}
+                                </p>
+                            </div>
+                            <svg className="w-4 h-4 text-[#555555] group-hover:text-[#01DF82] transition-colors flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                        </a>
+                    ))}
+
                     {/* 캠핏 라운지 링크 */}
                     {content.camfitLoungeUrl && (
                         <a
