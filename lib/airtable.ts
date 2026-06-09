@@ -1213,6 +1213,12 @@ export async function submitContentUpload(payload: ContentSubmitPayload): Promis
             '제출 경로': payload.submissionSource ?? '',
         };
 
+        // CHANGED: 콘텐츠2/3/4 다중 채널 링크 — 일반/프리미엄 공통, 값 있을 때만 기록
+        const extra = payload.additionalContentLinks ?? [];
+        if (extra[0]) fields['콘텐츠2'] = extra[0];
+        if (extra[1]) fields['콘텐츠3'] = extra[1];
+        if (extra[2]) fields['콘텐츠4'] = extra[2];
+
         // 숙소 협찬 (캠핑장 예약)
         if (payload.accommodationRecordId) {
             fields['캠핑장 이름 OR 캠핑 용품 이름'] = [payload.accommodationRecordId];
@@ -1271,12 +1277,18 @@ export async function getCreatorContentUploads(channelName: string): Promise<Con
                 ? channelNames[0]
                 : '';
 
+            // CHANGED: 콘텐츠2/3/4 다중 채널 링크 — non-empty만 추출
+            const additionalContentLinks = (['콘텐츠2', '콘텐츠3', '콘텐츠4'] as const)
+                .map((f) => record.get(f) as string | undefined)
+                .filter((v): v is string => !!v);
+
             return {
                 id: record.id,
                 channelName,
                 sponsorshipType: (record.get('협찬의 종류를 골라주세요') as string) || '',
                 uploadDate: (record.get('업로드 날짜') as string) || '',
                 contentLink: (record.get('콘텐츠 링크') as string) || '',
+                additionalContentLinks,
                 accommodationName,
                 camfitLoungeUrl: (record.get('캠핏 라운지 콘텐츠 업로드') as string) || undefined,
                 officialCollabRequest: (record.get('캠핏 오피셜 계정 공동작업 요청') as boolean) || false,

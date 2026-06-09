@@ -33,6 +33,7 @@ export default function ContentSubmitModal({
     const [sponsorshipType, setSponsorshipType] = useState<SponsorshipType | ''>('');
     const [uploadDate, setUploadDate] = useState('');
     const [contentLink, setContentLink] = useState('');
+    const [extraLinks, setExtraLinks] = useState<string[]>([]); // CHANGED: 콘텐츠2/3/4 다중 채널 링크 (각 원소 = 입력칸 1개, 최대 3)
 
     // 숙소 협찬 필드
     const [accommodationSearch, setAccommodationSearch] = useState('');
@@ -62,6 +63,7 @@ export default function ContentSubmitModal({
             setSponsorshipType('');
             setUploadDate(new Date().toISOString().split('T')[0]);
             setContentLink('');
+            setExtraLinks([]); // CHANGED: 콘텐츠2/3/4 다중 채널 링크 리셋
             setAccommodationSearch('');
             setAccommodationOptions([]);
             setSelectedAccommodation(null);
@@ -173,6 +175,7 @@ export default function ContentSubmitModal({
                     sponsorshipType,
                     uploadDate,
                     contentLink,
+                    additionalContentLinks: extraLinks.map((l) => l.trim()).filter(Boolean), // CHANGED: 콘텐츠2/3/4 다중 채널 링크
                     accommodationRecordId: selectedAccommodation?.id,
                     camfitLoungeUrl: camfitLoungeUrl || undefined,
                     officialCollabRequest: officialCollabRequest && collabConfirmed, // CHANGED: 서브 확인까지 체크해야 true
@@ -272,6 +275,49 @@ export default function ContentSubmitModal({
                                 placeholder="https://"
                                 className="w-full h-12 px-4 bg-[#111111] text-white border border-[#333333] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#01DF82] focus:border-transparent placeholder-[#666666]"
                             />
+                        </div>
+
+                        {/* CHANGED: 콘텐츠2/3/4 다중 채널 링크 — 일반/프리미엄 공통, 점진적 추가 (최대 3) */}
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-white mb-1">
+                                다른 채널에도 올리셨나요?
+                            </label>
+                            <p className="text-[11px] text-[#888888] mb-2 leading-relaxed">
+                                같은 콘텐츠를 인스타·블로그·유튜브 등 다른 채널에도 올리셨다면 링크를 추가해주세요. (선택)
+                            </p>
+                            {extraLinks.map((link, i) => (
+                                <div key={i} className="flex items-center gap-2 mb-2">
+                                    <input
+                                        type="url"
+                                        value={link}
+                                        onChange={(e) => setExtraLinks((prev) => prev.map((l, idx) => (idx === i ? e.target.value : l)))}
+                                        placeholder="https://"
+                                        className="flex-1 h-12 px-4 bg-[#111111] text-white border border-[#333333] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#01DF82] focus:border-transparent placeholder-[#666666]"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setExtraLinks((prev) => prev.filter((_, idx) => idx !== i))}
+                                        aria-label="링크 삭제"
+                                        className="w-10 h-12 flex items-center justify-center text-[#666666] hover:text-red-400 transition-colors shrink-0"
+                                    >
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            ))}
+                            {extraLinks.length < 3 && (
+                                <button
+                                    type="button"
+                                    onClick={() => setExtraLinks((prev) => [...prev, ''])}
+                                    className="flex items-center gap-1.5 text-sm font-medium text-[#01DF82] hover:text-[#00C972] transition-colors"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                    </svg>
+                                    다른 채널 링크 추가
+                                </button>
+                            )}
                         </div>
 
                         {/* ── 숙소 협찬 (캠핑장 예약) 조건부 필드 ── */}

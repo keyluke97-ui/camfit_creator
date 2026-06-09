@@ -240,6 +240,8 @@ export interface ContentSubmitPayload {
     sponsorshipType: SponsorshipType;
     uploadDate: string;
     contentLink: string;
+    // CHANGED: 콘텐츠2/3/4 다중 채널 링크 — 인덱스 순서대로 콘텐츠2/3/4에 매핑, 빈 값 제외, 최대 3
+    additionalContentLinks?: string[];
     // 숙소 협찬 (캠핑장 예약)
     accommodationRecordId?: string;       // 캠핑장목록 linked record
     camfitLoungeUrl?: string;             // 캠핏 라운지 콘텐츠 업로드 URL
@@ -259,6 +261,8 @@ export interface ContentUpload {
     sponsorshipType: string;
     uploadDate: string;
     contentLink: string;
+    // CHANGED: 콘텐츠2/3/4 다중 채널 링크 (조회 시 non-empty만)
+    additionalContentLinks?: string[];
     accommodationName?: string;
     camfitLoungeUrl?: string;
     officialCollabRequest?: boolean;
