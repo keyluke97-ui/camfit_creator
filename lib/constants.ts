@@ -22,6 +22,27 @@ export function hasPartnerEligibleChannel(channelTypes: string[]): boolean {
 export const KAKAO_CHANNEL_URL = 'http://pf.kakao.com/_fBxaQG';
 
 /**
+ * 캠핏 쿠폰 등록 페이지 URL (고정)
+ * — 팔로워가 쿠폰 코드를 등록하는 페이지. 크리에이터 본인의 예약 쿠폰 등록에도 동일 사용.
+ */
+export const COUPON_REGISTER_URL = 'https://camfit.co.kr/mypage/coupon/register';
+
+/**
+ * 크리에이터가 콘텐츠/팔로워에게 안내할 링크 목록
+ * — 쿠폰이벤트면 [쿠폰 등록 페이지, 숙소 상세], 아니면 [숙소 상세]만.
+ *   ApplicationModal(Step3 표시 + Step4 복붙), CheckinModal(협찬 조건 복붙) 공용.
+ */
+export function getFollowerLinks(
+    detailUrl: string | undefined,
+    isCouponEvent: boolean
+): { label: string; url: string }[] {
+    const links: { label: string; url: string }[] = [];
+    if (isCouponEvent) links.push({ label: '팔로워 쿠폰 등록 페이지', url: COUPON_REGISTER_URL });
+    if (detailUrl) links.push({ label: '숙소 상세 페이지', url: detailUrl });
+    return links;
+}
+
+/**
  * 쿠폰 적용 요일 → 표시 라벨 + 색상 (CampaignCard / ApplicationModal 공용)
  */
 export const COUPON_APPLY_DAYS_CONFIG: Record<string, { label: string; color: string }> = {

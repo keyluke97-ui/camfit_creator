@@ -2,9 +2,12 @@
 
 import { useState, useRef, useEffect } from 'react';
 import type { Campaign, ChannelType } from '@/types';
-import { COUPON_APPLY_DAYS_CONFIG, formatDiscount } from '@/lib/constants';
+// CHANGED: 팔로워 안내 링크 헬퍼/상수 추가
+import { COUPON_APPLY_DAYS_CONFIG, formatDiscount, getFollowerLinks, COUPON_REGISTER_URL } from '@/lib/constants';
 // CHANGED: 통합 — 쿠폰 이벤트 UI 블록 추출 (파일 크기 컨벤션 준수)
 import { CouponEventSummary, FollowerCouponCallout } from './ApplicationCouponSections';
+// CHANGED: 콘텐츠 제작 필수사항 블록 추출
+import ContentRequirements from './ContentRequirements';
 
 interface ApplicationModalProps {
     isOpen: boolean;
@@ -155,7 +158,10 @@ export default function ApplicationModal({ isOpen, onClose, campaign, channelTyp
                 lines.push(`• 캠핑장 인스타그램: @${campaign.hostInstagram} 태그`);
             }
         }
-        lines.push(`• 캡션/더보기란에 숙소 링크 포함: ${campaign.detailUrl}`);
+        // CHANGED: 쿠폰이벤트면 등록 페이지 + 숙소 상세, 아니면 숙소 상세만 (라벨 + 원문 URL)
+        getFollowerLinks(campaign.detailUrl, !!campaign.couponEvent).forEach((link) => {
+            lines.push(`• ${link.label}: ${link.url}`);
+        });
         const text = lines.join('\n');
         try {
             await navigator.clipboard.writeText(text);
@@ -323,46 +329,13 @@ export default function ApplicationModal({ isOpen, onClose, campaign, channelTyp
                                 </div>
                             )}
 
-                            {/* CHANGED: 콘텐츠 제작 필수사항 안내 */}
-                            <div className="bg-[#2A2A2A] p-4 rounded-lg space-y-3">
-                                <p className="text-sm font-bold text-[#01DF82]">📌 콘텐츠 제작 시 필수 사항</p>
-                                {channelTypes?.includes('인스타') && (
-                                    <div className="flex items-start gap-2 text-sm text-[#D0D0D0]">
-                                        <span className="text-[#01DF82] mt-0.5 shrink-0">•</span>
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                            <span className="text-xs bg-[#E4405F]/15 text-[#E4405F] border border-[#E4405F]/30 rounded-full px-2 py-0.5 font-medium">인스타그램 운영 시</span>
-                                            <p>콘텐츠에 <strong className="text-white">@camfit_official</strong> 태그 필수</p>
-                                        </div>
-                                    </div>
-                                )}
-                                {/* CHANGED: 캠지기 인스타그램 태그 안내 — 인스타 운영 + hostInstagram 존재 시 */}
-                                {channelTypes?.includes('인스타') && campaign.hostInstagram && (
-                                    <div className="flex items-start gap-2 text-sm text-[#D0D0D0]">
-                                        <span className="text-[#01DF82] mt-0.5 shrink-0">•</span>
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                            <span className="text-xs bg-[#E4405F]/15 text-[#E4405F] border border-[#E4405F]/30 rounded-full px-2 py-0.5 font-medium">캠핑장 태그</span>
-                                            <p>캠핑장 인스타 <strong className="text-white">@{campaign.hostInstagram}</strong> 태그</p>
-                                        </div>
-                                    </div>
-                                )}
-                                <div className="flex items-start gap-2 text-sm text-[#D0D0D0]">
-                                    <span className="text-[#01DF82] mt-0.5 shrink-0">•</span>
-                                    <div>
-                                        <p>콘텐츠 캡션/더보기란에 아래 숙소 링크를 반드시 포함해주세요</p>
-                                        <a
-                                            href={campaign.detailUrl}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-[#01DF82] underline break-all text-xs mt-1 block"
-                                        >
-                                            {campaign.detailUrl}
-                                        </a>
-                                    </div>
-                                </div>
-                                <p className="text-xs text-[#888888]">
-                                    ※ 영상 콘텐츠의 경우 영상 내부가 아닌 캡션/더보기란에 링크를 넣어주세요.
-                                </p>
-                            </div>
+                            {/* CHANGED: 콘텐츠 제작 필수사항 + 팔로워 안내 링크 (추출: ContentRequirements) */}
+                            <ContentRequirements
+                                channelTypes={channelTypes}
+                                hostInstagram={campaign.hostInstagram}
+                                detailUrl={campaign.detailUrl}
+                                isCouponEvent={!!campaign.couponEvent}
+                            />
 
                             <div>
                                 <label className="block text-sm font-medium text-white mb-2">
@@ -427,7 +400,7 @@ export default function ApplicationModal({ isOpen, onClose, campaign, channelTyp
 
                             <div className="space-y-3">
                                 <a
-                                    href="https://camfit.co.kr/mypage/coupon/register"
+                                    href={COUPON_REGISTER_URL}
                                     rel="noreferrer"
                                     className="block w-full h-14 flex items-center justify-center bg-[#01DF82] text-black font-bold text-lg rounded-xl hover:bg-[#00C972] transition-colors"
                                 >
@@ -495,8 +468,10 @@ export default function ApplicationModal({ isOpen, onClose, campaign, channelTyp
                                                 )}
                                             </>
                                         )}
-                                        <p>• 캡션/더보기란에 숙소 링크 포함:</p>
-                                        <p className="text-[#01DF82] break-all">{campaign.detailUrl}</p>
+                                        {/* CHANGED: 쿠폰이벤트면 등록 페이지 + 숙소 상세, 아니면 상세만 */}
+                                        {getFollowerLinks(campaign.detailUrl, !!campaign.couponEvent).map((link) => (
+                                            <p key={link.url}>• {link.label}: <span className="text-[#01DF82] break-all">{link.url}</span></p>
+                                        ))}
                                     </div>
                                     {!isContentExpanded && (
                                         <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-[#111] to-transparent rounded-b-lg" />

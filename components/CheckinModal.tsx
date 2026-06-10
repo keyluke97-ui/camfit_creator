@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import type { Application } from '@/types';
-import { COUPON_APPLY_DAYS_CONFIG, formatDiscount } from '@/lib/constants'; // CHANGED: 통합 — 쿠폰 정보 표시 헬퍼
+import { COUPON_APPLY_DAYS_CONFIG, formatDiscount, getFollowerLinks, COUPON_REGISTER_URL } from '@/lib/constants'; // CHANGED: 통합 — 쿠폰 정보 표시 헬퍼 + 팔로워 안내 링크
 // CHANGED: 통합 — 쿠폰 박스 + 완료 목록 추출 (파일 크기 컨벤션 준수)
 import { CheckinCouponBox, CompletedAppsList } from './CheckinSections';
 
@@ -254,10 +254,12 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
             lines.push('✨ 캠지기님이 자랑하고 싶은 포인트');
             lines.push(app.highlights);
         }
-        if (app.detailUrl) {
+        // CHANGED: 쿠폰이벤트면 등록 페이지 + 숙소 상세, 아니면 상세만
+        const followerLinks = getFollowerLinks(app.detailUrl, !!app.couponEvent);
+        if (followerLinks.length > 0) {
             lines.push('');
             lines.push('📌 콘텐츠 제작 시 필수 사항');
-            lines.push(`• 캡션/더보기란에 숙소 링크 포함: ${app.detailUrl}`);
+            followerLinks.forEach((link) => lines.push(`• ${link.label}: ${link.url}`));
         }
         const text = lines.join('\n');
         try {
@@ -522,7 +524,7 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
                                         </button>
                                     </div>
                                     <a
-                                        href="https://camfit.co.kr/mypage/coupon/register"
+                                        href={COUPON_REGISTER_URL}
                                         rel="noreferrer"
                                         className="block w-full h-14 flex items-center justify-center bg-[#01DF82] text-black font-bold text-lg rounded-xl hover:bg-[#00C972] transition-colors"
                                     >
