@@ -42,7 +42,7 @@ export default function ContentRequirements({ channelTypes, hostInstagram, detai
                 <div className="w-full">
                     <p>
                         {isCouponEvent
-                            ? '팔로워가 쿠폰을 등록할 수 있도록 아래 링크를 함께 안내해주세요'
+                            ? "팔로워가 쿠폰을 사용하려면 캠핑장 상세페이지가 아닌 '쿠폰 등록 페이지' 링크를 꼭 전달해주세요"
                             : '콘텐츠 캡션/더보기란에 아래 숙소 링크를 반드시 포함해주세요'}
                     </p>
                     {followerLinks.map((link) => (

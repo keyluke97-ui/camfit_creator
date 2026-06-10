@@ -233,7 +233,7 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
     const handleCopyConditions = async (app: Application) => {
         const lines: string[] = [];
         lines.push(`📌 숙소: ${app.accommodationName}`);
-        if (app.couponCode) lines.push(`📌 쿠폰 코드: ${app.couponCode}`);
+        if (app.couponCode) lines.push(`📌 내 예약 쿠폰: ${app.couponCode}`);
         if (app.deadline) lines.push(`📌 제작 기한: ${app.deadline}`);
 
         // CHANGED: 통합 — couponEvent 캠페인이면 팔로워 쿠폰 정보 함께 복사
@@ -242,9 +242,11 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
             const dayLabel = COUPON_APPLY_DAYS_CONFIG[ce.couponApplyDays]?.label || ce.couponApplyDays;
             lines.push('');
             lines.push('🎟️ 팔로워 쿠폰');
-            lines.push(`• 내 배포 코드: ${app.followerCouponCode}`);
+            lines.push(`• 팔로워 쿠폰 코드: ${app.followerCouponCode}`);
             lines.push(`• 할인: ${formatDiscount(ce.discount)} (${dayLabel})`);
-            lines.push(`• 인당 ${ce.couponPerCreator}장`);
+            lines.push(`• 팔로워 쿠폰 수량: ${ce.couponPerCreator}장`);
+            lines.push(`• 적용 사이트: 해당 캠핑장 내 모든 사이트`);
+            lines.push(`• 최대 999명 다운로드 · 수량 소진 시 자동 종료`);
             lines.push(`• 쿠폰 유효: ${ce.couponStartDate} ~ ${ce.couponEndDate}`);
             lines.push(`• 내 방문 가능: ${ce.visitStartDate} ~ ${ce.visitEndDate}`);
         }
@@ -311,8 +313,8 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
                 <div className="p-5 border-b border-[#333333] flex justify-between items-center flex-shrink-0">
                     <h2 className="text-xl font-bold text-white">
                         {step === 1 && '입실 일정 등록'}
-                        {step === 2 && (actionType === 'change' ? '예약 변경 확인' : '예약 취소 확인')}
-                        {step === 3 && (actionType === 'change' ? '예약 변경 완료' : '예약 취소 완료')}
+                        {step === 2 && (actionType === 'change' ? '예약 변경 확인' : '신청 취소 확인')}
+                        {step === 3 && (actionType === 'change' ? '예약 변경 완료' : '신청 취소 완료')}
                     </h2>
                     {step === 1 && (
                         <button onClick={onClose} className="text-[#888888] hover:text-white">
@@ -393,7 +395,7 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
                                                         onClick={() => handleActionStart(app, 'cancel')}
                                                         className="h-10 border border-red-500/30 text-red-400 rounded-lg text-sm hover:bg-red-500/10 transition-colors"
                                                     >
-                                                        예약 취소
+                                                        신청 취소
                                                     </button>
                                                 </div>
                                             </div>
@@ -450,7 +452,7 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
                                                     onClick={() => handleActionStart(app, 'cancel')}
                                                     className="w-full h-9 border border-red-500/30 text-red-400 rounded-lg text-xs hover:bg-red-500/10 transition-colors"
                                                 >
-                                                    예약 취소
+                                                    신청 취소
                                                 </button>
                                             </div>
                                         )}
@@ -471,11 +473,11 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
                                         <p>
                                             <span className="text-[#01DF82]">제작 기한 준수</span>: 캠지기님이 설정한 제작 기한 안에 방문 후 콘텐츠 제작이 가능해야 합니다.
                                         </p>
-                                        <p>변경 절차 완료 시 기존 예약 정보가 초기화되며, <strong className="text-white">쿠폰 코드</strong>를 통해 새로운 일정으로 재예약하셔야 합니다.</p>
+                                        <p>변경 절차 완료 시 기존 예약 정보가 초기화되며, <strong className="text-white">내 예약 쿠폰 코드</strong>를 통해 새로운 일정으로 재예약하셔야 합니다.</p>
                                     </>
                                 ) : (
                                     <>
-                                        <h3 className="text-white font-bold text-lg mb-2">⚠️ 예약 취소 주의사항</h3>
+                                        <h3 className="text-white font-bold text-lg mb-2">⚠️ 신청 취소 주의사항</h3>
                                         <p className="text-red-400">
                                             프리미엄 협찬의 경우 취소가 반복될 경우 <strong>향후 참여가 제한</strong>될 수 있습니다.
                                         </p>
@@ -510,7 +512,7 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
                                 <>
                                     <h3 className="text-xl font-bold text-white">예약 변경이 완료되었습니다!</h3>
                                     <div className="bg-[#2A2A2A] border border-[#01DF82] p-6 rounded-xl space-y-4">
-                                        <p className="text-[#B0B0B0] text-sm">재예약을 위한 쿠폰 코드</p>
+                                        <p className="text-[#B0B0B0] text-sm">내 예약 쿠폰 코드</p>
                                         <p className="text-2xl font-mono font-bold text-[#01DF82] tracking-wider break-all">
                                             {couponInfo.code}
                                         </p>

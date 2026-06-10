@@ -10,7 +10,7 @@ export function CheckinCouponBox({ app }: { app: Application }) {
     const [copied, setCopied] = useState(false);
     return (
         <div className="bg-[#1E1E1E] border border-[#01DF82]/30 rounded-lg p-3 space-y-2">
-            <p className="text-xs text-[#9CA3AF]">내 팔로워 쿠폰 코드</p>
+            <p className="text-xs text-[#9CA3AF]">팔로워 쿠폰 코드</p>
             <div className="flex items-center justify-between gap-2">
                 <p className="font-mono font-bold text-[#01DF82] text-base break-all">{app.followerCouponCode}</p>
                 <button
@@ -32,7 +32,7 @@ export function CheckinCouponBox({ app }: { app: Application }) {
             {app.couponEvent && (
                 <div className="text-xs text-[#B0B0B0] space-y-0.5 pt-1 border-t border-[#333]">
                     <p>• {formatDiscount(app.couponEvent.discount)} 할인 ({COUPON_APPLY_DAYS_CONFIG[app.couponEvent.couponApplyDays]?.label || app.couponEvent.couponApplyDays})</p>
-                    <p>• 인당 {app.couponEvent.couponPerCreator}장 · 팔로워 사용: {app.couponEvent.couponStartDate} ~ {app.couponEvent.couponEndDate}</p>
+                    <p>• 팔로워 쿠폰 {app.couponEvent.couponPerCreator}장 · 팔로워 사용: {app.couponEvent.couponStartDate} ~ {app.couponEvent.couponEndDate}</p>
                     <p>• 내 방문 가능: {app.couponEvent.visitStartDate} ~ {app.couponEvent.visitEndDate}</p>
                 </div>
             )}
