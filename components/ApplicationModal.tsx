@@ -128,7 +128,7 @@ export default function ApplicationModal({ isOpen, onClose, campaign, channelTyp
     const [isContentExpanded, setIsContentExpanded] = useState(false);
     const handleCopyAll = async () => {
         const lines: string[] = [];
-        lines.push(`📌 쿠폰 코드: ${couponCode}`);
+        lines.push(`📌 내 예약 쿠폰: ${couponCode}`);
         lines.push(`📌 숙소: ${campaign.accommodationName}`);
 
         // CHANGED: 통합 — couponEvent 캠페인이면 팔로워 쿠폰 정보 함께 저장
@@ -137,9 +137,11 @@ export default function ApplicationModal({ isOpen, onClose, campaign, channelTyp
             const dayLabel = COUPON_APPLY_DAYS_CONFIG[ce.couponApplyDays]?.label || ce.couponApplyDays;
             lines.push('');
             lines.push('🎟️ 팔로워 쿠폰');
-            lines.push(`• 내 배포 코드: ${followerCouponCode}`);
+            lines.push(`• 팔로워 쿠폰 코드: ${followerCouponCode}`);
             lines.push(`• 할인: ${formatDiscount(ce.discount)} (${dayLabel})`);
-            lines.push(`• 인당 ${ce.couponPerCreator}장`);
+            lines.push(`• 팔로워 쿠폰 수량: ${ce.couponPerCreator}장`);
+            lines.push(`• 적용 사이트: 해당 캠핑장 내 모든 사이트`);
+            lines.push(`• 최대 999명 다운로드 · 수량 소진 시 자동 종료`);
             lines.push(`• 쿠폰 유효: ${ce.couponStartDate} ~ ${ce.couponEndDate}`);
             lines.push(`• 내 방문 가능: ${ce.visitStartDate} ~ ${ce.visitEndDate}`);
         }
@@ -371,7 +373,7 @@ export default function ApplicationModal({ isOpen, onClose, campaign, channelTyp
 
                             <div className="bg-[#2A2A2A] border border-[#01DF82] p-6 rounded-xl space-y-4">
                                 <div>
-                                    <p className="text-[#B0B0B0] text-sm mb-2">발급된 캠핏 예약 쿠폰 코드</p>
+                                    <p className="text-[#B0B0B0] text-sm mb-2">내 예약 쿠폰 코드</p>
                                     <p className="text-2xl font-mono font-bold text-[#01DF82] tracking-wider break-all">
                                         {couponCode || 'COUPON-CODE-ERROR'}
                                     </p>

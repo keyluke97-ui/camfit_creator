@@ -1,32 +1,23 @@
-// page.tsx - 대시보드 메인 페이지 (프리미엄 + 파트너 탭 통합)
+// page.tsx - 대시보드 메인 페이지 (프리미엄 캠페인 + 콘텐츠 뷰)
 'use client';
 
 import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import CampaignCard from '@/components/CampaignCard';
 import CheckinModal from '@/components/CheckinModal';
-import DashboardTabs from '@/components/DashboardTabs';
 import LocationFilter from '@/components/LocationFilter';
 import NotificationToggle from '@/components/NotificationToggle';
-import PartnerCampaignCard from '@/components/PartnerCampaignCard';
-import PartnerCheckinModal from '@/components/PartnerCheckinModal';
 // CHANGED: 콘텐츠 탭 컴포넌트 import
 import ContentCard from '@/components/ContentCard';
 import ContentCardCompact from '@/components/ContentCardCompact';
 import ContentSubmitModal from '@/components/ContentSubmitModal';
 // CHANGED (IA v3): 콘텐츠 진입 배너 — 헤더 아이콘 대신 메인 영역 배너로 승격
 import ContentEntryBanner from '@/components/ContentEntryBanner';
-import type { Campaign, PartnerCampaign, ContentUpload, TierLevel, ChannelType } from '@/types';
-// CHANGED: 공통 상수/함수를 constants.ts에서 import (중복 제거)
-import { hasPartnerEligibleChannel, KAKAO_CHANNEL_URL } from '@/lib/constants';
+import type { Campaign, ContentUpload, TierLevel, ChannelType } from '@/types';
+// CHANGED: 공통 상수를 constants.ts에서 import
+import { KAKAO_CHANNEL_URL } from '@/lib/constants';
 
-// CHANGED: 콘텐츠 탭 제거 — 캠페인 탭만 유지 (콘텐츠는 헤더에서 별도 진입)
-type TabType = 'premium' | 'partner';
-
-// CHANGED: 파트너 오픈 준비중 플래그 — 오픈 시 false로 변경하면 정상 노출
-const PARTNER_COMING_SOON = true;
-
-// CHANGED: premiumId 추가 — 프리미엄 탭 활성/비활성 분기용
+// CHANGED: premiumId 추가 — 프리미엄 등록 여부 분기용
 // CHANGED: notificationEnabled 추가 — 알림 토글 상태
 interface UserInfo {
     creatorId: string;
@@ -54,21 +45,15 @@ function DashboardContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
 
-    // CHANGED: URL 쿼리로 탭 상태 관리
+    // CHANGED: 통합 후 파트너 탭 제거 — 콘텐츠 뷰만 별도 화면으로 진입
     const tabFromUrl = searchParams.get('tab');
-    const [activeTab, setActiveTab] = useState<TabType>(
-        tabFromUrl === 'partner' ? 'partner' : 'premium'
-    );
-    // CHANGED: 콘텐츠 뷰 별도 상태 — 헤더에서 진입하는 별도 화면
     const [showContentView, setShowContentView] = useState(tabFromUrl === 'content');
 
     const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-    const [partnerCampaigns, setPartnerCampaigns] = useState<PartnerCampaign[]>([]);
     const [loading, setLoading] = useState(true);
     const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
     // CHANGED: userRecordId 상태 제거 — API에서 JWT로 사용자 식별
     const [isCheckinModalOpen, setIsCheckinModalOpen] = useState(false);
-    const [isPartnerCheckinModalOpen, setIsPartnerCheckinModalOpen] = useState(false);
     // CHANGED: 콘텐츠 탭 state 추가
     const [contentUploads, setContentUploads] = useState<ContentUpload[]>([]);
     const [isContentSubmitModalOpen, setIsContentSubmitModalOpen] = useState(false);
@@ -79,17 +64,6 @@ function DashboardContent() {
     // CHANGED: 알림 토글 state 추가
     const [notificationEnabled, setNotificationEnabled] = useState(true);
 
-    // 함수 정의를 useEffect 위에 배치 (lint: 선언 전 접근 방지)
-    const handleTabChange = (tab: TabType) => {
-        setActiveTab(tab);
-        // CHANGED: 탭 전환 시 마감 캠페인 접힘 상태 리셋 — 탭 간 상태 혼동 방지
-        setShowClosedCampaigns(false);
-        // CHANGED: 탭 전환 시 위치 필터 리셋
-        setSelectedLocation('전체');
-        const url = tab === 'partner' ? '/dashboard?tab=partner' : '/dashboard';
-        window.history.replaceState(null, '', url);
-    };
-
     // CHANGED: 콘텐츠 뷰 전환 핸들러
     const handleOpenContentView = () => {
         setShowContentView(true);
@@ -99,8 +73,7 @@ function DashboardContent() {
 
     const handleCloseContentView = () => {
         setShowContentView(false);
-        const url = activeTab === 'partner' ? '/dashboard?tab=partner' : '/dashboard';
-        window.history.replaceState(null, '', url);
+        window.history.replaceState(null, '', '/dashboard');
     };
 
     const fetchCampaigns = async () => {
@@ -132,22 +105,6 @@ function DashboardContent() {
         }
     };
 
-    const fetchPartnerCampaigns = async () => {
-        try {
-            const response = await fetch('/api/partner/campaigns');
-            const data = await response.json();
-            if (response.ok) {
-                setPartnerCampaigns(data.campaigns);
-                setErrorMessage('');
-            } else {
-                setErrorMessage('파트너 캠페인 목록을 불러오는 데 실패했습니다.');
-            }
-        } catch (error) {
-            console.error(error);
-            setErrorMessage('네트워크 오류가 발생했습니다. 페이지를 새로고침해주세요.');
-        }
-    };
-
     const fetchUserInfo = async () => {
         try {
             const response = await fetch('/api/auth/me');
@@ -169,30 +126,17 @@ function DashboardContent() {
         fetchUserInfo();
     }, []);
 
-    // CHANGED: 공통 함수로 파트너 접근 가능 여부 계산 (중복 제거)
-    const canAccessPartner = userInfo
-        ? hasPartnerEligibleChannel(userInfo.channelTypes)
-        : false;
-
-    // CHANGED (IA v3): 폴백 제거. 비적격자가 partner 탭 클릭 시 잠김 안내 화면을 보여줌 (아래 분기에서 처리)
-    const effectiveTab: TabType = activeTab;
-    const showPartnerLockedView = effectiveTab === 'partner' && !canAccessPartner;
-
     // CHANGED: 위치 필터용 location 목록 추출 (콘텐츠 뷰에서는 사용하지 않음)
     const availableLocations = useMemo(() => {
-        const source = effectiveTab === 'premium' ? campaigns : partnerCampaigns;
-        const locations = [...new Set(source.map(c => c.location).filter(Boolean))];
+        const locations = [...new Set(campaigns.map(c => c.location).filter(Boolean))];
         locations.sort((a, b) => a.localeCompare(b, 'ko'));
         return locations;
-    }, [effectiveTab, campaigns, partnerCampaigns]);
+    }, [campaigns]);
 
     // CHANGED: 위치 필터 적용
     const filteredCampaigns = selectedLocation === '전체'
         ? campaigns
         : campaigns.filter(c => c.location === selectedLocation);
-    const filteredPartnerCampaigns = selectedLocation === '전체'
-        ? partnerCampaigns
-        : partnerCampaigns.filter(c => c.location === selectedLocation);
 
     // CHANGED: 알림 토글 핸들러
     const handleNotificationToggle = async (enabled: boolean) => {
@@ -209,19 +153,13 @@ function DashboardContent() {
         }
     };
 
-    // CHANGED: effectiveTab 기반 데이터 패칭 — premiumId 없으면 프리미엄 캠페인 스킵
-    // CHANGED (IA v3): 파트너 비적격자가 partner 탭에 있을 때는 패칭 스킵 (서버 403 방지)
+    // CHANGED: 프리미엄 캠페인 패칭 — premiumId 없으면 스킵
     useEffect(() => {
         if (!userInfo) return;
-
-        if (effectiveTab === 'premium') {
-            if (userInfo.premiumId) {
-                fetchCampaigns();
-            }
-        } else if (canAccessPartner) {
-            fetchPartnerCampaigns();
+        if (userInfo.premiumId) {
+            fetchCampaigns();
         }
-    }, [userInfo, effectiveTab, canAccessPartner]);
+    }, [userInfo]);
 
     // CHANGED: 콘텐츠 뷰 진입 시 데이터 패칭
     useEffect(() => {
@@ -236,33 +174,19 @@ function DashboardContent() {
             if (document.visibilityState === 'visible') {
                 if (showContentView) {
                     fetchContentUploads();
-                } else if (effectiveTab === 'premium') {
+                } else if (userInfo?.premiumId) {
                     // CHANGED: premiumId 없으면 프리미엄 캠페인 재패칭 스킵
-                    if (userInfo?.premiumId) {
-                        fetchCampaigns();
-                    }
-                } else if (canAccessPartner) {
-                    // CHANGED (IA v3): 파트너 비적격자는 재패칭 스킵
-                    fetchPartnerCampaigns();
+                    fetchCampaigns();
                 }
             }
         };
         document.addEventListener('visibilitychange', handleVisibilityChange);
         return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-    }, [effectiveTab, showContentView, canAccessPartner, userInfo?.premiumId]);
+    }, [showContentView, userInfo?.premiumId]);
 
     const handleLogout = async () => {
         await fetch('/api/auth/logout');
         router.push('/login');
-    };
-
-    const getTierBadge = (tier: TierLevel) => {
-        switch (tier) {
-            case '3': return <span className="px-2 py-0.5 text-xs font-bold text-yellow-400 bg-yellow-400/10 rounded border border-yellow-400/20">아이콘 크리에이터</span>;
-            case '2': return <span className="px-2 py-0.5 text-xs font-bold text-blue-400 bg-blue-400/10 rounded border border-blue-400/20">파트너 크리에이터</span>;
-            case '1': return <span className="px-2 py-0.5 text-xs font-bold text-emerald-400 bg-emerald-400/10 rounded border border-emerald-400/20">라이징 크리에이터</span>;
-            default: return null;
-        }
     };
 
     return (
@@ -315,16 +239,10 @@ function DashboardContent() {
                                 </div>
                             </div>
 
-                            {/* CHANGED: 입실 일정 등록 버튼 — 프리미엄 미등록 시 숨김 */}
-                            {!(effectiveTab === 'premium' && !userInfo?.premiumId) && (
+                            {/* CHANGED: 입실 일정 등록 버튼 — 프리미엄(정산정보) 등록 시에만 노출 */}
+                            {userInfo?.premiumId && (
                                 <button
-                                    onClick={() => {
-                                        if (effectiveTab === 'partner') {
-                                            setIsPartnerCheckinModalOpen(true);
-                                        } else {
-                                            setIsCheckinModalOpen(true);
-                                        }
-                                    }}
+                                    onClick={() => setIsCheckinModalOpen(true)}
                                     className="w-full h-12 bg-[#01DF82] text-black font-bold text-base rounded-xl hover:bg-[#00C972] transition-colors shadow-lg shadow-[#01DF82]/10 flex items-center justify-center gap-2"
                                 >
                                     {/* CHANGED: CTA 버튼 이모지 제거 */}
@@ -338,21 +256,11 @@ function DashboardContent() {
 
             {/* Main Content */}
             <main className="max-w-7xl mx-auto px-5 py-6">
-                {/* CHANGED (IA v3): 콘텐츠 진입 배너 — 헤더 아이콘 대신 메인 영역 상단 노출 (탭 위) */}
+                {/* CHANGED (IA v3): 콘텐츠 진입 배너 — 헤더 아이콘 대신 메인 영역 상단 노출 */}
                 {!showContentView && userInfo && (
                     <div className="mb-4">
                         <ContentEntryBanner onClick={handleOpenContentView} />
                     </div>
-                )}
-
-                {/* CHANGED: 콘텐츠 뷰가 아닐 때만 탭 표시 */}
-                {!showContentView && userInfo && (
-                    <DashboardTabs
-                        activeTab={effectiveTab}
-                        onTabChange={handleTabChange}
-                        channelTypes={userInfo.channelTypes || []}
-                        premiumId={userInfo.premiumId}
-                    />
                 )}
 
                 {/* 에러 메시지 */}
@@ -369,9 +277,9 @@ function DashboardContent() {
                     </div>
                 )}
 
-                {/* ──── 프리미엄 탭 콘텐츠 ──── */}
-                {/* CHANGED: 프리미엄 미등록 CTA — 카카오톡 문의 → /premium-register 등록 폼 링크로 변경 */}
-                {!loading && !showContentView && effectiveTab === 'premium' && !userInfo?.premiumId && (
+                {/* ──── 프리미엄 캠페인 ──── */}
+                {/* CHANGED: 정산정보 미등록 CTA — /premium-register 등록 폼 링크 */}
+                {!loading && !showContentView && !userInfo?.premiumId && (
                     <div className="flex flex-col items-center justify-center py-16 gap-6">
                         <div className="w-16 h-16 bg-[#01DF82]/10 rounded-full flex items-center justify-center">
                             <span className="text-3xl">🌟</span>
@@ -402,7 +310,7 @@ function DashboardContent() {
                     </div>
                 )}
 
-                {!loading && !showContentView && effectiveTab === 'premium' && userInfo?.premiumId && (
+                {!loading && !showContentView && userInfo?.premiumId && (
                     <>
                         {/* Stats Bar */}
                         {campaigns.length > 0 && (
@@ -479,175 +387,6 @@ function DashboardContent() {
                     </>
                 )}
 
-                {/* ──── 파트너 탭 콘텐츠 ──── */}
-                {/* CHANGED (IA v3): 파트너 비적격(블로거 등) — 잠김 안내 화면 (최우선 분기) */}
-                {/* CHANGED: "전용" 표현이 배제하는 톤이라 매커니즘 설명으로 변경 — 쿠폰 배포가 필요한 협찬이라 SNS 채널이 필요함을 객관적으로 안내 */}
-                {!loading && !showContentView && showPartnerLockedView && (
-                    <div className="flex flex-col items-center justify-center py-16 gap-5">
-                        <div className="w-16 h-16 bg-[#1E1E1E] border border-[#333333] rounded-2xl flex items-center justify-center text-3xl">
-                            🎟️
-                        </div>
-                        <div className="text-center max-w-xs">
-                            <h3 className="text-base font-bold text-white mb-2 leading-snug">
-                                쿠폰 배포가 필요한<br />협찬이에요
-                            </h3>
-                            <p className="text-sm text-[#888888] leading-relaxed">
-                                팔로워에게 할인 쿠폰을 배포해야 해서,<br />
-                                인스타그램·유튜브가 메인인<br />
-                                크리에이터만 이용 가능합니다.
-                            </p>
-                        </div>
-                        <button
-                            onClick={() => handleTabChange('premium')}
-                            className="mt-2 px-5 py-2.5 bg-[#01DF82] text-black font-bold text-sm rounded-xl hover:bg-[#00C972] transition-colors"
-                        >
-                            ⭐ 프리미엄 협찬 보기 →
-                        </button>
-                        <a
-                            href={KAKAO_CHANNEL_URL}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs text-[#666666] hover:text-[#888888] transition-colors underline"
-                        >
-                            SNS 채널 추가 문의하기
-                        </a>
-                    </div>
-                )}
-
-                {/* CHANGED: 파트너 오픈 준비중 플래그 — false로 바꾸면 정상 노출 (적격자에게만 노출) */}
-                {!loading && !showContentView && !showPartnerLockedView && effectiveTab === 'partner' && PARTNER_COMING_SOON && (
-                    <div className="flex flex-col items-center justify-center py-20 gap-6">
-                        <div className="w-20 h-20 bg-[#01DF82]/10 rounded-full flex items-center justify-center">
-                            <span className="text-4xl">🚀</span>
-                        </div>
-                        <div className="text-center">
-                            <h3 className="text-lg font-bold text-white mb-2">파트너 협찬 오픈 준비중</h3>
-                            <p className="text-sm text-[#888888] leading-relaxed">
-                                곧 다양한 캠핑장 파트너 협찬이 오픈됩니다!<br />
-                                조금만 기다려주세요.
-                            </p>
-                        </div>
-                        {/* CHANGED: 빈 상태 3요소(제목+이유+다음 행동) 구조 통일 — 아래 파트너 캠페인 없음 상태와 톤 맞춤 */}
-                        <a
-                            href={KAKAO_CHANNEL_URL}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center justify-center w-full max-w-xs h-12 bg-[#FEE500] text-[#3C1E1E] font-bold rounded-lg hover:bg-[#F5DC00] transition-colors text-sm"
-                        >
-                            카카오톡 채널에서 소식 받기
-                        </a>
-                    </div>
-                )}
-                {!loading && !showContentView && !showPartnerLockedView && effectiveTab === 'partner' && !PARTNER_COMING_SOON && (
-                    <>
-                        {/* Stats Bar */}
-                        {partnerCampaigns.length > 0 && (
-                            <div className="flex gap-3 mb-4 overflow-x-auto pb-1 scrollbar-hide">
-                                <div className="flex-1 min-w-[140px] bg-[#1E1E1E] border border-[#333333] rounded-xl p-4 flex flex-col justify-center">
-                                    <span className="text-xs text-[#888888] mb-1">전체 캠페인</span>
-                                    <span className="text-xl font-bold text-white">{partnerCampaigns.length}개</span>
-                                </div>
-                                <div className="flex-1 min-w-[140px] bg-[#1E1E1E] border border-[#333333] rounded-xl p-4 flex flex-col justify-center">
-                                    <span className="text-xs text-[#888888] mb-1">신청 가능</span>
-                                    <span className="text-xl font-bold text-[#01DF82]">
-                                        {partnerCampaigns.filter(c => !c.isClosed).length}개
-                                    </span>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* CHANGED: 알림 토글은 헤더로 이동, 위치 필터만 여기 유지 */}
-                        {partnerCampaigns.length > 0 && availableLocations.length > 0 && (
-                            <div className="mb-6">
-                                <LocationFilter
-                                    locations={availableLocations}
-                                    selectedLocation={selectedLocation}
-                                    onLocationChange={setSelectedLocation}
-                                />
-                            </div>
-                        )}
-
-                        {/* CHANGED: 로딩 완료 후에만 빈 상태 표시 — 로딩 중 깜빡임 방지 */}
-                        {!loading && partnerCampaigns.length === 0 && (
-                            <div className="flex flex-col items-center justify-center py-16 gap-6">
-                                <div className="w-16 h-16 bg-[#01DF82]/10 rounded-full flex items-center justify-center">
-                                    <span className="text-3xl">🏕️</span>
-                                </div>
-                                <div className="text-center">
-                                    <h3 className="text-lg font-bold text-white mb-2">현재 진행 중인 파트너 협찬이 없습니다</h3>
-                                    <p className="text-sm text-[#888888] leading-relaxed">
-                                        새로운 캠페인이 오픈되면 알려드릴게요
-                                    </p>
-                                </div>
-                                {/* CHANGED: 하드코딩 URL → 공통 상수 KAKAO_CHANNEL_URL 사용 (위 준비중 상태와 통일) */}
-                                <a
-                                    href={KAKAO_CHANNEL_URL}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex items-center justify-center w-full max-w-xs h-12 bg-[#FEE500] text-[#3C1E1E] font-bold rounded-lg hover:bg-[#F5DC00] transition-colors text-sm"
-                                >
-                                    카카오톡 채널에서 소식 받기
-                                </a>
-                            </div>
-                        )}
-
-                        {filteredPartnerCampaigns.length > 0 && (() => {
-                            const activeCampaigns = filteredPartnerCampaigns.filter(c => !c.isClosed);
-                            const closedCampaigns = filteredPartnerCampaigns.filter(c => c.isClosed);
-
-                            return (
-                                <>
-                                    {activeCampaigns.length > 0 && (
-                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                            {activeCampaigns.map((campaign) => (
-                                                <PartnerCampaignCard
-                                                    key={campaign.id}
-                                                    campaign={campaign}
-                                                    myTier={userInfo?.tier || '1'}
-                                                    onApplySuccess={fetchPartnerCampaigns}
-                                                />
-                                            ))}
-                                        </div>
-                                    )}
-
-                                    {closedCampaigns.length > 0 && (
-                                        <div className={activeCampaigns.length > 0 ? 'mt-8' : ''}>
-                                            <button
-                                                onClick={() => setShowClosedCampaigns(previous => !previous)}
-                                                className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-[#1E1E1E] border border-[#333333] rounded-xl text-[#888888] hover:text-white hover:border-[#555555] transition-colors"
-                                            >
-                                                <span className="text-sm font-medium">
-                                                    마감 캠페인 {closedCampaigns.length}개 {showClosedCampaigns ? '접기' : '보기'}
-                                                </span>
-                                                <svg
-                                                    className={`w-4 h-4 transition-transform duration-200 ${showClosedCampaigns ? 'rotate-180' : ''}`}
-                                                    fill="none"
-                                                    stroke="currentColor"
-                                                    viewBox="0 0 24 24"
-                                                >
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                                </svg>
-                                            </button>
-
-                                            {showClosedCampaigns && (
-                                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
-                                                    {closedCampaigns.map((campaign) => (
-                                                        <PartnerCampaignCard
-                                                            key={campaign.id}
-                                                            campaign={campaign}
-                                                            myTier={userInfo?.tier || '1'}
-                                                            onApplySuccess={fetchPartnerCampaigns}
-                                                        />
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                </>
-                            );
-                        })()}
-                    </>
-                )}
                 {/* ──── 콘텐츠 뷰 (별도 화면) ──── */}
                 {/* CHANGED: 탭이 아닌 헤더에서 진입하는 별도 뷰 */}
                 {!loading && showContentView && (
@@ -664,7 +403,8 @@ function DashboardContent() {
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                                 </svg>
-                                콘텐츠 제출
+                                {/* CHANGED: 용어 통일 '제출' → '전달' */}
+                                콘텐츠 전달
                             </button>
                         </div>
 
@@ -713,6 +453,7 @@ function DashboardContent() {
                                 );
                             })()
                         ) : (
+                            // CHANGED: 빈 상태에 CTA 버튼 추가 + 용어 통일 '제출' → '전달'
                             <div className="flex flex-col items-center justify-center py-20 gap-5">
                                 <div className="w-20 h-20 bg-[#1E1E1E] border border-[#333333] rounded-2xl flex items-center justify-center">
                                     <svg className="w-8 h-8 text-[#555555]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -720,11 +461,20 @@ function DashboardContent() {
                                     </svg>
                                 </div>
                                 <div className="text-center">
-                                    <h3 className="text-base font-bold text-white mb-1.5">아직 제출한 콘텐츠가 없어요</h3>
+                                    <h3 className="text-base font-bold text-white mb-1.5">아직 전달한 콘텐츠가 없어요</h3>
                                     <p className="text-sm text-[#666666] leading-relaxed">
                                         협찬 후 업로드한 콘텐츠를<br />여기서 관리할 수 있어요
                                     </p>
                                 </div>
+                                <button
+                                    onClick={() => setIsContentSubmitModalOpen(true)}
+                                    className="mt-2 px-5 py-2.5 bg-[#01DF82] text-black font-bold text-sm rounded-lg hover:bg-[#00C972] transition-colors flex items-center gap-1.5"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                    </svg>
+                                    콘텐츠 전달하기
+                                </button>
                             </div>
                         )}
                     </>
@@ -734,10 +484,6 @@ function DashboardContent() {
             <CheckinModal
                 isOpen={isCheckinModalOpen}
                 onClose={() => setIsCheckinModalOpen(false)}
-            />
-            <PartnerCheckinModal
-                isOpen={isPartnerCheckinModalOpen}
-                onClose={() => setIsPartnerCheckinModalOpen(false)}
             />
             {/* CHANGED: 콘텐츠 제출 모달 */}
             {userInfo && (

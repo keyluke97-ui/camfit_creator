@@ -133,7 +133,7 @@ export default function CampaignCard({ campaign, channelTypes }: CampaignCardPro
                                 </span>
                             </div>
                             <div className="flex items-center justify-between">
-                                <span className="text-xs text-[#9CA3AF]">내가 배포할 쿠폰</span>
+                                <span className="text-xs text-[#9CA3AF]">팔로워 쿠폰 수량</span>
                                 <span className="text-sm font-semibold text-white">{couponEvent.couponPerCreator}장</span>
                             </div>
                         </div>

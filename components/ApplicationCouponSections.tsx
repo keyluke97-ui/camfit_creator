@@ -22,9 +22,15 @@ export function CouponEventSummary({ couponEvent }: { couponEvent: CouponEvent }
                         {dayConfig.label}
                     </span>
                 </div>
+                {/* CHANGED: 라벨 명확화 — 팔로워에게 줄 쿠폰 수량 */}
                 <div className="flex items-center justify-between">
-                    <span className="text-xs text-[#9CA3AF]">내가 배포할 쿠폰</span>
+                    <span className="text-xs text-[#9CA3AF]">팔로워 쿠폰 수량</span>
                     <span className="text-sm font-semibold text-white">{couponEvent.couponPerCreator}장</span>
+                </div>
+                {/* CHANGED: 신규 안내 — 쿠폰 적용 사이트 */}
+                <div className="flex items-center justify-between">
+                    <span className="text-xs text-[#9CA3AF]">쿠폰 적용 사이트</span>
+                    <span className="text-sm font-medium text-white">해당 캠핑장 내 모든 사이트</span>
                 </div>
             </div>
             {(couponEvent.couponStartDate || couponEvent.visitStartDate) && (
@@ -43,6 +49,10 @@ export function CouponEventSummary({ couponEvent }: { couponEvent: CouponEvent }
                     )}
                 </div>
             )}
+            {/* CHANGED: 신규 안내 — 팔로워 쿠폰 다운로드 한도 + 자동 종료 */}
+            <p className="text-xs text-[#888888] leading-relaxed pt-1">
+                팔로워 쿠폰은 최대 999명까지 다운로드할 수 있고, 팔로워 쿠폰 수량이 모두 소진되면 자동 종료됩니다.
+            </p>
         </div>
     );
 }
@@ -54,7 +64,7 @@ export function FollowerCouponCallout({ couponEvent, followerCouponCode }: { cou
         <div className="bg-[#2A2A2A] border border-[#01DF82]/40 p-5 rounded-xl space-y-4 text-left">
             <div className="flex items-center gap-2">
                 <span className="text-xl">🎟️</span>
-                <p className="text-sm font-bold text-[#01DF82]">팔로워에게 배포할 쿠폰 코드</p>
+                <p className="text-sm font-bold text-[#01DF82]">팔로워 쿠폰 코드</p>
             </div>
             <p className="text-xs text-[#B0B0B0] leading-relaxed">
                 이 협찬은 <strong className="text-white">팔로워 쿠폰 배포</strong>가 포함된 캠페인이에요.
@@ -96,7 +106,7 @@ export function FollowerCouponCallout({ couponEvent, followerCouponCode }: { cou
             </div>
             <div className="bg-[#111] border border-[#333] p-3 rounded-lg space-y-1 text-xs text-[#D0D0D0]">
                 <p><span className="text-[#9CA3AF]">할인:</span> <strong className="text-white">{formatDiscount(couponEvent.discount)}</strong> ({COUPON_APPLY_DAYS_CONFIG[couponEvent.couponApplyDays]?.label || couponEvent.couponApplyDays})</p>
-                <p><span className="text-[#9CA3AF]">인당 배포 가능:</span> <strong className="text-white">{couponEvent.couponPerCreator}장</strong></p>
+                <p><span className="text-[#9CA3AF]">팔로워 쿠폰 수량:</span> <strong className="text-white">{couponEvent.couponPerCreator}장</strong></p>
                 <p><span className="text-[#9CA3AF]">팔로워 사용 가능:</span> {couponEvent.couponStartDate} ~ {couponEvent.couponEndDate}</p>
                 <p><span className="text-[#9CA3AF]">내 방문 가능:</span> {couponEvent.visitStartDate} ~ {couponEvent.visitEndDate}</p>
             </div>
