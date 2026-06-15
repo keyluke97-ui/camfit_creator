@@ -15,3 +15,46 @@
 - GRACE_CUTOFF_MS = NOW_MS − 14일
 - CHECK_LOOKBACK_MS = NOW_MS − 8주
 - CONTENT_LOOKBACK_DATE = (NOW − 10주)의 YYYY-MM-DD
+
+## §A. 데이터 수집
+
+도구: `mcp__plugin_camfit-cpf-plugin_cpf__probe_query_run` (database=`camping`, collection=`coupons`, op=`aggregate`).
+
+### A-1. 활동창 — 지난 7일 사용 (활성도/취소/협찬비)
+
+`WEEK_START_MS`를 채워 실행:
+
+```json
+{"pipeline":[
+ {"$match":{"name":{"$regex":"크리에이터"}}},
+ {"$lookup":{"from":"user_coupons","localField":"_id","foreignField":"coupon","as":"uses"}},
+ {"$unwind":"$uses"},
+ {"$match":{"uses.isUsed":true,"uses.usedTimestamp":{"$gte": WEEK_START_MS }}},
+ {"$lookup":{"from":"bookings","localField":"uses.booking","foreignField":"_id","as":"bk"}},
+ {"$unwind":{"path":"$bk","preserveNullAndEmptyArrays":true}},
+ {"$project":{"_id":0,"couponName":"$name","masterCode":1,"usedTimestamp":"$uses.usedTimestamp","discountedAmount":"$uses.discountedAmount","campName":"$bk.campName","zoneName":"$bk.zoneName","bookingCode":"$bk.code","bookingId":"$bk._id","bookingStatus":"$bk.status","checkInTimestamp":"$bk.checkInTimestamp","checkoutTimestamp":"$bk.checkoutTimestamp","totalCharge":"$bk.totalCharge","couponDiscount":"$bk.couponDiscount"}},
+ {"$sort":{"usedTimestamp":-1}}
+]}
+```
+
+### A-2. 점검창 — 퇴실+14 경과 (미제출 후보)
+
+`CHECK_LOOKBACK_MS`(하한), `GRACE_CUTOFF_MS`(상한)를 채워 실행:
+
+```json
+{"pipeline":[
+ {"$match":{"name":{"$regex":"크리에이터"}}},
+ {"$lookup":{"from":"user_coupons","localField":"_id","foreignField":"coupon","as":"uses"}},
+ {"$unwind":"$uses"},
+ {"$match":{"uses.isUsed":true}},
+ {"$lookup":{"from":"bookings","localField":"uses.booking","foreignField":"_id","as":"bk"}},
+ {"$unwind":"$bk"},
+ {"$match":{"bk.checkoutTimestamp":{"$gte": CHECK_LOOKBACK_MS, "$lte": GRACE_CUTOFF_MS },"bk.status":{"$nin":["cancelled"]}}},
+ {"$project":{"_id":0,"couponName":"$name","masterCode":1,"campName":"$bk.campName","zoneName":"$bk.zoneName","bookingCode":"$bk.code","bookingId":"$bk._id","bookingStatus":"$bk.status","checkInTimestamp":"$bk.checkInTimestamp","checkoutTimestamp":"$bk.checkoutTimestamp","couponDiscount":"$bk.couponDiscount","usedTimestamp":"$uses.usedTimestamp"}},
+ {"$sort":{"bk.checkoutTimestamp":-1}}
+]}
+```
+
+### A-3. 핸들 추출
+`couponName`에서 괄호 속 문자열 = 크리에이터 핸들. 정규식 `\(([^)]+)\)`. 따옴표(`'`)·공백 trim.
+예: `크리에이터' (요미캠핑)` → `요미캠핑`, `크리에이터(ssundan_camp` → `ssundan_camp`(괄호 안 닫힘 허용).
