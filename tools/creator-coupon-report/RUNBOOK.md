@@ -69,11 +69,11 @@
 도구: `mcp__Airtable_MCP_Server__list_records`
 - baseId: `appEGM6qarNr9M7HN`
 - tableId: `tblta2cow9ymKr68J` (인플루언서 컨텐츠 업로드)
-- view: `viw4Nqbe2E1l0pEfH` (크리에이터 예약) — 캠핑장 예약 콘텐츠 모음
-- filterByFormula: `IS_AFTER({Created}, 'CONTENT_LOOKBACK_DATE')`
+- **view 미지정** — 뷰(`viw4Nqbe2E1l0pEfH`)는 `콘텐츠2/3/4`·`예약번호` 컬럼을 노출하지 않으므로 쓰지 않는다. 대신 필터로 직접 좁힌다.
+- filterByFormula: `AND({협찬의 종류를 골라주세요}='캠핑장 예약', IS_AFTER({Created}, 'CONTENT_LOOKBACK_DATE'))`
 - maxRecords: 500
 
-각 후보에서 사용할 필드: `채널명`, `크리에이터 채널명 (from 크리에이터 명단)`, `캠핑장명 (from 캠핑장 이름 OR 캠핑 용품 이름)`, `업로드 날짜`, `Created`, `콘텐츠 링크`, `콘텐츠2`, `콘텐츠3`, `콘텐츠4`, `예약번호`.
+각 후보에서 사용할 필드: `채널명`, `크리에이터 채널명 (from 크리에이터 명단)`, `캠핑장명 (from 캠핑장 이름 OR 캠핑 용품 이름)`, `업로드 날짜`, `Created`, `콘텐츠 링크`, `콘텐츠2`, `콘텐츠3`, `콘텐츠4`, `예약번호`. (빈 필드는 Airtable 응답에서 생략됨 = "없음")
 
 "콘텐츠 있음" = `콘텐츠 링크/콘텐츠2/콘텐츠3/콘텐츠4` 중 1개 이상 비어있지 않음.
 
