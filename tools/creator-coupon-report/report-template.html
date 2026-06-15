@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>크리에이터 쿠폰 주간 리포트 — {{REPORT_DATE}}</title>
+<style>
+  :root{--bg:#0F1115;--card:#1A1D23;--line:#2A2E37;--txt:#F5F6F7;--sub:#9AA1AC;--accent:#01DF82;--red:#FF5A5A;--amber:#FFB020;}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--txt);font-family:-apple-system,'Pretendard',sans-serif;padding:24px;max-width:1100px;margin:0 auto}
+  h1{font-size:20px;margin:0 0 4px} .meta{color:var(--sub);font-size:13px;margin-bottom:20px}
+  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:28px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+  .kpi .label{color:var(--sub);font-size:12px} .kpi .val{font-size:24px;font-weight:700;margin-top:6px}
+  .kpi.cost .val{color:var(--accent)} .kpi.miss .val{color:var(--red)}
+  section{margin-bottom:28px} h2{font-size:15px;border-left:3px solid var(--accent);padding-left:10px}
+  table{width:100%;border-collapse:collapse;font-size:13px} th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+  th{color:var(--sub);font-weight:600} .ok{color:var(--accent)} .miss{color:var(--red)} .warn{color:var(--amber)}
+  a{color:var(--accent)}
+</style></head><body>
+<h1>🏕️ 크리에이터 쿠폰 주간 리포트</h1>
+<div class="meta">{{PERIOD_START}} ~ {{PERIOD_END}} · 생성 {{REPORT_DATE}}</div>
+
+<div class="kpis">
+  <div class="kpi"><div class="label">주간 사용</div><div class="val">{{KPI_USED}}건</div></div>
+  <div class="kpi cost"><div class="label">총 협찬비</div><div class="val">{{KPI_COST}}</div></div>
+  <div class="kpi miss"><div class="label">미제출</div><div class="val">{{KPI_MISSING}}건</div></div>
+  <div class="kpi"><div class="label">취소</div><div class="val">{{KPI_CANCEL}}건</div></div>
+  <div class="kpi"><div class="label">활성 크리에이터</div><div class="val">{{KPI_CREATORS}}명</div></div>
+</div>
+
+<section><h2>🔴 미제출 액션 리스트 (퇴실+14 경과)</h2>
+<table><thead><tr><th>크리에이터</th><th>캠핑장</th><th>입실~퇴실</th><th>D+경과</th><th>상태</th><th>어드민</th></tr></thead>
+<tbody>{{ROWS_MISSING}}</tbody></table></section>
+
+<section><h2>⚠️ 취소 모니터</h2>
+<table><thead><tr><th>크리에이터</th><th>캠핑장</th><th>입실~퇴실</th><th>할인액</th><th>어드민</th></tr></thead>
+<tbody>{{ROWS_CANCEL}}</tbody></table></section>
+
+<section><h2>📋 이번 주 전체 사용</h2>
+<table><thead><tr><th>사용일</th><th>크리에이터</th><th>캠핑장</th><th>입실~퇴실</th><th>쿠폰명</th><th>할인액</th><th>콘텐츠</th><th>어드민</th></tr></thead>
+<tbody>{{ROWS_ALL}}</tbody></table></section>
+
+<section><h2>🔁 재사용 크리에이터 (점검 lookback)</h2>
+<table><thead><tr><th>크리에이터</th><th>사용건수</th><th>누적 할인액</th><th>미제출</th></tr></thead>
+<tbody>{{ROWS_REUSE}}</tbody></table></section>
+
+<section><h2>🏕️ 캠핑장별 분포</h2>
+<table><thead><tr><th>캠핑장</th><th>건수</th><th>누적 할인액</th></tr></thead>
+<tbody>{{ROWS_CAMP}}</tbody></table></section>
+</body></html>

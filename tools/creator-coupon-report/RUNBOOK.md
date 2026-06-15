@@ -97,3 +97,21 @@
 | 핸들 후보 0 또는 캠핑장 sim<0.4 | ❌ 미제출 |
 
 판정은 LLM이 행별로 적용하되, 위 규칙을 일관 기준으로 삼는다. 애매하면 ❌로 단정하지 말고 ⚠️.
+
+## §C. HTML 리포트 생성
+
+`report-template.html`을 복제해 `{{...}}`를 채운다. 날짜 포맷 `YYYY-MM-DD(요일)` KST. 금액 `1,250,000원` 천단위.
+
+치환 매핑:
+- `KPI_USED` = 활동창 행수, `KPI_COST` = 활동창 `couponDiscount` 합(원), `KPI_CANCEL` = 활동창 `status=cancelled` 수, `KPI_CREATORS` = 활동창 고유 핸들 수
+- `KPI_MISSING` = 점검창에서 §B 판정 ❌ 수 (⚠️는 별도 각주)
+- `ROWS_MISSING` = 점검창 ❌/⚠️ 행. 상태 셀: ❌`<span class=miss>미제출</span>` / ⚠️`<span class=warn>확인필요</span>`. D+경과 = (NOW − checkout) 일수.
+- `ROWS_CANCEL` = 활동창 `status=cancelled` 행.
+- `ROWS_ALL` = 활동창 전 행. 콘텐츠 셀: ✅`<span class=ok>완료</span>` / ⚠️ / ❌ / 유예중(퇴실+14 미경과).
+- `ROWS_REUSE` = 점검 lookback 핸들별 집계 desc.
+- `ROWS_CAMP` = campName별 집계 desc.
+- 어드민 셀: `ADMIN_BOOKING_URL` 있으면 `<a href=...>열기</a>`, 없으면 예약코드 텍스트.
+
+camfit-brand 일관성: 생성 직전 `camfit-admin-plugin:camfit-brand` 스킬을 호출해 색/타이포 토큰을 확인하고 위 인라인 스타일에 반영한다.
+
+출력: `tools/creator-coupon-report/out/creator-coupon-report-YYYY-MM-DD.html`
