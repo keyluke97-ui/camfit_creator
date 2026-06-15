@@ -3,8 +3,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>크리에이터 쿠폰 주간 리포트 — {{REPORT_DATE}}</title>
 <style>
-  :root{--bg:#0F1115;--card:#1A1D23;--line:#2A2E37;--txt:#F5F6F7;--sub:#9AA1AC;--accent:#01DF82;--red:#FF5A5A;--amber:#FFB020;}
-  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--txt);font-family:-apple-system,'Pretendard',sans-serif;padding:24px;max-width:1100px;margin:0 auto}
+  :root{--bg:#0F1115;--card:#1A1D23;--line:#2A2E37;--txt:#F5F6F7;--sub:#9AA1AC;--accent:#61d377;--red:#ff3d00;--amber:#feb01a;}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--txt);font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Noto Sans KR',system-ui,sans-serif;padding:24px;max-width:1100px;margin:0 auto}
   h1{font-size:20px;margin:0 0 4px} .meta{color:var(--sub);font-size:13px;margin-bottom:20px}
   .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:28px}
   .kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
@@ -12,18 +12,18 @@
   .kpi.cost .val{color:var(--accent)} .kpi.miss .val{color:var(--red)}
   section{margin-bottom:28px} h2{font-size:15px;border-left:3px solid var(--accent);padding-left:10px}
   table{width:100%;border-collapse:collapse;font-size:13px} th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
-  th{color:var(--sub);font-weight:600} .ok{color:var(--accent)} .miss{color:var(--red)} .warn{color:var(--amber)}
+  th{color:var(--sub);font-weight:600} .ok{color:var(--accent)} .miss{color:var(--red)} .warn{color:var(--amber)} .sub{color:var(--sub)} code{font-size:12px;color:var(--sub)}
   a{color:var(--accent)}
 </style></head><body>
 <h1>🏕️ 크리에이터 쿠폰 주간 리포트</h1>
 <div class="meta">{{PERIOD_START}} ~ {{PERIOD_END}} · 생성 {{REPORT_DATE}}</div>
 
 <div class="kpis">
-  <div class="kpi"><div class="label">주간 사용</div><div class="val">{{KPI_USED}}건</div></div>
+  <div class="kpi"><div class="label">주간 사용</div><div class="val">{{KPI_USED}}</div></div>
   <div class="kpi cost"><div class="label">총 협찬비</div><div class="val">{{KPI_COST}}</div></div>
-  <div class="kpi miss"><div class="label">미제출</div><div class="val">{{KPI_MISSING}}건</div></div>
-  <div class="kpi"><div class="label">취소</div><div class="val">{{KPI_CANCEL}}건</div></div>
-  <div class="kpi"><div class="label">활성 크리에이터</div><div class="val">{{KPI_CREATORS}}명</div></div>
+  <div class="kpi miss"><div class="label">미제출</div><div class="val">{{KPI_MISSING}}</div></div>
+  <div class="kpi"><div class="label">취소</div><div class="val">{{KPI_CANCEL}}</div></div>
+  <div class="kpi"><div class="label">활성 크리에이터</div><div class="val">{{KPI_CREATORS}}</div></div>
 </div>
 
 <section><h2>🔴 미제출 액션 리스트 (퇴실+14 경과)</h2>

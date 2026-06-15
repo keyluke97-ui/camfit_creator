@@ -63,6 +63,8 @@
 
 목표: 각 쿠폰 예약(핸들 H, 캠핑장 C, 퇴실일 D)이 콘텐츠를 남겼는지 판정. **예약번호 정확매칭은 쓰지 않는다.**
 
+> 구현: `match.py`가 이 §B 매칭(정규화·KST 캘린더 날짜 비교·판정 임계값)을 수행한다. 런북이 진실원, 스크립트는 그 구현체다.
+
 ### B-1. 콘텐츠 후보 로드
 도구: `mcp__Airtable_MCP_Server__list_records`
 - baseId: `appEGM6qarNr9M7HN`
@@ -117,3 +119,31 @@
 camfit-brand 일관성: 생성 직전 `camfit-admin-plugin:camfit-brand` 스킬을 호출해 색/타이포 토큰을 확인하고 위 인라인 스타일에 반영한다.
 
 출력: `tools/creator-coupon-report/out/creator-coupon-report-YYYY-MM-DD.html`
+
+> 구현: `gen_html.py`가 이 §C 치환 매핑을 수행한다. 브랜드 토큰·Pretendard 폰트스택·KPI 단위는 `report-template.html`에 직접 반영돼 있어 사후 치환이 없다. 어드민 셀은 `--admin-url-template`(기본 빈값=예약코드 텍스트) 옵션으로 제어한다.
+
+## §D. 수동 실행 절차
+
+매주 금요일 11:00 KST, 기준일 `YYYY-MM-DD`(= 실행일)로 아래 5단계를 순서대로 수행한다.
+모든 입출력 파일은 `tools/creator-coupon-report/out/`(gitignore) 하위다. 스크립트는 `tools/creator-coupon-report/`에 커밋돼 있다.
+
+1. **§A 데이터 수집 (probe MCP)** — `mcp__plugin_camfit-cpf-plugin_cpf__probe_query_run`로 §A-1·§A-2 두 쿼리를 실행한다. 실행 전 §A 상단 변수(`WEEK_START_MS`=기준−7일, `CHECK_LOOKBACK_MS`=기준−8주, `GRACE_CUTOFF_MS`=기준−14일, 모두 KST 자정 epoch ms)를 채운다.
+   - §A-1 결과 → `out/activity.json` (활동창)
+   - §A-2 결과 → `out/checkwin.json` (점검창)
+
+2. **§B-1 콘텐츠 후보 (Airtable)** — `mcp__Airtable_MCP_Server__list_records`.
+   - baseId `appEGM6qarNr9M7HN` / tableId `tblta2cow9ymKr68J`
+   - 뷰 미지정. `filterByFormula`: `AND({협찬의 종류를 골라주세요}='캠핑장 예약', IS_AFTER({Created}, '<기준−10주의 YYYY-MM-DD>'))`
+   - maxRecords 500
+   - 결과 → `out/content.json`
+
+3. **매칭** — `python3 match.py --date YYYY-MM-DD`
+   - 입력: `out/activity.json`, `out/checkwin.json`, `out/content.json`
+   - 출력: `out/match_results.json` + 상태 카운트 요약 1~2줄
+
+4. **HTML 생성** — `python3 gen_html.py --date YYYY-MM-DD`
+   - 입력: `out/match_results.json`, `report-template.html`
+   - 출력: `out/creator-coupon-report-YYYY-MM-DD.html`
+   - (어드민 URL이 정해지면 `--admin-url-template 'https://.../{code}'` 추가)
+
+5. **전달** — 생성된 `out/creator-coupon-report-YYYY-MM-DD.html` 1부를 전달한다. `out/`은 gitignore이므로 산출물은 커밋하지 않는다.
