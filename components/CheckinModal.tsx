@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import type { Application } from '@/types';
-import { COUPON_APPLY_DAYS_CONFIG, formatDiscount, getFollowerLinks } from '@/lib/constants'; // CHANGED: 쿠폰 정보 표시 헬퍼 + 팔로워 안내 링크 (COUPON_REGISTER_URL은 ReservationCouponDone로 이전)
+// CHANGED: 협찬 조건 복사 텍스트는 통합 빌더(couponText)로 일원화 — 기존 쿠폰 헬퍼 import 제거
+import { buildSponsorshipSummary } from '@/lib/couponText';
 // CHANGED: 통합 — 쿠폰 박스 + 완료 목록 추출 (파일 크기 컨벤션 준수)
 import { CheckinCouponBox, CompletedAppsList, ReservationCouponDone } from './CheckinSections';
 
@@ -229,41 +230,17 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
         setErrorMessage(''); // CHANGED: 목록으로 돌아갈 때 에러 초기화
     };
 
-    // CHANGED: 협찬 조건 복사
+    // CHANGED: 협찬 조건 복사 — 신청완료(ApplicationModal)와 동일한 통합 빌더 사용(드리프트 제거)
     const handleCopyConditions = async (app: Application) => {
-        const lines: string[] = [];
-        lines.push(`📌 숙소: ${app.accommodationName}`);
-        if (app.couponCode) lines.push(`📌 내 예약 쿠폰(캠핏에 등록): ${app.couponCode}`);
-        if (app.deadline) lines.push(`📌 제작 기한: ${app.deadline}`);
-
-        // CHANGED: 통합 — couponEvent 캠페인이면 팔로워 쿠폰 정보 함께 복사
-        if (app.couponEvent && app.followerCouponCode) {
-            const ce = app.couponEvent;
-            const dayLabel = COUPON_APPLY_DAYS_CONFIG[ce.couponApplyDays]?.label || ce.couponApplyDays;
-            lines.push('');
-            lines.push('🎟️ 팔로워 쿠폰 (팔로워 공유용 · 내 예약엔 사용 X)');
-            lines.push(`• 팔로워 쿠폰 코드: ${app.followerCouponCode}`);
-            lines.push(`• 할인: ${formatDiscount(ce.discount)} (${dayLabel})`);
-            lines.push(`• 팔로워 쿠폰 수량: ${ce.couponPerCreator}장`);
-            lines.push(`• 적용 사이트: 해당 캠핑장 내 모든 사이트`);
-            lines.push(`• 최대 999명 다운로드 · 수량 소진 시 자동 종료`);
-            lines.push(`• 쿠폰 유효: ${ce.couponStartDate} ~ ${ce.couponEndDate}`);
-            lines.push(`• 내 방문 가능: ${ce.visitStartDate} ~ ${ce.visitEndDate}`);
-        }
-
-        if (app.highlights) {
-            lines.push('');
-            lines.push('✨ 캠지기님이 자랑하고 싶은 포인트');
-            lines.push(app.highlights);
-        }
-        // CHANGED: 쿠폰이벤트면 등록 페이지 + 숙소 상세, 아니면 상세만
-        const followerLinks = getFollowerLinks(app.detailUrl, !!app.couponEvent);
-        if (followerLinks.length > 0) {
-            lines.push('');
-            lines.push('📌 콘텐츠 제작 시 필수 사항');
-            followerLinks.forEach((link) => lines.push(`• ${link.label}: ${link.url}`));
-        }
-        const text = lines.join('\n');
+        const text = buildSponsorshipSummary({
+            accommodationName: app.accommodationName,
+            myCouponCode: app.couponCode,
+            deadline: app.deadline,
+            highlights: app.highlights,
+            detailUrl: app.detailUrl,
+            couponEvent: app.couponEvent,
+            followerCouponCode: app.followerCouponCode,
+        });
         try {
             await navigator.clipboard.writeText(text);
         } catch {

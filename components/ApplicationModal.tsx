@@ -2,8 +2,10 @@
 
 import { useState, useRef, useEffect } from 'react';
 import type { Campaign, ChannelType } from '@/types';
-// CHANGED: 팔로워 안내 링크 헬퍼/상수 추가
-import { COUPON_APPLY_DAYS_CONFIG, formatDiscount, getFollowerLinks, COUPON_REGISTER_URL } from '@/lib/constants';
+// CHANGED: 등록 페이지 상수
+import { COUPON_REGISTER_URL } from '@/lib/constants';
+// CHANGED: 협찬 조건/팔로워 메시지 통합 빌더 (handleCopyConditions와 단일 소스 공유)
+import { buildSponsorshipSummary, buildFollowerShareMessage, type SponsorshipTextInput } from '@/lib/couponText';
 // CHANGED: 통합 — 쿠폰 이벤트 UI 블록 추출 (파일 크기 컨벤션 준수)
 import { CouponEventSummary, FollowerCouponCallout } from './ApplicationCouponSections';
 // CHANGED: 콘텐츠 제작 필수사항 블록 추출
@@ -127,54 +129,24 @@ export default function ApplicationModal({ isOpen, onClose, campaign, channelTyp
         }
     };
 
-    // CHANGED: 쿠폰 코드 + 캠지기 포인트 + 콘텐츠 필수사항 한번에 복사
-    const [isAllCopied, setIsAllCopied] = useState(false);
-    const [isContentExpanded, setIsContentExpanded] = useState(false);
-    const handleCopyAll = async () => {
-        const lines: string[] = [];
-        lines.push(`📌 내 예약 쿠폰(캠핏에 등록): ${couponCode}`);
-        lines.push(`📌 숙소: ${campaign.accommodationName}`);
+    // CHANGED: 통합 빌더 입력 — 내 기록용 요약/미리보기/팔로워 메시지가 공유
+    const summaryInput: SponsorshipTextInput = {
+        accommodationName: campaign.accommodationName,
+        myCouponCode: couponCode,
+        deadline: campaign.deadline,
+        highlights: campaign.highlights,
+        channelTypes,
+        hostInstagram: campaign.hostInstagram,
+        detailUrl: campaign.detailUrl,
+        couponEvent: campaign.couponEvent,
+        followerCouponCode,
+    };
 
-        // CHANGED: 통합 — couponEvent 캠페인이면 팔로워 쿠폰 정보 함께 저장
-        if (campaign.couponEvent && followerCouponCode) {
-            const ce = campaign.couponEvent;
-            const dayLabel = COUPON_APPLY_DAYS_CONFIG[ce.couponApplyDays]?.label || ce.couponApplyDays;
-            lines.push('');
-            lines.push('🎟️ 팔로워 쿠폰 (팔로워 공유용 · 내 예약엔 사용 X)');
-            lines.push(`• 팔로워 쿠폰 코드: ${followerCouponCode}`);
-            lines.push(`• 할인: ${formatDiscount(ce.discount)} (${dayLabel})`);
-            lines.push(`• 팔로워 쿠폰 수량: ${ce.couponPerCreator}장`);
-            lines.push(`• 적용 사이트: 해당 캠핑장 내 모든 사이트`);
-            lines.push(`• 최대 999명 다운로드 · 수량 소진 시 자동 종료`);
-            lines.push(`• 쿠폰 유효: ${ce.couponStartDate} ~ ${ce.couponEndDate}`);
-            lines.push(`• 내 방문 가능: ${ce.visitStartDate} ~ ${ce.visitEndDate}`);
-        }
-
-        if (campaign.highlights) {
-            lines.push('');
-            lines.push(`✨ 캠지기님이 자랑하고 싶은 포인트`);
-            lines.push(campaign.highlights);
-        }
-        lines.push('');
-        lines.push('📌 콘텐츠 제작 시 필수 사항');
-        if (channelTypes?.includes('인스타')) {
-            lines.push('• 인스타그램: @camfit_official 태그');
-            // CHANGED: 캠지기 인스타 태그 안내 추가
-            if (campaign.hostInstagram) {
-                lines.push(`• 캠핑장 인스타그램: @${campaign.hostInstagram} 태그`);
-            }
-        }
-        // CHANGED: 쿠폰이벤트면 등록 페이지 + 숙소 상세, 아니면 숙소 상세만 (라벨 + 원문 URL)
-        getFollowerLinks(campaign.detailUrl, !!campaign.couponEvent).forEach((link) => {
-            lines.push(`• ${link.label}: ${link.url}`);
-        });
-        const text = lines.join('\n');
+    // CHANGED: 클립보드 복사 + 미지원 시 textarea fallback 공통화
+    const copyToClipboard = async (text: string, onDone: () => void) => {
         try {
             await navigator.clipboard.writeText(text);
-            setIsAllCopied(true);
-            setTimeout(() => setIsAllCopied(false), 2000);
         } catch {
-            // CHANGED: Clipboard API 미지원/권한 없을 때 fallback
             const textarea = document.createElement('textarea');
             textarea.value = text;
             textarea.style.position = 'fixed';
@@ -183,10 +155,22 @@ export default function ApplicationModal({ isOpen, onClose, campaign, channelTyp
             textarea.select();
             document.execCommand('copy');
             document.body.removeChild(textarea);
-            setIsAllCopied(true);
-            setTimeout(() => setIsAllCopied(false), 2000);
         }
+        onDone();
     };
+
+    // CHANGED: 내 기록용 전체 복사 (통합 빌더)
+    const [isAllCopied, setIsAllCopied] = useState(false);
+    const [isContentExpanded, setIsContentExpanded] = useState(false);
+    const [isFollowerMsgCopied, setIsFollowerMsgCopied] = useState(false); // CHANGED: 팔로워 메시지 복사 피드백
+    const handleCopyAll = () => copyToClipboard(buildSponsorshipSummary(summaryInput), () => {
+        setIsAllCopied(true);
+        setTimeout(() => setIsAllCopied(false), 2000);
+    });
+    const handleCopyFollowerMsg = () => copyToClipboard(buildFollowerShareMessage(summaryInput), () => {
+        setIsFollowerMsgCopied(true);
+        setTimeout(() => setIsFollowerMsgCopied(false), 2000);
+    });
 
     if (!isOpen) return null;
 
@@ -445,7 +429,7 @@ export default function ApplicationModal({ isOpen, onClose, campaign, channelTyp
                                     </button>
                                     {isFollowerExpanded && (
                                         <div className="mt-3">
-                                            <FollowerCouponCallout couponEvent={campaign.couponEvent} followerCouponCode={followerCouponCode} />
+                                            <FollowerCouponCallout couponEvent={campaign.couponEvent} followerCouponCode={followerCouponCode} accommodationName={campaign.accommodationName} />
                                         </div>
                                     )}
                                 </div>
@@ -459,57 +443,17 @@ export default function ApplicationModal({ isOpen, onClose, campaign, channelTyp
                                 </p>
                             </div>
 
-                            {/* CHANGED: 모든 조건 한번에 저장하기 — 통합 복사 */}
+                            {/* CHANGED: 협찬 조건 저장 — 미리보기 == 복사 내용(통합 빌더). 내 기록용 / 팔로워 메시지 2버튼 분리 */}
                             <div className="bg-[#2A2A2A] border border-[#333] p-4 rounded-lg text-left space-y-3">
-                                <p className="text-sm font-bold text-white">📋 모든 조건 한번에 저장하기</p>
+                                <p className="text-sm font-bold text-white">📋 협찬 조건 저장하기</p>
                                 <p className="text-xs text-[#888888]">
-                                    카카오톡 나에게 보내기 또는 메모장에 적어놓으세요!
+                                    조건이 많으니 카카오톡 나에게 보내기 또는 메모장에 저장해두세요!
                                 </p>
 
-                                <div className="bg-[#111] p-3 rounded-lg text-xs text-[#D0D0D0] relative">
-                                    <div className={`space-y-2 ${!isContentExpanded ? 'max-h-20 overflow-hidden' : ''}`}>
-                                        <p><span className="text-[#01DF82]">📌 내 예약 쿠폰:</span> <span className="font-mono text-white">{couponCode}</span></p>
-                                        <p><span className="text-[#01DF82]">📌 숙소:</span> {campaign.accommodationName}</p>
-
-                                        {/* CHANGED: 통합 — couponEvent 캠페인 미리보기 */}
-                                        {campaign.couponEvent && followerCouponCode && (
-                                            <>
-                                                <div className="border-t border-[#333] my-1" />
-                                                <p className="text-[#9CA3AF]">🎟️ 팔로워 쿠폰 (팔로워 공유용 · 내 예약엔 사용 X)</p>
-                                                <p>• 팔로워 쿠폰 코드: <span className="font-mono text-white">{followerCouponCode}</span></p>
-                                                <p>• 할인: {formatDiscount(campaign.couponEvent.discount)} ({COUPON_APPLY_DAYS_CONFIG[campaign.couponEvent.couponApplyDays]?.label || campaign.couponEvent.couponApplyDays})</p>
-                                                <p>• 인당 {campaign.couponEvent.couponPerCreator}장</p>
-                                                <p>• 쿠폰 유효: {campaign.couponEvent.couponStartDate} ~ {campaign.couponEvent.couponEndDate}</p>
-                                                <p>• 내 방문 가능: {campaign.couponEvent.visitStartDate} ~ {campaign.couponEvent.visitEndDate}</p>
-                                            </>
-                                        )}
-
-                                        {campaign.highlights && (
-                                            <>
-                                                <div className="border-t border-[#333] my-1" />
-                                                <p className="text-[#01DF82]">✨ 캠지기님이 자랑하고 싶은 포인트</p>
-                                                <p className="whitespace-pre-line">{campaign.highlights}</p>
-                                            </>
-                                        )}
-
-                                        <div className="border-t border-[#333] my-1" />
-                                        <p className="text-[#01DF82]">📌 콘텐츠 제작 시 필수 사항</p>
-                                        {channelTypes?.includes('인스타') && (
-                                            <>
-                                                <p>• 인스타그램: <strong className="text-white">@camfit_official</strong> 태그</p>
-                                                {/* CHANGED: 캠지기 인스타 태그 미리보기 */}
-                                                {campaign.hostInstagram && (
-                                                    <p>• 캠핑장 인스타: <strong className="text-white">@{campaign.hostInstagram}</strong> 태그</p>
-                                                )}
-                                            </>
-                                        )}
-                                        {/* CHANGED: 쿠폰이벤트면 등록 페이지 + 숙소 상세, 아니면 상세만 */}
-                                        {getFollowerLinks(campaign.detailUrl, !!campaign.couponEvent).map((link) => (
-                                            <p key={link.url}>• {link.label}: <span className="text-[#01DF82] break-all">{link.url}</span></p>
-                                        ))}
-                                    </div>
+                                <div className="bg-[#111] p-3 rounded-lg relative">
+                                    <pre className={`text-xs text-[#D0D0D0] whitespace-pre-wrap break-words font-sans leading-relaxed ${!isContentExpanded ? 'max-h-24 overflow-hidden' : ''}`}>{buildSponsorshipSummary(summaryInput)}</pre>
                                     {!isContentExpanded && (
-                                        <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-[#111] to-transparent rounded-b-lg" />
+                                        <div className="absolute bottom-8 left-0 right-0 h-10 bg-gradient-to-t from-[#111] to-transparent rounded-b-lg" />
                                     )}
                                     <button
                                         onClick={() => setIsContentExpanded(prev => !prev)}
@@ -521,24 +465,20 @@ export default function ApplicationModal({ isOpen, onClose, campaign, channelTyp
 
                                 <button
                                     onClick={handleCopyAll}
-                                    className="w-full py-3 bg-[#01DF82] text-black font-bold text-sm rounded-lg hover:bg-[#00C972] transition-colors flex items-center justify-center gap-2"
+                                    className="w-full py-3 bg-[#01DF82] text-black font-bold text-sm rounded-lg hover:bg-[#00C972] transition-colors"
                                 >
-                                    {isAllCopied ? (
-                                        <>
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                            </svg>
-                                            복사 완료!
-                                        </>
-                                    ) : (
-                                        <>
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-                                            </svg>
-                                            전체 내용 복사하기
-                                        </>
-                                    )}
+                                    {isAllCopied ? '복사 완료!' : '📋 내 기록용 전체 복사'}
                                 </button>
+
+                                {/* CHANGED: 팔로워에게 그대로 전달할 깨끗한 메시지(코드+등록링크+사용법) — 쿠폰이벤트만 */}
+                                {campaign.couponEvent && followerCouponCode && (
+                                    <button
+                                        onClick={handleCopyFollowerMsg}
+                                        className="w-full py-3 bg-[#2A2A2A] border border-[#01DF82]/50 text-[#01DF82] font-bold text-sm rounded-lg hover:bg-[#01DF82]/10 transition-colors"
+                                    >
+                                        {isFollowerMsgCopied ? '복사 완료! 팔로워에게 붙여넣으세요' : '📨 팔로워에게 보낼 메시지 복사'}
+                                    </button>
+                                )}
                             </div>
                         </div>
                     )}
