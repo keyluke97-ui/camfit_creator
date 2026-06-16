@@ -27,6 +27,8 @@ export default function ApplicationModal({ isOpen, onClose, campaign, channelTyp
     const [followerCouponCode, setFollowerCouponCode] = useState(''); // CHANGED: 통합 — 분배된 본인 팔로워 쿠폰 코드
     const [isCopied, setIsCopied] = useState(false);
     const [isHighlightsExpanded, setIsHighlightsExpanded] = useState(false); // CHANGED: Step 3 캠지기 포인트 접기/펼치기
+    const [isFollowerExpanded, setIsFollowerExpanded] = useState(false); // CHANGED: 쿠폰 혼동 해소 — 팔로워 쿠폰 기본 접힘(등록 순간 분리)
+    const [isMineCtaCopied, setIsMineCtaCopied] = useState(false); // CHANGED: 등록 CTA가 내 예약 쿠폰 자동복사했는지 피드백
 
     const modalRef = useRef<HTMLDivElement>(null);
     // CHANGED: 더블클릭 방지용 동기적 잠금 (React state는 비동기라 race condition 발생 가능)
@@ -44,6 +46,8 @@ export default function ApplicationModal({ isOpen, onClose, campaign, channelTyp
             setError('');
             setCouponCode('');
             setFollowerCouponCode(''); // CHANGED: 통합
+            setIsFollowerExpanded(false); // CHANGED: 재오픈 시 팔로워 쿠폰 다시 접힘
+            setIsMineCtaCopied(false); // CHANGED: 재오픈 시 CTA 복사 피드백 초기화
             isSubmittingRef.current = false; // CHANGED: 모달 재오픈 시 잠금 해제
         }
     }, [isOpen]);
@@ -128,7 +132,7 @@ export default function ApplicationModal({ isOpen, onClose, campaign, channelTyp
     const [isContentExpanded, setIsContentExpanded] = useState(false);
     const handleCopyAll = async () => {
         const lines: string[] = [];
-        lines.push(`📌 내 예약 쿠폰: ${couponCode}`);
+        lines.push(`📌 내 예약 쿠폰(캠핏에 등록): ${couponCode}`);
         lines.push(`📌 숙소: ${campaign.accommodationName}`);
 
         // CHANGED: 통합 — couponEvent 캠페인이면 팔로워 쿠폰 정보 함께 저장
@@ -136,7 +140,7 @@ export default function ApplicationModal({ isOpen, onClose, campaign, channelTyp
             const ce = campaign.couponEvent;
             const dayLabel = COUPON_APPLY_DAYS_CONFIG[ce.couponApplyDays]?.label || ce.couponApplyDays;
             lines.push('');
-            lines.push('🎟️ 팔로워 쿠폰');
+            lines.push('🎟️ 팔로워 쿠폰 (팔로워 공유용 · 내 예약엔 사용 X)');
             lines.push(`• 팔로워 쿠폰 코드: ${followerCouponCode}`);
             lines.push(`• 할인: ${formatDiscount(ce.discount)} (${dayLabel})`);
             lines.push(`• 팔로워 쿠폰 수량: ${ce.couponPerCreator}장`);
@@ -368,7 +372,9 @@ export default function ApplicationModal({ isOpen, onClose, campaign, channelTyp
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                                     </svg>
                                 </div>
-                                <h3 className="text-2xl font-bold text-white">신청이 완료되었습니다!</h3>
+                                <h3 className="text-2xl font-bold text-white">신청이 완료되었어요!</h3>
+                                {/* CHANGED: 쿠폰 혼동 해소 — 등록 순간엔 '내 예약 쿠폰'에 집중하도록 안내 */}
+                                <p className="text-[#01DF82] text-sm">이 쿠폰을 캠핏에 등록하고 예약하면 끝나요</p>
                             </div>
 
                             <div className="bg-[#2A2A2A] border border-[#01DF82] p-6 rounded-xl space-y-4">
@@ -400,22 +406,49 @@ export default function ApplicationModal({ isOpen, onClose, campaign, channelTyp
                                 </button>
                             </div>
 
-                            <div className="space-y-3">
+                            <div className="space-y-2">
+                                {/* CHANGED: 예측 가능한 CTA + 내 예약 쿠폰 자동복사 + 새 탭(보안 규칙 충족). 팔로워 코드 오등록 방지 */}
                                 <a
                                     href={COUPON_REGISTER_URL}
-                                    rel="noreferrer"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={() => {
+                                        navigator.clipboard?.writeText(couponCode)
+                                            .then(() => {
+                                                setIsMineCtaCopied(true);
+                                                setTimeout(() => setIsMineCtaCopied(false), 2000);
+                                            })
+                                            .catch((err) => console.error('Failed to copy my coupon', err));
+                                    }}
                                     className="block w-full h-14 flex items-center justify-center bg-[#01DF82] text-black font-bold text-lg rounded-xl hover:bg-[#00C972] transition-colors"
                                 >
-                                    캠핏 쿠폰 등록하러 가기
+                                    📋 내 예약 쿠폰 복사하고 캠핏으로 이동
                                 </a>
-                                <p className="text-[#666666] text-xs">
-                                    * 외부 사이트로 이동합니다. 복사한 코드를 등록하고 예약을 진행해주세요.
+                                <p className="text-xs">
+                                    {isMineCtaCopied ? (
+                                        <span className="text-[#01DF82] font-medium">✓ 내 예약 쿠폰을 복사했어요. 새 탭에서 등록해주세요.</span>
+                                    ) : (
+                                        <span className="text-[#666666]">* 버튼을 누르면 내 예약 쿠폰이 복사되고 캠핏 등록 페이지가 새 탭으로 열려요.</span>
+                                    )}
                                 </p>
                             </div>
 
-                            {/* CHANGED: 통합 — couponEvent 캠페인이면 팔로워 쿠폰 callout (추출: FollowerCouponCallout) */}
+                            {/* CHANGED: 쿠폰 혼동 해소 — 팔로워 쿠폰은 기본 접힘 토글 안으로(등록 순간 분리). 펼치면 weak 톤 callout */}
                             {campaign.couponEvent && followerCouponCode && (
-                                <FollowerCouponCallout couponEvent={campaign.couponEvent} followerCouponCode={followerCouponCode} />
+                                <div className="text-left">
+                                    <button
+                                        onClick={() => setIsFollowerExpanded((prev) => !prev)}
+                                        className="w-full flex items-center justify-between bg-[#202020] border border-[#3a3a3a] rounded-xl px-4 py-3 text-sm text-[#D0D0D0] hover:bg-[#262626] transition-colors"
+                                    >
+                                        <span>🎟️ 팔로워에게 공유할 쿠폰 보기 <span className="text-[#888888]">· 내 예약용 아니에요</span></span>
+                                        <span className="text-xs text-[#888888] shrink-0 ml-2">{isFollowerExpanded ? '접기 ▲' : '펼치기 ▼'}</span>
+                                    </button>
+                                    {isFollowerExpanded && (
+                                        <div className="mt-3">
+                                            <FollowerCouponCallout couponEvent={campaign.couponEvent} followerCouponCode={followerCouponCode} />
+                                        </div>
+                                    )}
+                                </div>
                             )}
 
                             <div className="bg-[#2A2A2A] p-4 rounded-lg">
@@ -435,15 +468,15 @@ export default function ApplicationModal({ isOpen, onClose, campaign, channelTyp
 
                                 <div className="bg-[#111] p-3 rounded-lg text-xs text-[#D0D0D0] relative">
                                     <div className={`space-y-2 ${!isContentExpanded ? 'max-h-20 overflow-hidden' : ''}`}>
-                                        <p><span className="text-[#01DF82]">📌 쿠폰 코드:</span> <span className="font-mono text-white">{couponCode}</span></p>
+                                        <p><span className="text-[#01DF82]">📌 내 예약 쿠폰:</span> <span className="font-mono text-white">{couponCode}</span></p>
                                         <p><span className="text-[#01DF82]">📌 숙소:</span> {campaign.accommodationName}</p>
 
                                         {/* CHANGED: 통합 — couponEvent 캠페인 미리보기 */}
                                         {campaign.couponEvent && followerCouponCode && (
                                             <>
                                                 <div className="border-t border-[#333] my-1" />
-                                                <p className="text-[#01DF82]">🎟️ 팔로워 쿠폰</p>
-                                                <p>• 내 배포 코드: <span className="font-mono text-white">{followerCouponCode}</span></p>
+                                                <p className="text-[#9CA3AF]">🎟️ 팔로워 쿠폰 (팔로워 공유용 · 내 예약엔 사용 X)</p>
+                                                <p>• 팔로워 쿠폰 코드: <span className="font-mono text-white">{followerCouponCode}</span></p>
                                                 <p>• 할인: {formatDiscount(campaign.couponEvent.discount)} ({COUPON_APPLY_DAYS_CONFIG[campaign.couponEvent.couponApplyDays]?.label || campaign.couponEvent.couponApplyDays})</p>
                                                 <p>• 인당 {campaign.couponEvent.couponPerCreator}장</p>
                                                 <p>• 쿠폰 유효: {campaign.couponEvent.couponStartDate} ~ {campaign.couponEvent.couponEndDate}</p>

@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useRef } from 'react';
 import type { Application } from '@/types';
-import { COUPON_APPLY_DAYS_CONFIG, formatDiscount, getFollowerLinks, COUPON_REGISTER_URL } from '@/lib/constants'; // CHANGED: 통합 — 쿠폰 정보 표시 헬퍼 + 팔로워 안내 링크
+import { COUPON_APPLY_DAYS_CONFIG, formatDiscount, getFollowerLinks } from '@/lib/constants'; // CHANGED: 쿠폰 정보 표시 헬퍼 + 팔로워 안내 링크 (COUPON_REGISTER_URL은 ReservationCouponDone로 이전)
 // CHANGED: 통합 — 쿠폰 박스 + 완료 목록 추출 (파일 크기 컨벤션 준수)
-import { CheckinCouponBox, CompletedAppsList } from './CheckinSections';
+import { CheckinCouponBox, CompletedAppsList, ReservationCouponDone } from './CheckinSections';
 
 interface CheckinModalProps {
     isOpen: boolean;
@@ -233,7 +233,7 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
     const handleCopyConditions = async (app: Application) => {
         const lines: string[] = [];
         lines.push(`📌 숙소: ${app.accommodationName}`);
-        if (app.couponCode) lines.push(`📌 내 예약 쿠폰: ${app.couponCode}`);
+        if (app.couponCode) lines.push(`📌 내 예약 쿠폰(캠핏에 등록): ${app.couponCode}`);
         if (app.deadline) lines.push(`📌 제작 기한: ${app.deadline}`);
 
         // CHANGED: 통합 — couponEvent 캠페인이면 팔로워 쿠폰 정보 함께 복사
@@ -241,7 +241,7 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
             const ce = app.couponEvent;
             const dayLabel = COUPON_APPLY_DAYS_CONFIG[ce.couponApplyDays]?.label || ce.couponApplyDays;
             lines.push('');
-            lines.push('🎟️ 팔로워 쿠폰');
+            lines.push('🎟️ 팔로워 쿠폰 (팔로워 공유용 · 내 예약엔 사용 X)');
             lines.push(`• 팔로워 쿠폰 코드: ${app.followerCouponCode}`);
             lines.push(`• 할인: ${formatDiscount(ce.discount)} (${dayLabel})`);
             lines.push(`• 팔로워 쿠폰 수량: ${ce.couponPerCreator}장`);
@@ -511,27 +511,8 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
                             {actionType === 'change' && couponInfo ? (
                                 <>
                                     <h3 className="text-xl font-bold text-white">예약 변경이 완료되었습니다!</h3>
-                                    <div className="bg-[#2A2A2A] border border-[#01DF82] p-6 rounded-xl space-y-4">
-                                        <p className="text-[#B0B0B0] text-sm">내 예약 쿠폰 코드</p>
-                                        <p className="text-2xl font-mono font-bold text-[#01DF82] tracking-wider break-all">
-                                            {couponInfo.code}
-                                        </p>
-                                        <button
-                                            onClick={() => {
-                                                navigator.clipboard.writeText(couponInfo.code);
-                                            }}
-                                            className="px-6 py-2 bg-[#111] border border-[#333] rounded-full text-white text-sm font-medium hover:bg-[#333] transition-colors"
-                                        >
-                                            코드 복사하기
-                                        </button>
-                                    </div>
-                                    <a
-                                        href={COUPON_REGISTER_URL}
-                                        rel="noreferrer"
-                                        className="block w-full h-14 flex items-center justify-center bg-[#01DF82] text-black font-bold text-lg rounded-xl hover:bg-[#00C972] transition-colors"
-                                    >
-                                        캠핏 쿠폰 등록하러 가기
-                                    </a>
+                                    {/* CHANGED: 추출 — 내 예약 쿠폰 박스 + 자동복사/새 탭 CTA (CheckinSections) */}
+                                    <ReservationCouponDone code={couponInfo.code} />
                                 </>
                             ) : (
                                 <>

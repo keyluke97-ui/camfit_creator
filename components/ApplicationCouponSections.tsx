@@ -58,21 +58,23 @@ export function CouponEventSummary({ couponEvent }: { couponEvent: CouponEvent }
 }
 
 // Step 4: 신청 완료 후 팔로워에게 배포할 본인 쿠폰 코드 callout
+// CHANGED: 쿠폰 혼동 해소 — 초록 강조(fill) → 차분한 회색(weak)으로 내 예약 쿠폰과 시각 분리.
+//          "등록 금지"가 아니라 "내 예약엔 사용 주의" 긍정형 카피(등록해서 확인은 OK).
 export function FollowerCouponCallout({ couponEvent, followerCouponCode }: { couponEvent: CouponEvent; followerCouponCode: string }) {
     const [isFollowerCodeCopied, setIsFollowerCodeCopied] = useState(false);
     return (
-        <div className="bg-[#2A2A2A] border border-[#01DF82]/40 p-5 rounded-xl space-y-4 text-left">
-            <div className="flex items-center gap-2">
-                <span className="text-xl">🎟️</span>
-                <p className="text-sm font-bold text-[#01DF82]">팔로워 쿠폰 코드</p>
+        <div className="bg-[#202020] border border-[#3a3a3a] p-5 rounded-xl space-y-4 text-left">
+            <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-base">🎟️</span>
+                <p className="text-sm font-bold text-[#E0E0E0]">팔로워 쿠폰</p>
+                <span className="text-xs text-[#9CA3AF]">· 내 예약용 아니에요</span>
             </div>
-            <p className="text-xs text-[#B0B0B0] leading-relaxed">
-                이 협찬은 <strong className="text-white">팔로워 쿠폰 배포</strong>가 포함된 캠페인이에요.
-                아래 코드는 <strong className="text-white">나에게만 배정된 코드</strong>로,
-                팔로워가 캠핏 예약 시 사용하면 <strong className="text-[#01DF82]">{couponEvent.discount.toLocaleString()}원 할인</strong>을 받아요.
+            <p className="text-xs text-[#A9A9A9] leading-relaxed">
+                팔로워에게 공유하는 쿠폰이에요. 등록해서 어떤 쿠폰인지 확인하는 건 괜찮지만,
+                <strong className="text-white"> 내 캠핑 예약에는 쓰지 말고 위의 &lsquo;내 예약 쿠폰&rsquo;을 사용</strong>해주세요.
             </p>
-            <div className="bg-[#111] border border-[#333] p-4 rounded-lg text-center space-y-3">
-                <p className="text-2xl font-mono font-bold text-[#01DF82] tracking-wider break-all">
+            <div className="bg-[#161616] border border-[#333] p-4 rounded-lg text-center space-y-3">
+                <p className="text-2xl font-mono font-bold text-[#CFCFCF] tracking-wider break-all">
                     {followerCouponCode}
                 </p>
                 <button
@@ -85,7 +87,7 @@ export function FollowerCouponCallout({ couponEvent, followerCouponCode }: { cou
                             console.error('Failed to copy follower coupon', err);
                         }
                     }}
-                    className="px-6 py-2 bg-[#1E1E1E] border border-[#333] rounded-full text-white text-sm font-medium hover:bg-[#333] transition-colors flex items-center justify-center mx-auto gap-2"
+                    className="px-6 py-2 bg-[#1E1E1E] border border-[#444] rounded-full text-[#CFCFCF] text-sm font-medium hover:bg-[#333] transition-colors flex items-center justify-center mx-auto gap-2"
                 >
                     {isFollowerCodeCopied ? (
                         <>
@@ -104,7 +106,7 @@ export function FollowerCouponCallout({ couponEvent, followerCouponCode }: { cou
                     )}
                 </button>
             </div>
-            <div className="bg-[#111] border border-[#333] p-3 rounded-lg space-y-1 text-xs text-[#D0D0D0]">
+            <div className="bg-[#161616] border border-[#333] p-3 rounded-lg space-y-1 text-xs text-[#D0D0D0]">
                 <p><span className="text-[#9CA3AF]">할인:</span> <strong className="text-white">{formatDiscount(couponEvent.discount)}</strong> ({COUPON_APPLY_DAYS_CONFIG[couponEvent.couponApplyDays]?.label || couponEvent.couponApplyDays})</p>
                 <p><span className="text-[#9CA3AF]">팔로워 쿠폰 수량:</span> <strong className="text-white">{couponEvent.couponPerCreator}장</strong></p>
                 <p><span className="text-[#9CA3AF]">팔로워 사용 가능:</span> {couponEvent.couponStartDate} ~ {couponEvent.couponEndDate}</p>
