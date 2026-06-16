@@ -48,11 +48,15 @@ export interface CouponEvent {
   couponEndDate: string;         // 쿠폰 유효 종료일
 }
 
+// CHANGED: 캠페인 목록 정렬 키 — 대시보드 정렬 메뉴와 sortCampaigns()가 공유
+export type CampaignSortKey = 'recent' | 'priceDesc' | 'availableDesc' | 'deadlineAsc';
+
 export interface Campaign {
   id: string;
   accommodationName: string;
   location: string;
   deadline: string;
+  createdTime: string; // CHANGED: Airtable 'Created' 필드 — 최신등록순 정렬용 (ISO 문자열)
   detailUrl: string;
   applicationUrl: string;
   tierData: CampaignTierData;
@@ -81,6 +85,7 @@ export interface AirtableCampaignRecord {
     '숙소 이름을 적어주세요.': string;
     '숙소 위치': string;
     '⏰ 콘텐츠 제작 기한': string;
+    'Created'?: string; // CHANGED: 레코드 생성 시각(ISO) — 최신등록순 정렬용
     '숙소 링크 (캠핏 내 상세페이지만 삽입 가능)': string;
     '신청 링크': string;
     '쿠폰코드'?: string;
