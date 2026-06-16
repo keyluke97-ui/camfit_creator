@@ -279,6 +279,8 @@ export async function getCampaigns(tier: TierLevel): Promise<Campaign[]> {
                 accommodationName: fields['숙소 이름을 적어주세요.'] || '',
                 location: fields['숙소 위치'] || '',
                 deadline: fields['⏰ 콘텐츠 제작 기한'] || '',
+                createdTime: fields['Created'] || '', // CHANGED: 최신등록순 정렬용
+
                 detailUrl: fields['숙소 링크 (캠핏 내 상세페이지만 삽입 가능)'] || '',
                 applicationUrl: fields['신청 링크'] || 'https://airtable.com/appEGM6qarNr9M7HN/pagwr9veED083h45f/form',
                 tierData: { price, totalCount, availableCount },

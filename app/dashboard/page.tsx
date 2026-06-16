@@ -5,7 +5,8 @@ import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import CampaignCard from '@/components/CampaignCard';
 import CheckinModal from '@/components/CheckinModal';
-import LocationFilter from '@/components/LocationFilter';
+// CHANGED: 인라인 LocationFilter → 정렬·필터 통합 바텀시트로 교체
+import FilterSortSheet from '@/components/FilterSortSheet';
 import NotificationToggle from '@/components/NotificationToggle';
 // CHANGED: 콘텐츠 탭 컴포넌트 import
 import ContentCard from '@/components/ContentCard';
@@ -13,9 +14,11 @@ import ContentCardCompact from '@/components/ContentCardCompact';
 import ContentSubmitModal from '@/components/ContentSubmitModal';
 // CHANGED (IA v3): 콘텐츠 진입 배너 — 헤더 아이콘 대신 메인 영역 배너로 승격
 import ContentEntryBanner from '@/components/ContentEntryBanner';
-import type { Campaign, ContentUpload, TierLevel, ChannelType } from '@/types';
+import type { Campaign, ContentUpload, TierLevel, ChannelType, CampaignSortKey } from '@/types';
 // CHANGED: 공통 상수를 constants.ts에서 import
 import { KAKAO_CHANNEL_URL } from '@/lib/constants';
+// CHANGED: 캠페인 정렬 로직
+import { sortCampaigns, sortLabel, DEFAULT_SORT_KEY } from '@/lib/campaignSort';
 
 // CHANGED: premiumId 추가 — 프리미엄 등록 여부 분기용
 // CHANGED: notificationEnabled 추가 — 알림 토글 상태
@@ -61,6 +64,9 @@ function DashboardContent() {
     const [showClosedCampaigns, setShowClosedCampaigns] = useState(false);
     // CHANGED: 위치 필터 state 추가
     const [selectedLocation, setSelectedLocation] = useState<string>('전체');
+    // CHANGED: 정렬 state + 정렬·필터 시트 열림 state
+    const [sortKey, setSortKey] = useState<CampaignSortKey>(DEFAULT_SORT_KEY);
+    const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
     // CHANGED: 알림 토글 state 추가
     const [notificationEnabled, setNotificationEnabled] = useState(true);
 
@@ -126,17 +132,25 @@ function DashboardContent() {
         fetchUserInfo();
     }, []);
 
-    // CHANGED: 위치 필터용 location 목록 추출 (콘텐츠 뷰에서는 사용하지 않음)
-    const availableLocations = useMemo(() => {
-        const locations = [...new Set(campaigns.map(c => c.location).filter(Boolean))];
-        locations.sort((a, b) => a.localeCompare(b, 'ko'));
-        return locations;
+    // CHANGED: 지역별 캠페인 수 집계 (필터 시트의 개수 표시용 — Baymard 권장)
+    const locationCounts = useMemo(() => {
+        const counts = new Map<string, number>();
+        for (const campaign of campaigns) {
+            if (!campaign.location) continue;
+            counts.set(campaign.location, (counts.get(campaign.location) ?? 0) + 1);
+        }
+        return [...counts.entries()]
+            .map(([location, count]) => ({ location, count }))
+            .sort((a, b) => a.location.localeCompare(b.location, 'ko'));
     }, [campaigns]);
 
-    // CHANGED: 위치 필터 적용
-    const filteredCampaigns = selectedLocation === '전체'
-        ? campaigns
-        : campaigns.filter(c => c.location === selectedLocation);
+    // CHANGED: 지역 필터 → 정렬 적용 (정렬은 active/closed 분리 전에 전체 배열에 적용)
+    const filteredCampaigns = useMemo(() => {
+        const filtered = selectedLocation === '전체'
+            ? campaigns
+            : campaigns.filter(c => c.location === selectedLocation);
+        return sortCampaigns(filtered, sortKey);
+    }, [campaigns, selectedLocation, sortKey]);
 
     // CHANGED: 알림 토글 핸들러
     const handleNotificationToggle = async (enabled: boolean) => {
@@ -328,14 +342,29 @@ function DashboardContent() {
                             </div>
                         )}
 
-                        {/* CHANGED: 알림 토글은 헤더로 이동, 위치 필터만 여기 유지 */}
-                        {availableLocations.length > 0 && (
-                            <div className="mb-6">
-                                <LocationFilter
-                                    locations={availableLocations}
-                                    selectedLocation={selectedLocation}
-                                    onLocationChange={setSelectedLocation}
-                                />
+                        {/* CHANGED: 적용된 정렬·필터 요약 바 — 항상 보이게(Baymard) + 탭하면 시트 열림 */}
+                        {campaigns.length > 0 && (
+                            <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+                                <button
+                                    onClick={() => setIsFilterSheetOpen(true)}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-full whitespace-nowrap bg-[#01DF82]/10 text-[#01DF82] border border-[#01DF82]/30 cursor-pointer hover:bg-[#01DF82]/15 transition-colors"
+                                >
+                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h18M7 12h10M11 20h2" />
+                                    </svg>
+                                    {sortLabel(sortKey)}
+                                </button>
+                                {selectedLocation !== '전체' && (
+                                    <button
+                                        onClick={() => setSelectedLocation('전체')}
+                                        className="flex items-center gap-1 px-3 py-1.5 text-xs rounded-full whitespace-nowrap bg-[#2A2A2A] text-white border border-[#333333] cursor-pointer hover:border-[#555555] transition-colors"
+                                    >
+                                        {selectedLocation}
+                                        <svg className="w-3 h-3 text-[#888888]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                )}
                             </div>
                         )}
 
@@ -498,6 +527,36 @@ function DashboardContent() {
                         channelTypes: userInfo.channelTypes // CHANGED: 공동작업 인스타 채널 판단용
                     }}
                 />
+            )}
+
+            {/* CHANGED: 캠페인 뷰 전용 — sticky 정렬·필터 버튼 + 바텀시트 */}
+            {!loading && !showContentView && userInfo?.premiumId && campaigns.length > 0 && (
+                <>
+                    <button
+                        onClick={() => setIsFilterSheetOpen(true)}
+                        className="fixed left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 px-5 py-3 bg-[#01DF82] text-black font-bold text-sm rounded-full shadow-lg shadow-black/40 hover:bg-[#00C972] transition-colors cursor-pointer"
+                        style={{ bottom: 'calc(1.25rem + env(safe-area-inset-bottom))' }}
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h18M7 12h10M11 20h2" />
+                        </svg>
+                        정렬·필터
+                        {selectedLocation !== '전체' && <span className="w-1.5 h-1.5 rounded-full bg-black" />}
+                    </button>
+
+                    <FilterSortSheet
+                        isOpen={isFilterSheetOpen}
+                        onClose={() => setIsFilterSheetOpen(false)}
+                        sortKey={sortKey}
+                        selectedLocation={selectedLocation}
+                        locationCounts={locationCounts}
+                        totalCount={campaigns.length}
+                        onApply={(nextSort, nextLocation) => {
+                            setSortKey(nextSort);
+                            setSelectedLocation(nextLocation);
+                        }}
+                    />
+                </>
             )}
         </div>
     );
