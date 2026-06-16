@@ -4,6 +4,8 @@
 import { useState } from 'react';
 import type { CouponEvent } from '@/types';
 import { COUPON_APPLY_DAYS_CONFIG, formatDiscount } from '@/lib/constants';
+// CHANGED: 팔로워에게 보낼 깨끗한 메시지 빌더
+import { buildFollowerShareMessage } from '@/lib/couponText';
 
 // Step 3: 팔로워 쿠폰 협찬 안내 요약 (할인/요일/배포 + 날짜 2개)
 export function CouponEventSummary({ couponEvent }: { couponEvent: CouponEvent }) {
@@ -49,9 +51,9 @@ export function CouponEventSummary({ couponEvent }: { couponEvent: CouponEvent }
                     )}
                 </div>
             )}
-            {/* CHANGED: 신규 안내 — 팔로워 쿠폰 다운로드 한도 + 자동 종료 */}
+            {/* CHANGED: 999 다운로드 표현 제거 → 최대 사용 수량(인당 쿠폰) 소진 시 자동 만료 */}
             <p className="text-xs text-[#888888] leading-relaxed pt-1">
-                팔로워 쿠폰은 최대 999명까지 다운로드할 수 있고, 팔로워 쿠폰 수량이 모두 소진되면 자동 종료됩니다.
+                팔로워 쿠폰 최대 사용 수량 {couponEvent.couponPerCreator}장이 모두 소진되면 자동 만료됩니다.
             </p>
         </div>
     );
@@ -60,8 +62,19 @@ export function CouponEventSummary({ couponEvent }: { couponEvent: CouponEvent }
 // Step 4: 신청 완료 후 팔로워에게 배포할 본인 쿠폰 코드 callout
 // CHANGED: 쿠폰 혼동 해소 — 초록 강조(fill) → 차분한 회색(weak)으로 내 예약 쿠폰과 시각 분리.
 //          "등록 금지"가 아니라 "내 예약엔 사용 주의" 긍정형 카피(등록해서 확인은 OK).
-export function FollowerCouponCallout({ couponEvent, followerCouponCode }: { couponEvent: CouponEvent; followerCouponCode: string }) {
+export function FollowerCouponCallout({ couponEvent, followerCouponCode, accommodationName }: { couponEvent: CouponEvent; followerCouponCode: string; accommodationName: string }) {
     const [isFollowerCodeCopied, setIsFollowerCodeCopied] = useState(false);
+    const [isShareCopied, setIsShareCopied] = useState(false); // CHANGED: 팔로워 공유 메시지 복사 피드백
+    const copyShareMessage = async () => {
+        const msg = buildFollowerShareMessage({ accommodationName, couponEvent, followerCouponCode });
+        try {
+            await navigator.clipboard.writeText(msg);
+            setIsShareCopied(true);
+            setTimeout(() => setIsShareCopied(false), 2000);
+        } catch (err) {
+            console.error('Failed to copy follower share message', err);
+        }
+    };
     return (
         <div className="bg-[#202020] border border-[#3a3a3a] p-5 rounded-xl space-y-4 text-left">
             <div className="flex items-center gap-2 flex-wrap">
@@ -112,6 +125,18 @@ export function FollowerCouponCallout({ couponEvent, followerCouponCode }: { cou
                 <p><span className="text-[#9CA3AF]">팔로워 사용 가능:</span> {couponEvent.couponStartDate} ~ {couponEvent.couponEndDate}</p>
                 <p><span className="text-[#9CA3AF]">내 방문 가능:</span> {couponEvent.visitStartDate} ~ {couponEvent.visitEndDate}</p>
             </div>
+            {/* CHANGED: 팔로워에게 그대로 전달할 깨끗한 메시지(코드+등록링크+사용법) 원탭 복사 */}
+            <button
+                onClick={copyShareMessage}
+                className="w-full py-3 bg-[#01DF82] text-black font-bold text-sm rounded-lg hover:bg-[#00C972] transition-colors flex items-center justify-center gap-2"
+            >
+                {isShareCopied ? (
+                    <>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                        복사 완료! 팔로워에게 붙여넣으세요
+                    </>
+                ) : '📨 팔로워에게 보낼 메시지 복사'}
+            </button>
             <p className="text-xs text-[#888888] leading-relaxed">
                 ⚠️ 외부 유출 금지. 본인 채널 팔로워에게만 공유해주세요.
             </p>

@@ -29,17 +29,16 @@ export const COUPON_REGISTER_URL = 'https://camfit.co.kr/mypage/coupon/register'
 
 /**
  * 크리에이터가 콘텐츠/팔로워에게 안내할 링크 목록
- * — 쿠폰이벤트면 [쿠폰 등록 페이지, 숙소 상세], 아니면 [숙소 상세]만.
- *   ApplicationModal(Step3 표시 + Step4 복붙), CheckinModal(협찬 조건 복붙) 공용.
+ * — 쿠폰이벤트면 [쿠폰 등록 페이지]만(숙소 상세 링크는 혼동 유발 → 제외), 아니면 [숙소 상세]만.
+ *   ApplicationModal(Step3 표시), ContentRequirements 공용. 복붙 텍스트는 couponText.ts 빌더가 담당.
  */
+// CHANGED: 쿠폰이벤트 시 숙소 상세 링크 제거 — 팔로워가 '등록 페이지'에 집중하도록(상세 링크는 헷갈림)
 export function getFollowerLinks(
     detailUrl: string | undefined,
     isCouponEvent: boolean
 ): { label: string; url: string }[] {
-    const links: { label: string; url: string }[] = [];
-    if (isCouponEvent) links.push({ label: '팔로워 쿠폰 등록 페이지', url: COUPON_REGISTER_URL });
-    if (detailUrl) links.push({ label: '숙소 상세 페이지', url: detailUrl });
-    return links;
+    if (isCouponEvent) return [{ label: '팔로워 쿠폰 등록 페이지', url: COUPON_REGISTER_URL }];
+    return detailUrl ? [{ label: '숙소 상세 페이지', url: detailUrl }] : [];
 }
 
 /**

@@ -4,6 +4,8 @@
 import { useState } from 'react';
 import type { Application } from '@/types';
 import { COUPON_APPLY_DAYS_CONFIG, formatDiscount, COUPON_REGISTER_URL } from '@/lib/constants';
+// CHANGED: 팔로워에게 보낼 깨끗한 메시지 빌더
+import { buildFollowerShareMessage } from '@/lib/couponText';
 
 // CHANGED: 쿠폰 혼동 해소 — 예약 변경 완료 화면의 '내 예약 쿠폰' 박스 + 등록 CTA 추출
 //          (CheckinModal 600줄 컨벤션 준수 + ApplicationModal과 동일 패턴: 자동복사 + 새 탭)
@@ -36,6 +38,22 @@ export function ReservationCouponDone({ code }: { code: string }) {
 // 신청 카드 내 "내 팔로워 쿠폰 코드" 박스 (followerCouponCode 있을 때만 부모가 렌더)
 export function CheckinCouponBox({ app }: { app: Application }) {
     const [copied, setCopied] = useState(false);
+    const [shareCopied, setShareCopied] = useState(false); // CHANGED: 팔로워 메시지 복사 피드백
+    const copyShareMessage = async () => {
+        const msg = buildFollowerShareMessage({
+            accommodationName: app.accommodationName,
+            couponEvent: app.couponEvent,
+            followerCouponCode: app.followerCouponCode,
+        });
+        if (!msg) return;
+        try {
+            await navigator.clipboard.writeText(msg);
+            setShareCopied(true);
+            setTimeout(() => setShareCopied(false), 2000);
+        } catch (err) {
+            console.error('Failed to copy follower share message', err);
+        }
+    };
     return (
         // CHANGED: 쿠폰 혼동 해소 — 팔로워 쿠폰은 weak 회색 톤 + "내 예약용 아니에요" 안내 (내 예약 쿠폰과 분리)
         <div className="bg-[#202020] border border-[#3a3a3a] rounded-lg p-3 space-y-2">
@@ -65,6 +83,15 @@ export function CheckinCouponBox({ app }: { app: Application }) {
                     <p>• 팔로워 쿠폰 {app.couponEvent.couponPerCreator}장 · 팔로워 사용: {app.couponEvent.couponStartDate} ~ {app.couponEvent.couponEndDate}</p>
                     <p>• 내 방문 가능: {app.couponEvent.visitStartDate} ~ {app.couponEvent.visitEndDate}</p>
                 </div>
+            )}
+            {/* CHANGED: 팔로워에게 그대로 전달할 메시지(코드+등록링크+사용법) 원탭 복사 */}
+            {app.couponEvent && app.followerCouponCode && (
+                <button
+                    onClick={copyShareMessage}
+                    className="w-full py-2 bg-[#2A2A2A] border border-[#01DF82]/50 text-[#01DF82] text-xs font-bold rounded-lg hover:bg-[#01DF82]/10 transition-colors"
+                >
+                    {shareCopied ? '복사 완료! 팔로워에게 붙여넣으세요' : '📨 팔로워에게 보낼 메시지 복사'}
+                </button>
             )}
         </div>
     );
