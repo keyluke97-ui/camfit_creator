@@ -42,12 +42,14 @@ export function getFollowerLinks(
 }
 
 /**
- * 쿠폰 적용 요일 → 표시 라벨 + 색상 (CampaignCard / ApplicationModal 공용)
+ * 쿠폰 적용 요일 → 표시 라벨 + 색상 + 제외 안내 (CampaignCard / ApplicationModal 공용)
+ * CHANGED: exclusionNote 추가 — 옵션별로 사용 불가한 날을 팔로워/크리에이터에게 안내 (공휴일 전일·당일 미사용 문의 다발).
+ *          빈 문자열이면 제외 조건 없음 → 메시지에 미노출.
  */
-export const COUPON_APPLY_DAYS_CONFIG: Record<string, { label: string; color: string }> = {
-    '평일전용': { label: '평일전용', color: 'bg-blue-500/15 text-blue-400 border-blue-500/30' },
-    '평일+주말(금토)': { label: '평일+주말', color: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30' },
-    '평일+주말+공휴일': { label: '전체 기간', color: 'bg-teal-500/15 text-teal-400 border-teal-500/30' },
+export const COUPON_APPLY_DAYS_CONFIG: Record<string, { label: string; color: string; exclusionNote: string }> = {
+    '평일전용': { label: '평일전용', color: 'bg-blue-500/15 text-blue-400 border-blue-500/30', exclusionNote: '주말(금·토)과 공휴일, 공휴일 전날에는 사용할 수 없어요' },
+    '평일+주말(금토)': { label: '평일+주말', color: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30', exclusionNote: '공휴일과 공휴일 전날에는 사용할 수 없어요' },
+    '평일+주말+공휴일': { label: '전체 기간', color: 'bg-teal-500/15 text-teal-400 border-teal-500/30', exclusionNote: '' },
 };
 
 /**
