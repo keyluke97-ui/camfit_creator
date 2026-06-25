@@ -31,11 +31,14 @@ export function buildSponsorshipSummary(input: SponsorshipTextInput): string {
 
     // [팔로워 쿠폰] + 사용 방법 (쿠폰이벤트 + 분배 코드 있을 때만)
     if (couponEvent && followerCouponCode) {
-        const dayLabel = COUPON_APPLY_DAYS_CONFIG[couponEvent.couponApplyDays]?.label || couponEvent.couponApplyDays;
+        const dayConfig = COUPON_APPLY_DAYS_CONFIG[couponEvent.couponApplyDays];
+        const dayLabel = dayConfig?.label || couponEvent.couponApplyDays;
         lines.push('');
         lines.push('[팔로워 쿠폰] (팔로워 공유용 · 내 예약엔 사용 X)');
         lines.push(`• 팔로워 쿠폰 코드: ${followerCouponCode}`);
         lines.push(`• 할인: ${formatDiscount(couponEvent.discount)} (${dayLabel})`);
+        // CHANGED: 옵션별 제외 안내 — 공휴일 전일·당일 미사용 문의 다발 대응 (제외 없는 옵션은 미노출)
+        if (dayConfig?.exclusionNote) lines.push(`• ⚠️ ${dayConfig.exclusionNote}`);
         lines.push('• 적용 사이트: 해당 캠핑장 내 모든 사이트');
         lines.push(`• 최대 사용 수량: ${couponEvent.couponPerCreator}장 (소진 시 자동 만료)`);
         lines.push(`• 팔로워 쿠폰 사용 가능: ${couponEvent.couponStartDate} ~ ${couponEvent.couponEndDate}`);
@@ -71,7 +74,8 @@ export function buildSponsorshipSummary(input: SponsorshipTextInput): string {
 export function buildFollowerShareMessage(input: SponsorshipTextInput): string {
     const { accommodationName, couponEvent, followerCouponCode } = input;
     if (!couponEvent || !followerCouponCode) return '';
-    const dayLabel = COUPON_APPLY_DAYS_CONFIG[couponEvent.couponApplyDays]?.label || couponEvent.couponApplyDays;
+    const dayConfig = COUPON_APPLY_DAYS_CONFIG[couponEvent.couponApplyDays];
+    const dayLabel = dayConfig?.label || couponEvent.couponApplyDays;
     const lines: string[] = [];
     lines.push(`🎁 ${accommodationName} 팔로워 전용 할인 쿠폰`);
     lines.push('');
@@ -84,6 +88,8 @@ export function buildFollowerShareMessage(input: SponsorshipTextInput): string {
     lines.push("③ 쿠폰함에서 '사용하기'");
     lines.push(`④ ${accommodationName} 예약할 때 자동 적용`);
     lines.push('');
+    // CHANGED: 옵션별 제외 안내 — 공휴일 전일·당일 미사용 문의 다발 대응 (제외 없는 옵션은 미노출)
+    if (dayConfig?.exclusionNote) lines.push(`⚠️ ${dayConfig.exclusionNote}`);
     lines.push(`※ ${couponEvent.couponStartDate} ~ ${couponEvent.couponEndDate} 사용 가능 · 수량 소진 시 자동 만료`);
     return lines.join('\n');
 }
