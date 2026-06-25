@@ -324,7 +324,7 @@ NEXTAUTH_URL=                # 서버 URL (예: https://your-domain.vercel.app)
 ## 9. External References
 
 - **Airtable 필드 구조 변경 시**: `lib/airtable.ts`의 `getTierFields()` + `types/index.ts`의 `AirtableCampaignRecord` 두 곳을 동시에 수정하라
-- **Vercel 배포**: main 브랜치 push 시 자동 배포. 환경변수는 Vercel 대시보드에서 관리
+- **Vercel 배포**: main 브랜치 push 시 자동 배포. 환경변수는 Vercel 대시보드에서 관리. **PR은 squash 머지**(커밋이 하나로 합쳐짐 — 아래 §10 배포 점검 규칙 필독)
 - **카카오톡 채널 CTA URL**: `http://pf.kakao.com/_fBxaQG` (문의/변경 유도용)
 - **GitHub 레포**: `https://github.com/keyluke97-ui/camfit_creator`
 - **로컬 문서**: `handover.premium_creator.md` (인수인계 문서, git 미추적 — 로컬에서 참고)
@@ -335,6 +335,19 @@ NEXTAUTH_URL=                # 서버 URL (예: https://your-domain.vercel.app)
 
 <!-- 프로젝트 진행 중 반복적으로 발생하는 실수를 아래에 누적 기록한다.
      새 항목은 위에 추가한다 (최신 순). -->
+
+### [2026-06] 배포 상태 판단 — 반드시 `origin/main` 기준 + 파일 diff (커밋 목록 신뢰 금지)
+
+**배경:** 로컬 `main`이 낡은 채로 "feature 브랜치가 프로덕션보다 18커밋 앞섰다"고 잘못 판단 → 통째 머지하면 프로덕션 핫픽스(보안 가드 + 검색 버그)가 거꾸로 되돌아갈 뻔함. 이 레포는 **squash 머지**라 feature 브랜치 원본 커밋과 main의 합쳐진 커밋이 SHA가 달라, 커밋 목록 비교(`git log main..HEAD`)는 **실제로 합쳐진 변경도 "안 올라간 것"처럼 보이게 만든다.**
+
+**배포/브랜치 상태를 언급하기 전 필수 절차:**
+1. **먼저 `git fetch origin`** — 로컬 `main`은 신뢰하지 마라(낡았을 수 있음). 프로덕션 기준은 항상 **`origin/main`**.
+2. **무엇이 진짜 안 올라갔나는 커밋 목록이 아니라 파일 diff로 판단**: `git diff origin/main..HEAD --stat`. 커밋 목록(`git log origin/main..HEAD`)은 squash 때문에 과장된다.
+3. **feature 브랜치를 통째로 main에 머지하지 마라.** 오래된 브랜치는 프로덕션보다 **뒤처진 파일**이 섞여 있어 핫픽스를 되돌린다. 특정 변경만 보낼 땐 **`origin/main`에서 새 브랜치를 떼고 해당 커밋만 cherry-pick** → PR.
+4. 비개발자 사용자에게 "배포됐다/안 됐다"를 단정하기 전에 위 1~2를 반드시 수행.
+
+**⚠️ `feature/dashboard-ia-v3` 브랜치는 STALE — 통째 머지 금지**
+이 브랜치는 main 분기 후 main에 들어간 핫픽스(콘텐츠 검색 `channelName` trim 정규화 BUG-B, `searchCreatorPremiumCampaigns` 빈 채널명 가드 BUG-A, 14일/용어 톤 수정)를 못 받았다. 통째 머지 시 위 수정들이 되돌아간다. 이 브랜치의 신규 작업이 필요하면 **개별 커밋만 `origin/main` 기반 새 브랜치로 cherry-pick**할 것. (오늘 쿠폰 제외 안내는 그렇게 [#6](https://github.com/keyluke97-ui/camfit_creator/pull/6)으로 분리 배포함.)
 
 ### [2026-04] 파트너 협찬 v3.1 — 어드민 자동 발행 + 동기 분배 [레거시]
 
