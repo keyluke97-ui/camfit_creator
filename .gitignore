@@ -36,6 +36,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# 캠냥이 마스코트/아이콘 원본 소스 (웹용은 public/mascot·public/icons에 커밋됨)
+캠냥이/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

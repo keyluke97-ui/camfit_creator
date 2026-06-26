@@ -246,40 +246,48 @@ const JWT_SECRET = new TextEncoder().encode(process.env.NEXTAUTH_SECRET);
 
 ## 6. Design System
 
-### 색상 팔레트
+> **⚠️ 2026-06 라이트 모드 전환 (캠핏 DS 2.5).** 하드코딩 hex 금지 — `app/globals.css`에 정의된 **시맨틱 토큰 유틸**만 사용한다. (구 다크 하드코딩 `bg-[#1E1E1E]`/`text-white` 등은 전부 토큰으로 치환됨.)
 
-| 역할 | 값 |
-|------|-----|
-| 페이지 배경 | `#111111` |
-| 카드/컨테이너 배경 | `#1E1E1E` |
-| 테두리 (기본) | `#333333` |
-| 테두리 (hover) | `#01DF82` |
-| 텍스트 (기본) | `white` |
-| 텍스트 (보조) | `#B0B0B0` 또는 `#9CA3AF (gray-400)` |
-| 주요 액센트 (녹색) | `#01DF82` |
-| 액센트 배경 (연한) | `#01DF82/10` |
-| 카카오톡 버튼 배경 | `#FEE500` |
-| 카카오톡 버튼 텍스트 | `#3C1E1E` |
+### 색상 토큰 (app/globals.css → Tailwind 유틸)
+
+| 역할 | 유틸 클래스 | 값 |
+|------|------------|-----|
+| 페이지 배경 | `bg-page` | `#fafafa` |
+| 카드/모달 배경 | `bg-card` | `#ffffff` |
+| 보조 면/입력 | `bg-subtle` | `#f5f6f8` |
+| 테두리 (기본) | `border-line` | `#eceef4` |
+| 테두리 (강조) | `border-strong` | `#c9cdd3` |
+| 텍스트 (기본) | `text-ink` | `#35383b` |
+| 텍스트 (보조) | `text-ink2` | `#60666c` |
+| 텍스트 (흐림) | `text-ink3` | `#9da0a5` |
+| 액센트 (채움/버튼/뱃지) | `bg-brand` | `#01df82` |
+| 액센트 hover | `hover:bg-brand-hover` | `#00c972` |
+| **액센트 글씨**(흰 배경 대비) | `text-brand-strong` | `#1f9d68` |
+| 액센트 배경 (연한) | `bg-brand-bg` | `#e6fcf3` |
+| 카카오톡 버튼 배경/텍스트 | `bg-[#FEE500]` / `text-[#3C1E1E]` | 유지 |
+| 인스타 뱃지 | `text-[#E4405F]` 등 | 유지 |
 
 ### 컴포넌트 클래스 패턴
 
 ```tsx
 // 카드
-<div className="bg-[#1E1E1E] border border-[#333333] rounded-lg hover:border-[#01DF82] transition-colors">
+<div className="bg-card border border-line rounded-lg hover:border-brand transition-colors">
 
-// 주요 버튼 (CTA)
-<button className="bg-[#01DF82] text-black font-bold rounded-lg hover:bg-[#00C972] transition-colors">
+// 주요 버튼 (CTA) — 초록 위 검정 텍스트 유지
+<button className="bg-brand text-black font-bold rounded-lg hover:bg-brand-hover transition-colors">
 
 // 보조 버튼
-<button className="bg-[#2A2A2A] text-white rounded-lg hover:bg-[#333333] transition-colors">
+<button className="bg-subtle text-ink rounded-lg hover:bg-subtle transition-colors">
 
-// 태그/뱃지
-<span className="bg-[#01DF82]/15 text-[#01DF82] border border-[#01DF82]/30 rounded-full">
+// 태그/뱃지 — 초록은 글씨로 쓸 때 text-brand-strong (대비)
+<span className="bg-brand-bg text-brand-strong border border-brand/30 rounded-full">
 ```
 
 ### 디자인 원칙
 
-- **다크 테마 고정** (라이트 모드 없음)
+- **라이트 테마 (캠핏 DS 2.5)** — `#fafafa` 배경 / 흰 카드 / `#01DF82` 그린 액센트. 다크/라이트 토글은 없음(영구 라이트).
+- **흰 배경 위 초록 글씨는 `text-brand-strong`**(`#01df82`는 흰 배경에서 대비 부족). 초록 버튼은 `bg-brand text-black` 유지.
+- **어두운 스크림 위 텍스트는 `text-white` 유지**(예: 마감 뱃지 `bg-black/80`, 빨강 버튼 `bg-red-500`).
 - **모바일 퍼스트** — 사용자 90%가 모바일. 최대 너비: `max-w-md`
 - `rounded-lg` (카드), `rounded-xl`/`rounded-2xl` (모달), `rounded-full` (태그)
 - 모든 사용자 대면 텍스트는 **한국어**

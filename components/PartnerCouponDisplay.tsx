@@ -27,22 +27,22 @@ export default function PartnerCouponDisplay({
     };
 
     return (
-        <div className="bg-[#252525] border border-[#3A3A3A] rounded-lg p-3">
-            <p className="text-xs text-[#9CA3AF] mb-1.5">{label}</p>
+        <div className="bg-subtle border border-strong rounded-lg p-3">
+            <p className="text-xs text-ink2 mb-1.5">{label}</p>
             {hasCouponCode ? (
                 <div className="flex items-center justify-between gap-2">
-                    <code className="text-sm font-mono text-[#01DF82] break-all">
+                    <code className="text-sm font-mono text-brand-strong break-all">
                         {couponCode}
                     </code>
                     <button
                         onClick={handleCopy}
-                        className="shrink-0 px-3 py-1.5 text-xs font-medium bg-[#01DF82] text-black rounded-md hover:bg-[#00C972] transition-colors"
+                        className="shrink-0 px-3 py-1.5 text-xs font-medium bg-brand text-black rounded-md hover:bg-brand-hover transition-colors"
                     >
                         {copied ? '복사됨' : '복사'}
                     </button>
                 </div>
             ) : (
-                <p className="text-sm text-[#666666]">쿠폰 코드 준비 중</p>
+                <p className="text-sm text-ink3">쿠폰 코드 준비 중</p>
             )}
         </div>
     );

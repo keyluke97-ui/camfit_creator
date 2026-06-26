@@ -3,6 +3,9 @@
 
 import { useState, useEffect, useRef } from 'react';
 import type { SponsorshipType, ChannelType } from '@/types';
+// CHANGED: 캠냥이 마스코트 + 오브젝트 아이콘
+import Mascot from './Mascot';
+import BrandIcon from './BrandIcon';
 
 interface ContentSubmitModalProps {
     isOpen: boolean;
@@ -207,11 +210,11 @@ export default function ContentSubmitModal({
     return (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
             <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-            <div className="relative w-full max-w-md max-h-[90vh] overflow-y-auto bg-[#1E1E1E] rounded-t-2xl sm:rounded-2xl border border-[#333333] p-6">
+            <div className="relative w-full max-w-md max-h-[90vh] overflow-y-auto bg-card rounded-t-2xl sm:rounded-2xl border border-line p-6">
                 {/* 닫기 버튼 */}
                 <button
                     onClick={onClose}
-                    className="absolute top-4 right-4 text-[#666666] hover:text-white transition-colors"
+                    className="absolute top-4 right-4 text-ink3 hover:text-ink transition-colors"
                 >
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -221,12 +224,12 @@ export default function ContentSubmitModal({
                 {step === 'form' && (
                     <>
                         {/* CHANGED: 용어 통일 '제출' → '전달' (진입 배너와 일치) */}
-                        <h2 className="text-lg font-bold text-white mb-6">콘텐츠 전달</h2>
+                        <h2 className="text-lg font-bold text-ink mb-6">콘텐츠 전달</h2>
 
                         {/* 협찬 종류 선택 */}
                         <div className="mb-4">
-                            <label className="block text-sm font-medium text-white mb-2">
-                                협찬의 종류를 골라주세요 <span className="text-red-400">*</span>
+                            <label className="block text-sm font-medium text-ink mb-2">
+                                협찬의 종류를 골라주세요 <span className="text-red-500">*</span>
                             </label>
                             <div className="flex gap-2">
                                 {(['캠핑장 예약', '프리미엄 협찬'] as SponsorshipType[]).map((type) => (
@@ -242,8 +245,8 @@ export default function ContentSubmitModal({
                                         }}
                                         className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-colors ${
                                             sponsorshipType === type
-                                                ? 'bg-[#01DF82] text-black'
-                                                : 'bg-[#2A2A2A] text-[#888888] hover:text-white'
+                                                ? 'bg-brand text-black'
+                                                : 'bg-subtle text-ink3 hover:text-ink'
                                         }`}
                                     >
                                         {type}
@@ -254,38 +257,38 @@ export default function ContentSubmitModal({
 
                         {/* 업로드 날짜 */}
                         <div className="mb-4">
-                            <label className="block text-sm font-medium text-white mb-2">
-                                업로드 날짜 <span className="text-red-400">*</span>
+                            <label className="block text-sm font-medium text-ink mb-2">
+                                업로드 날짜 <span className="text-red-500">*</span>
                             </label>
                             <input
                                 type="date"
                                 value={uploadDate}
                                 onChange={(e) => setUploadDate(e.target.value)}
-                                className="w-full h-12 px-4 bg-[#111111] text-white border border-[#333333] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#01DF82] focus:border-transparent"
+                                className="w-full h-12 px-4 bg-page text-ink border border-line rounded-lg focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
                             />
                         </div>
 
                         {/* 콘텐츠 링크 */}
                         <div className="mb-4">
                             {/* CHANGED: 톤 통일 — '알려주세요~' 친근체 제거 */}
-                            <label className="block text-sm font-medium text-white mb-2">
-                                업로드한 콘텐츠 링크 <span className="text-red-400">*</span>
+                            <label className="block text-sm font-medium text-ink mb-2">
+                                업로드한 콘텐츠 링크 <span className="text-red-500">*</span>
                             </label>
                             <input
                                 type="url"
                                 value={contentLink}
                                 onChange={(e) => setContentLink(e.target.value)}
                                 placeholder="https://"
-                                className="w-full h-12 px-4 bg-[#111111] text-white border border-[#333333] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#01DF82] focus:border-transparent placeholder-[#666666]"
+                                className="w-full h-12 px-4 bg-page text-ink border border-line rounded-lg focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent placeholder-[#9da0a5]"
                             />
                         </div>
 
                         {/* CHANGED: 콘텐츠2/3/4 다중 채널 링크 — 일반/프리미엄 공통, 점진적 추가 (최대 3) */}
                         <div className="mb-4">
-                            <label className="block text-sm font-medium text-white mb-1">
+                            <label className="block text-sm font-medium text-ink mb-1">
                                 다른 채널에도 올리셨나요?
                             </label>
-                            <p className="text-[11px] text-[#888888] mb-2 leading-relaxed">
+                            <p className="text-[11px] text-ink3 mb-2 leading-relaxed">
                                 같은 콘텐츠를 인스타·블로그·유튜브 등 다른 채널에도 올리셨다면 링크를 추가해주세요. (선택)
                             </p>
                             {extraLinks.map((link, i) => (
@@ -295,13 +298,13 @@ export default function ContentSubmitModal({
                                         value={link}
                                         onChange={(e) => setExtraLinks((prev) => prev.map((l, idx) => (idx === i ? e.target.value : l)))}
                                         placeholder="https://"
-                                        className="flex-1 h-12 px-4 bg-[#111111] text-white border border-[#333333] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#01DF82] focus:border-transparent placeholder-[#666666]"
+                                        className="flex-1 h-12 px-4 bg-page text-ink border border-line rounded-lg focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent placeholder-[#9da0a5]"
                                     />
                                     <button
                                         type="button"
                                         onClick={() => setExtraLinks((prev) => prev.filter((_, idx) => idx !== i))}
                                         aria-label="링크 삭제"
-                                        className="w-10 h-12 flex items-center justify-center text-[#666666] hover:text-red-400 transition-colors shrink-0"
+                                        className="w-10 h-12 flex items-center justify-center text-ink3 hover:text-red-500 transition-colors shrink-0"
                                     >
                                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -313,7 +316,7 @@ export default function ContentSubmitModal({
                                 <button
                                     type="button"
                                     onClick={() => setExtraLinks((prev) => [...prev, ''])}
-                                    className="flex items-center gap-1.5 text-sm font-medium text-[#01DF82] hover:text-[#00C972] transition-colors"
+                                    className="flex items-center gap-1.5 text-sm font-medium text-brand-strong hover:text-brand-strong transition-colors"
                                 >
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -329,8 +332,8 @@ export default function ContentSubmitModal({
                                 {/* 숙소 검색 드롭다운 */}
                                 <div className="mb-4 relative" ref={accommodationDropdownRef}>
                                     {/* CHANGED: 톤 통일 — 명령형 + 느낌표 제거 */}
-                                    <label className="block text-sm font-medium text-white mb-2">
-                                        다녀온 숙소 <span className="text-red-400">*</span>
+                                    <label className="block text-sm font-medium text-ink mb-2">
+                                        다녀온 숙소 <span className="text-red-500">*</span>
                                     </label>
                                     <input
                                         type="text"
@@ -341,19 +344,19 @@ export default function ContentSubmitModal({
                                         }}
                                         onFocus={() => setIsAccommodationDropdownOpen(true)}
                                         placeholder="캠핑장명 검색..."
-                                        className="w-full h-12 px-4 bg-[#111111] text-white border border-[#333333] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#01DF82] focus:border-transparent placeholder-[#666666]"
+                                        className="w-full h-12 px-4 bg-page text-ink border border-line rounded-lg focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent placeholder-[#9da0a5]"
                                         autoComplete="off"
                                     />
                                     {isAccommodationDropdownOpen && (
-                                        <div className="absolute z-[100] w-full mt-1 bg-[#1E1E1E] border border-[#333333] rounded-lg shadow-[0_10px_40px_rgba(0,0,0,0.5)] max-h-[200px] overflow-y-auto">
+                                        <div className="absolute z-[100] w-full mt-1 bg-card border border-line rounded-lg shadow-[0_10px_40px_rgba(0,0,0,0.5)] max-h-[200px] overflow-y-auto">
                                             {accommodationOptions.length > 0 ? (
                                                 accommodationOptions.map((option) => (
                                                     <div
                                                         key={option.id}
                                                         className={`px-4 py-3 text-sm cursor-pointer transition-colors ${
                                                             selectedAccommodation?.id === option.id
-                                                                ? 'text-[#01DF82] bg-[#2A2A2A]'
-                                                                : 'text-white hover:bg-[#2A2A2A]'
+                                                                ? 'text-brand-strong bg-subtle'
+                                                                : 'text-ink hover:bg-subtle'
                                                         }`}
                                                         onMouseDown={(e) => {
                                                             e.preventDefault();
@@ -366,7 +369,7 @@ export default function ContentSubmitModal({
                                                     </div>
                                                 ))
                                             ) : (
-                                                <div className="px-4 py-4 text-sm text-[#666666] text-center">
+                                                <div className="px-4 py-4 text-sm text-ink3 text-center">
                                                     검색 결과가 없습니다.
                                                 </div>
                                             )}
@@ -376,10 +379,10 @@ export default function ContentSubmitModal({
 
                                 {/* 캠핏 라운지 콘텐츠 업로드 */}
                                 <div className="mb-4">
-                                    <label className="block text-sm font-medium text-white mb-1">
+                                    <label className="block text-sm font-medium text-ink mb-1">
                                         캠핏 라운지 콘텐츠 업로드
                                     </label>
-                                    <p className="text-[11px] text-[#888888] mb-2 leading-relaxed">
+                                    <p className="text-[11px] text-ink3 mb-2 leading-relaxed">
                                         필수는 아닙니다! 캠핏 라운지 탭에서 같은 콘텐츠 그대로 복붙해주세요.
                                     </p>
                                     <input
@@ -387,7 +390,7 @@ export default function ContentSubmitModal({
                                         value={camfitLoungeUrl}
                                         onChange={(e) => setCamfitLoungeUrl(e.target.value)}
                                         placeholder="캠핏 라운지 게시글 링크"
-                                        className="w-full h-12 px-4 bg-[#111111] text-white border border-[#333333] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#01DF82] focus:border-transparent placeholder-[#666666]"
+                                        className="w-full h-12 px-4 bg-page text-ink border border-line rounded-lg focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent placeholder-[#9da0a5]"
                                     />
                                 </div>
 
@@ -398,8 +401,8 @@ export default function ContentSubmitModal({
                         {sponsorshipType === '프리미엄 협찬' && (
                             <div className="mb-4 relative" ref={campaignDropdownRef}>
                                 {/* CHANGED: 조건절 라벨 → 입력 대상 명확화 */}
-                                <label className="block text-sm font-medium text-white mb-2">
-                                    프리미엄 협찬 캠핑장 <span className="text-red-400">*</span>
+                                <label className="block text-sm font-medium text-ink mb-2">
+                                    프리미엄 협찬 캠핑장 <span className="text-red-500">*</span>
                                 </label>
                                 <input
                                     type="text"
@@ -410,19 +413,19 @@ export default function ContentSubmitModal({
                                     }}
                                     onFocus={() => setIsCampaignDropdownOpen(true)}
                                     placeholder="캠핑장명 검색..."
-                                    className="w-full h-12 px-4 bg-[#111111] text-white border border-[#333333] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#01DF82] focus:border-transparent placeholder-[#666666]"
+                                    className="w-full h-12 px-4 bg-page text-ink border border-line rounded-lg focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent placeholder-[#9da0a5]"
                                     autoComplete="off"
                                 />
                                 {isCampaignDropdownOpen && (
-                                    <div className="absolute z-[100] w-full mt-1 bg-[#1E1E1E] border border-[#333333] rounded-lg shadow-[0_10px_40px_rgba(0,0,0,0.5)] max-h-[200px] overflow-y-auto">
+                                    <div className="absolute z-[100] w-full mt-1 bg-card border border-line rounded-lg shadow-[0_10px_40px_rgba(0,0,0,0.5)] max-h-[200px] overflow-y-auto">
                                         {campaignOptions.length > 0 ? (
                                             campaignOptions.map((option) => (
                                                 <div
                                                     key={option.id}
                                                     className={`px-4 py-3 text-sm cursor-pointer transition-colors ${
                                                         selectedCampaign?.id === option.id
-                                                            ? 'text-[#01DF82] bg-[#2A2A2A]'
-                                                            : 'text-white hover:bg-[#2A2A2A]'
+                                                            ? 'text-brand-strong bg-subtle'
+                                                            : 'text-ink hover:bg-subtle'
                                                     }`}
                                                     onMouseDown={(e) => {
                                                         e.preventDefault();
@@ -436,9 +439,9 @@ export default function ContentSubmitModal({
                                             ))
                                         ) : (
                                             // CHANGED: 빈 결과 시 노출 정책 안내 추가
-                                            <div className="px-4 py-4 text-xs text-[#888888] text-center leading-relaxed">
+                                            <div className="px-4 py-4 text-xs text-ink3 text-center leading-relaxed">
                                                 검색 결과가 없어요.<br />
-                                                <span className="text-[#666666]">신청한 프리미엄 캠페인만 표시되며,<br />이미 콘텐츠를 전달한 캠페인은 제외돼요.</span>
+                                                <span className="text-ink3">신청한 프리미엄 캠페인만 표시되며,<br />이미 콘텐츠를 전달한 캠페인은 제외돼요.</span>
                                             </div>
                                         )}
                                     </div>
@@ -460,15 +463,15 @@ export default function ContentSubmitModal({
                                     }}
                                     className={`w-full flex items-center justify-between px-4 py-3 rounded-lg border transition-all ${
                                         officialCollabRequest
-                                            ? 'bg-[#01DF82]/10 border-[#01DF82]/40'
-                                            : 'bg-[#2A2A2A] border-[#333] hover:border-[#555]'
+                                            ? 'bg-brand-bg border-brand/40'
+                                            : 'bg-subtle border-line hover:border-strong'
                                     }`}
                                 >
                                     <div className="flex items-center gap-2.5">
                                         <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
                                             officialCollabRequest
-                                                ? 'border-[#01DF82] bg-[#01DF82]'
-                                                : 'border-[#555]'
+                                                ? 'border-brand bg-brand'
+                                                : 'border-strong'
                                         }`}>
                                             {officialCollabRequest && (
                                                 <svg className="w-3 h-3 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -476,7 +479,7 @@ export default function ContentSubmitModal({
                                                 </svg>
                                             )}
                                         </div>
-                                        <span className={`text-sm font-medium ${officialCollabRequest ? 'text-[#01DF82]' : 'text-white'}`}>
+                                        <span className={`text-sm font-medium ${officialCollabRequest ? 'text-brand-strong' : 'text-ink'}`}>
                                             캠핏 오피셜 공동작업 요청
                                         </span>
                                     </div>
@@ -487,39 +490,39 @@ export default function ContentSubmitModal({
 
                                 {/* 체크 시 안내사항 펼쳐짐 */}
                                 {officialCollabRequest && (
-                                    <div className="mt-2 bg-[#111] border border-[#333] rounded-lg p-4 space-y-3">
-                                        <p className="text-xs font-bold text-yellow-400">💡 공동작업 요청 전 참고해주세요</p>
-                                        <div className="space-y-2.5 text-xs text-[#B0B0B0] leading-relaxed">
+                                    <div className="mt-2 bg-page border border-line rounded-lg p-4 space-y-3">
+                                        <p className="text-xs font-bold text-ink flex items-center gap-1"><BrandIcon name="bulb" size={15} />공동작업 요청 전 참고해주세요</p>
+                                        <div className="space-y-2.5 text-xs text-ink2 leading-relaxed">
                                             <div className="flex gap-2">
-                                                <span className="text-[#01DF82] shrink-0">1.</span>
-                                                <p>콘텐츠 업로드 후 <strong className="text-white">@camfit_official</strong> 계정으로 공동작업을 요청해주시면 됩니다.<br/>
-                                                <span className="text-[#888888]">(제출 → 공동작업 요청 순서로 진행해주시면 담당팀에서 빠르게 확인할 수 있어요)</span></p>
+                                                <span className="text-brand-strong shrink-0">1.</span>
+                                                <p>콘텐츠 업로드 후 <strong className="text-ink">@camfit_official</strong> 계정으로 공동작업을 요청해주시면 됩니다.<br/>
+                                                <span className="text-ink3">(제출 → 공동작업 요청 순서로 진행해주시면 담당팀에서 빠르게 확인할 수 있어요)</span></p>
                                             </div>
                                             <div className="flex gap-2">
-                                                <span className="text-[#01DF82] shrink-0">2.</span>
-                                                <p>오피셜 계정 특성상 <strong className="text-white">캠핑장 소개 관련 콘텐츠</strong>에 한해 함께 게시할 수 있어요.</p>
+                                                <span className="text-brand-strong shrink-0">2.</span>
+                                                <p>오피셜 계정 특성상 <strong className="text-ink">캠핑장 소개 관련 콘텐츠</strong>에 한해 함께 게시할 수 있어요.</p>
                                             </div>
                                             <div className="flex gap-2">
-                                                <span className="text-[#01DF82] shrink-0">3.</span>
-                                                <p>당일 업로드 건이 많을 경우 인스타 그리드 <strong className="text-white">최상단(최신 순) 노출이 어려울 수 있어요.</strong><br/>
-                                                <span className="text-[#888888]">(희망하시면 진행 가능하지만, 인스타그램 알고리즘 특성상 최신 노출은 어려운 점 양해 부탁드려요)</span></p>
+                                                <span className="text-brand-strong shrink-0">3.</span>
+                                                <p>당일 업로드 건이 많을 경우 인스타 그리드 <strong className="text-ink">최상단(최신 순) 노출이 어려울 수 있어요.</strong><br/>
+                                                <span className="text-ink3">(희망하시면 진행 가능하지만, 인스타그램 알고리즘 특성상 최신 노출은 어려운 점 양해 부탁드려요)</span></p>
                                             </div>
                                         </div>
 
                                         <button
                                             type="button"
                                             onClick={() => setCollabConfirmed(prev => !prev)}
-                                            className={`w-full flex items-center gap-2.5 pt-3 mt-1 border-t border-[#333] ${
-                                                collabConfirmed ? 'text-[#01DF82]' : 'text-[#888888]'
+                                            className={`w-full flex items-center gap-2.5 pt-3 mt-1 border-t border-line ${
+                                                collabConfirmed ? 'text-brand-strong' : 'text-ink3'
                                             }`}
                                         >
                                             <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${
                                                 collabConfirmed
-                                                    ? 'border-[#01DF82] bg-[#01DF82]/20'
-                                                    : 'border-[#555] bg-transparent'
+                                                    ? 'border-brand bg-brand-bg'
+                                                    : 'border-strong bg-transparent'
                                             }`}>
                                                 {collabConfirmed && (
-                                                    <svg className="w-2.5 h-2.5 text-[#01DF82]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <svg className="w-2.5 h-2.5 text-brand-strong" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                                                     </svg>
                                                 )}
@@ -534,7 +537,7 @@ export default function ContentSubmitModal({
                         {/* 에러 메시지 */}
                         {error && (
                             <div className="mb-4 bg-red-500/10 border border-red-500/30 rounded-lg p-3">
-                                <p className="text-red-400 text-sm text-center">{error}</p>
+                                <p className="text-red-500 text-sm text-center">{error}</p>
                             </div>
                         )}
 
@@ -542,7 +545,7 @@ export default function ContentSubmitModal({
                         <button
                             onClick={handleSubmit}
                             disabled={isLoading || !sponsorshipType}
-                            className="w-full h-12 bg-[#01DF82] text-black font-bold text-base rounded-xl hover:bg-[#00C972] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                            className="w-full h-12 bg-brand text-black font-bold text-base rounded-xl hover:bg-brand-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                         >
                             {isLoading ? (
                                 <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin" />
@@ -556,24 +559,21 @@ export default function ContentSubmitModal({
 
                 {step === 'success' && (
                     <div className="flex flex-col items-center justify-center py-8 gap-4">
-                        <div className="w-16 h-16 bg-[#01DF82]/10 rounded-full flex items-center justify-center">
-                            <svg className="w-8 h-8 text-[#01DF82]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
-                        </div>
+                        {/* CHANGED: 체크 SVG → 트로피 든 캠냥이 마스코트 */}
+                        <Mascot expression="trophy" size={112} priority />
                         {/* CHANGED: 용어 통일 + 정산 일정 후속 안내 추가 */}
-                        <h3 className="text-lg font-bold text-white">전달 완료!</h3>
-                        <p className="text-sm text-[#888888] text-center">
+                        <h3 className="text-lg font-bold text-ink">전달 완료!</h3>
+                        <p className="text-sm text-ink3 text-center">
                             콘텐츠가 성공적으로 전달되었습니다.
                         </p>
-                        <div className="w-full bg-[#01DF82]/10 border border-[#01DF82]/20 rounded-lg px-4 py-3">
-                            <p className="text-xs text-[#01DF82] text-center font-medium">
-                                💰 검수 후 익월 10일에 정산이 진행돼요
+                        <div className="w-full bg-brand-bg border border-brand/20 rounded-lg px-4 py-3">
+                            <p className="text-xs text-brand-strong text-center font-medium flex items-center justify-center gap-1">
+                                <BrandIcon name="briefcase" size={15} /> 검수 후 익월 10일에 정산이 진행돼요
                             </p>
                         </div>
                         <button
                             onClick={onClose}
-                            className="w-full h-12 bg-[#01DF82] text-black font-bold rounded-xl hover:bg-[#00C972] transition-colors mt-2"
+                            className="w-full h-12 bg-brand text-black font-bold rounded-xl hover:bg-brand-hover transition-colors mt-2"
                         >
                             확인
                         </button>

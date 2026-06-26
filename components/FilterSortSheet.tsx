@@ -67,20 +67,20 @@ export default function FilterSortSheet({
 
             {/* 시트 패널 */}
             <div
-                className={`absolute bottom-0 left-0 right-0 max-w-md mx-auto bg-[#1E1E1E] border-t border-[#333333] rounded-t-2xl transition-transform duration-300 ${isOpen ? 'translate-y-0' : 'translate-y-full'}`}
+                className={`absolute bottom-0 left-0 right-0 max-w-md mx-auto bg-card border-t border-line rounded-t-2xl transition-transform duration-300 ${isOpen ? 'translate-y-0' : 'translate-y-full'}`}
                 role="dialog"
                 aria-modal="true"
                 aria-label="정렬 및 필터"
             >
                 {/* 핸들 + 헤더 */}
                 <div className="flex flex-col items-center pt-3 pb-1">
-                    <div className="w-10 h-1 rounded-full bg-[#444444]" />
+                    <div className="w-10 h-1 rounded-full bg-subtle" />
                 </div>
                 <div className="flex items-center justify-between px-5 pt-2 pb-3">
-                    <h2 className="text-base font-bold text-white">정렬·필터</h2>
+                    <h2 className="text-base font-bold text-ink">정렬·필터</h2>
                     <button
                         onClick={handleReset}
-                        className="text-xs text-[#888888] hover:text-white transition-colors cursor-pointer"
+                        className="text-xs text-ink3 hover:text-ink transition-colors cursor-pointer"
                     >
                         초기화
                     </button>
@@ -89,7 +89,7 @@ export default function FilterSortSheet({
                 <div className="px-5 pb-2 max-h-[60vh] overflow-y-auto">
                     {/* 정렬 섹션 */}
                     <section className="mb-5">
-                        <h3 className="text-xs font-medium text-[#888888] mb-2">정렬</h3>
+                        <h3 className="text-xs font-medium text-ink3 mb-2">정렬</h3>
                         <div className="flex flex-col gap-2">
                             {SORT_OPTIONS.map((option) => {
                                 const active = draftSort === option.key;
@@ -99,13 +99,13 @@ export default function FilterSortSheet({
                                         onClick={() => setDraftSort(option.key)}
                                         className={`flex items-center justify-between w-full px-4 py-3 rounded-xl text-sm cursor-pointer transition-colors ${
                                             active
-                                                ? 'bg-[#01DF82]/10 border border-[#01DF82] text-white'
-                                                : 'bg-[#2A2A2A] border border-[#333333] text-[#B0B0B0] hover:border-[#555555]'
+                                                ? 'bg-brand-bg border border-brand text-ink'
+                                                : 'bg-subtle border border-line text-ink2 hover:border-strong'
                                         }`}
                                     >
                                         <span>{option.label}</span>
                                         {active && (
-                                            <svg className="w-4 h-4 text-[#01DF82]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <svg className="w-4 h-4 text-brand-strong" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                             </svg>
                                         )}
@@ -118,14 +118,14 @@ export default function FilterSortSheet({
                     {/* 지역 필터 섹션 */}
                     {locationCounts.length > 0 && (
                         <section className="mb-2">
-                            <h3 className="text-xs font-medium text-[#888888] mb-2">지역</h3>
+                            <h3 className="text-xs font-medium text-ink3 mb-2">지역</h3>
                             <div className="flex flex-wrap gap-2">
                                 <button
                                     onClick={() => setDraftLocation('전체')}
                                     className={`px-3 py-1.5 text-xs rounded-full whitespace-nowrap cursor-pointer transition-colors ${
                                         draftLocation === '전체'
-                                            ? 'bg-[#01DF82] text-black font-medium'
-                                            : 'bg-[#2A2A2A] text-[#888888] border border-[#333333]'
+                                            ? 'bg-brand text-black font-medium'
+                                            : 'bg-subtle text-ink3 border border-line'
                                     }`}
                                 >
                                     전체 ({totalCount})
@@ -136,8 +136,8 @@ export default function FilterSortSheet({
                                         onClick={() => setDraftLocation(location)}
                                         className={`px-3 py-1.5 text-xs rounded-full whitespace-nowrap cursor-pointer transition-colors ${
                                             draftLocation === location
-                                                ? 'bg-[#01DF82] text-black font-medium'
-                                                : 'bg-[#2A2A2A] text-[#888888] border border-[#333333]'
+                                                ? 'bg-brand text-black font-medium'
+                                                : 'bg-subtle text-ink3 border border-line'
                                         }`}
                                     >
                                         {location} ({count})
@@ -149,10 +149,10 @@ export default function FilterSortSheet({
                 </div>
 
                 {/* 푸터 CTA — 결과 개수 실시간 반영 (Baymard 권장) */}
-                <div className="px-5 py-4 border-t border-[#333333]" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
+                <div className="px-5 py-4 border-t border-line" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
                     <button
                         onClick={handleApply}
-                        className="w-full py-3 bg-[#01DF82] text-black font-bold rounded-xl hover:bg-[#00C972] transition-colors cursor-pointer"
+                        className="w-full py-3 bg-brand text-black font-bold rounded-xl hover:bg-brand-hover transition-colors cursor-pointer"
                     >
                         캠페인 {resultCount}개 보기
                     </button>

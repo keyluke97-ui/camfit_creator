@@ -51,25 +51,25 @@ export default function HighlightsModal({
 
             {/* 바텀시트 컨테이너 */}
             <div
-                className="relative w-full max-w-md bg-[#1E1E1E] rounded-t-2xl border-t border-x border-[#333333] max-h-[75vh] flex flex-col animate-slideUp"
+                className="relative w-full max-w-md bg-card rounded-t-2xl border-t border-x border-line max-h-[75vh] flex flex-col animate-slideUp"
                 onClick={(event) => event.stopPropagation()}
             >
                 {/* 드래그 핸들 */}
                 <div className="flex justify-center pt-3 pb-2">
-                    <div className="w-10 h-1 bg-[#555555] rounded-full" />
+                    <div className="w-10 h-1 bg-subtle rounded-full" />
                 </div>
 
                 {/* 헤더 */}
-                <div className="flex items-center justify-between px-5 pb-3 border-b border-[#333333]">
+                <div className="flex items-center justify-between px-5 pb-3 border-b border-line">
                     <div className="flex-1 min-w-0">
-                        <h3 className="text-lg font-bold text-white truncate">
+                        <h3 className="text-lg font-bold text-ink truncate">
                             {accommodationName}
                         </h3>
-                        <p className="text-xs text-[#9CA3AF] mt-0.5">숙소 특장점</p>
+                        <p className="text-xs text-ink2 mt-0.5">숙소 특장점</p>
                     </div>
                     <button
                         onClick={onClose}
-                        className="ml-3 w-8 h-8 flex items-center justify-center text-[#9CA3AF] hover:text-white transition-colors rounded-full hover:bg-[#333333]"
+                        className="ml-3 w-8 h-8 flex items-center justify-center text-ink2 hover:text-ink transition-colors rounded-full hover:bg-subtle"
                         aria-label="닫기"
                     >
                         ✕
@@ -82,7 +82,7 @@ export default function HighlightsModal({
                         {paragraphs.map((paragraph, index) => (
                             <p
                                 key={index}
-                                className="text-sm text-[#E0E0E0] leading-relaxed"
+                                className="text-sm text-ink leading-relaxed"
                             >
                                 {paragraph}
                             </p>

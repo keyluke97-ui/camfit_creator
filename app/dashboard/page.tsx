@@ -14,6 +14,9 @@ import ContentCardCompact from '@/components/ContentCardCompact';
 import ContentSubmitModal from '@/components/ContentSubmitModal';
 // CHANGED (IA v3): 콘텐츠 진입 배너 — 헤더 아이콘 대신 메인 영역 배너로 승격
 import ContentEntryBanner from '@/components/ContentEntryBanner';
+// CHANGED: 캠냥이 마스코트 (빈 상태) + 오브젝트 아이콘
+import Mascot from '@/components/Mascot';
+import BrandIcon from '@/components/BrandIcon';
 import type { Campaign, ContentUpload, TierLevel, ChannelType, CampaignSortKey } from '@/types';
 // CHANGED: 공통 상수를 constants.ts에서 import
 import { KAKAO_CHANNEL_URL } from '@/lib/constants';
@@ -35,8 +38,8 @@ interface UserInfo {
 export default function DashboardPage() {
     return (
         <Suspense fallback={
-            <div className="min-h-screen bg-[#111111] flex items-center justify-center">
-                <div className="w-10 h-10 border-4 border-[#01DF82] border-t-transparent rounded-full animate-spin"></div>
+            <div className="min-h-screen bg-page flex items-center justify-center">
+                <div className="w-10 h-10 border-4 border-brand border-t-transparent rounded-full animate-spin"></div>
             </div>
         }>
             <DashboardContent />
@@ -204,23 +207,23 @@ function DashboardContent() {
     };
 
     return (
-        <div className="min-h-screen bg-[#111111] pb-20">
+        <div className="min-h-screen bg-page pb-20">
             {/* Header */}
-            <header className="sticky top-0 z-10 bg-[#111111]/95 backdrop-blur-sm border-b border-[#333333]">
+            <header className="sticky top-0 z-10 bg-page/95 backdrop-blur-sm border-b border-line">
                 <div className="max-w-7xl mx-auto px-5 py-4">
                     {/* CHANGED: 콘텐츠 뷰일 때 별도 헤더 */}
                     {showContentView ? (
                         <div className="flex items-center gap-3">
                             <button
                                 onClick={handleCloseContentView}
-                                className="p-2 -ml-2 text-[#888888] hover:text-white transition-colors"
+                                className="p-2 -ml-2 text-ink3 hover:text-ink transition-colors"
                                 aria-label="캠페인 보기로 돌아가기"
                             >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                                 </svg>
                             </button>
-                            <h1 className="text-lg font-bold text-white">내 콘텐츠</h1>
+                            <h1 className="text-lg font-bold text-ink">내 콘텐츠</h1>
                         </div>
                     ) : (
                         <>
@@ -228,10 +231,10 @@ function DashboardContent() {
                             <div className="flex items-center justify-between mb-4">
                                 <div className="flex flex-col gap-1">
                                     {/* CHANGED: 크리에이터 등급 뱃지 일시 삭제 */}
-                                    <h1 className="text-xl font-bold text-white truncate max-w-[200px]">
+                                    <h1 className="text-xl font-bold text-ink truncate max-w-[200px]">
                                         {userInfo?.channelName || '로딩 중...'}
                                     </h1>
-                                    <p className="text-xs text-[#888888]">오늘도 즐거운 캠핑 되세요! ⛺️</p>
+                                    <p className="text-xs text-ink3 flex items-center gap-1">오늘도 즐거운 캠핑 되세요!<BrandIcon name="tent" size={14} /></p>
                                 </div>
 
                                 {/* CHANGED (IA v3): 콘텐츠 아이콘 제거 — 메인 영역 ContentEntryBanner로 승격. 알림/로그아웃만 유지 */}
@@ -242,7 +245,7 @@ function DashboardContent() {
                                     />
                                     <button
                                         onClick={handleLogout}
-                                        className="flex flex-col items-center gap-0.5 px-2 py-1 text-[#666666] hover:text-white transition-colors"
+                                        className="flex flex-col items-center gap-0.5 px-2 py-1 text-ink3 hover:text-ink transition-colors"
                                         aria-label="로그아웃"
                                     >
                                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -257,7 +260,7 @@ function DashboardContent() {
                             {userInfo?.premiumId && (
                                 <button
                                     onClick={() => setIsCheckinModalOpen(true)}
-                                    className="w-full h-12 bg-[#01DF82] text-black font-bold text-base rounded-xl hover:bg-[#00C972] transition-colors shadow-lg shadow-[#01DF82]/10 flex items-center justify-center gap-2"
+                                    className="w-full h-12 bg-brand text-black font-bold text-base rounded-xl hover:bg-brand-hover transition-colors shadow-lg shadow-brand/20 flex items-center justify-center gap-2"
                                 >
                                     {/* CHANGED: CTA 버튼 이모지 제거 */}
                                     <span>입실 일정 등록하기</span>
@@ -280,14 +283,14 @@ function DashboardContent() {
                 {/* 에러 메시지 */}
                 {errorMessage && (
                     <div className="mb-6 bg-red-500/10 border border-red-500/30 rounded-xl p-4">
-                        <p className="text-red-400 text-sm text-center font-medium">{errorMessage}</p>
+                        <p className="text-red-500 text-sm text-center font-medium">{errorMessage}</p>
                     </div>
                 )}
 
                 {loading && (
                     <div className="flex flex-col items-center justify-center py-20 gap-4">
-                        <div className="w-10 h-10 border-4 border-[#01DF82] border-t-transparent rounded-full animate-spin"></div>
-                        <p className="text-sm text-[#666666]">데이터를 불러오고 있습니다...</p>
+                        <div className="w-10 h-10 border-4 border-brand border-t-transparent rounded-full animate-spin"></div>
+                        <p className="text-sm text-ink3">데이터를 불러오고 있습니다...</p>
                     </div>
                 )}
 
@@ -295,20 +298,19 @@ function DashboardContent() {
                 {/* CHANGED: 정산정보 미등록 CTA — /premium-register 등록 폼 링크 */}
                 {!loading && !showContentView && !userInfo?.premiumId && (
                     <div className="flex flex-col items-center justify-center py-16 gap-6">
-                        <div className="w-16 h-16 bg-[#01DF82]/10 rounded-full flex items-center justify-center">
-                            <span className="text-3xl">🌟</span>
-                        </div>
+                        {/* CHANGED: 🌟 이모지 → 메모하는 캠냥이 마스코트 */}
+                        <Mascot expression="inspect-memo" size={96} />
                         <div className="text-center">
                             {/* CHANGED: 프리미엄 등록 = 원고료 지급을 위한 정산 정보 등록임을 명확화 */}
-                            <h3 className="text-lg font-bold text-white mb-2">정산 정보 등록 필요</h3>
-                            <p className="text-sm text-[#888888] leading-relaxed">
+                            <h3 className="text-lg font-bold text-ink mb-2">정산 정보 등록 필요</h3>
+                            <p className="text-sm text-ink3 leading-relaxed">
                                 원고료 지급을 위해<br />
                                 정산 정보를 먼저 등록해주세요.
                             </p>
                         </div>
                         <button
                             onClick={() => router.push('/premium-register')}
-                            className="px-6 py-3 bg-[#01DF82] text-black font-bold text-sm rounded-xl hover:bg-[#00C972] transition-colors flex items-center gap-2"
+                            className="px-6 py-3 bg-brand text-black font-bold text-sm rounded-xl hover:bg-brand-hover transition-colors flex items-center gap-2"
                         >
                             {/* CHANGED: 이모지 제거 + 정산 정보 등록 의미 명확화 */}
                             <span>정산 정보 등록하고 프리미엄 시작하기</span>
@@ -317,7 +319,7 @@ function DashboardContent() {
                             href={KAKAO_CHANNEL_URL}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-xs text-[#666666] hover:text-[#888888] transition-colors underline"
+                            className="text-xs text-ink3 hover:text-ink3 transition-colors underline"
                         >
                             문의사항은 카카오톡 채널로
                         </a>
@@ -329,13 +331,13 @@ function DashboardContent() {
                         {/* Stats Bar */}
                         {campaigns.length > 0 && (
                             <div className="flex gap-3 mb-4 overflow-x-auto pb-1 scrollbar-hide">
-                                <div className="flex-1 min-w-[140px] bg-[#1E1E1E] border border-[#333333] rounded-xl p-4 flex flex-col justify-center">
-                                    <span className="text-xs text-[#888888] mb-1">전체 캠페인</span>
-                                    <span className="text-xl font-bold text-white">{campaigns.length}개</span>
+                                <div className="flex-1 min-w-[140px] bg-card border border-line rounded-xl p-4 flex flex-col justify-center">
+                                    <span className="text-xs text-ink3 mb-1">전체 캠페인</span>
+                                    <span className="text-xl font-bold text-ink">{campaigns.length}개</span>
                                 </div>
-                                <div className="flex-1 min-w-[140px] bg-[#1E1E1E] border border-[#333333] rounded-xl p-4 flex flex-col justify-center">
-                                    <span className="text-xs text-[#888888] mb-1">신청 가능</span>
-                                    <span className="text-xl font-bold text-[#01DF82]">
+                                <div className="flex-1 min-w-[140px] bg-card border border-line rounded-xl p-4 flex flex-col justify-center">
+                                    <span className="text-xs text-ink3 mb-1">신청 가능</span>
+                                    <span className="text-xl font-bold text-brand-strong">
                                         {campaigns.filter(c => !c.isClosed).length}개
                                     </span>
                                 </div>
@@ -347,7 +349,7 @@ function DashboardContent() {
                             <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
                                 <button
                                     onClick={() => setIsFilterSheetOpen(true)}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-full whitespace-nowrap bg-[#01DF82]/10 text-[#01DF82] border border-[#01DF82]/30 cursor-pointer hover:bg-[#01DF82]/15 transition-colors"
+                                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-full whitespace-nowrap bg-brand-bg text-brand-strong border border-brand/30 cursor-pointer hover:bg-brand-bg transition-colors"
                                 >
                                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h18M7 12h10M11 20h2" />
@@ -357,10 +359,10 @@ function DashboardContent() {
                                 {selectedLocation !== '전체' && (
                                     <button
                                         onClick={() => setSelectedLocation('전체')}
-                                        className="flex items-center gap-1 px-3 py-1.5 text-xs rounded-full whitespace-nowrap bg-[#2A2A2A] text-white border border-[#333333] cursor-pointer hover:border-[#555555] transition-colors"
+                                        className="flex items-center gap-1 px-3 py-1.5 text-xs rounded-full whitespace-nowrap bg-subtle text-ink border border-line cursor-pointer hover:border-strong transition-colors"
                                     >
                                         {selectedLocation}
-                                        <svg className="w-3 h-3 text-[#888888]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <svg className="w-3 h-3 text-ink3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                         </svg>
                                     </button>
@@ -386,7 +388,7 @@ function DashboardContent() {
                                         <div className={activeCampaigns.length > 0 ? 'mt-8' : ''}>
                                             <button
                                                 onClick={() => setShowClosedCampaigns(previous => !previous)}
-                                                className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-[#1E1E1E] border border-[#333333] rounded-xl text-[#888888] hover:text-white hover:border-[#555555] transition-colors"
+                                                className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-card border border-line rounded-xl text-ink3 hover:text-ink hover:border-strong transition-colors"
                                             >
                                                 <span className="text-sm font-medium">
                                                     마감 캠페인 {closedCampaigns.length}개 {showClosedCampaigns ? '접기' : '보기'}
@@ -422,12 +424,12 @@ function DashboardContent() {
                     <>
                         {/* 요약 + 제출 CTA */}
                         <div className="flex items-center justify-between mb-6">
-                            <p className="text-sm text-[#888888]">
-                                총 <span className="text-white font-semibold">{contentUploads.length}건</span>의 콘텐츠
+                            <p className="text-sm text-ink3">
+                                총 <span className="text-ink font-semibold">{contentUploads.length}건</span>의 콘텐츠
                             </p>
                             <button
                                 onClick={() => setIsContentSubmitModalOpen(true)}
-                                className="px-4 py-2 bg-[#01DF82] text-black font-bold text-sm rounded-lg hover:bg-[#00C972] transition-colors flex items-center gap-1.5"
+                                className="px-4 py-2 bg-brand text-black font-bold text-sm rounded-lg hover:bg-brand-hover transition-colors flex items-center gap-1.5"
                             >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -458,7 +460,7 @@ function DashboardContent() {
                                         {/* 올해 콘텐츠 — 풀 카드 */}
                                         {thisYearUploads.length > 0 && (
                                             <div className="space-y-3">
-                                                <p className="text-xs text-[#888888] font-medium">{currentYear}년</p>
+                                                <p className="text-xs text-ink3 font-medium">{currentYear}년</p>
                                                 <div className="space-y-4">
                                                     {thisYearUploads.map((upload) => (
                                                         <ContentCard key={upload.id} content={upload} />
@@ -470,7 +472,7 @@ function DashboardContent() {
                                         {/* 이전 연도 — 콤팩트 row */}
                                         {pastYears.map(year => (
                                             <div key={year} className="space-y-2">
-                                                <p className="text-xs text-[#888888] font-medium">{year}년</p>
+                                                <p className="text-xs text-ink3 font-medium">{year}년</p>
                                                 <div className="space-y-1.5">
                                                     {pastByYear[year].map((upload) => (
                                                         <ContentCardCompact key={upload.id} content={upload} />
@@ -484,20 +486,17 @@ function DashboardContent() {
                         ) : (
                             // CHANGED: 빈 상태에 CTA 버튼 추가 + 용어 통일 '제출' → '전달'
                             <div className="flex flex-col items-center justify-center py-20 gap-5">
-                                <div className="w-20 h-20 bg-[#1E1E1E] border border-[#333333] rounded-2xl flex items-center justify-center">
-                                    <svg className="w-8 h-8 text-[#555555]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                                    </svg>
-                                </div>
+                                {/* CHANGED: 폴더 SVG → 두리번거리는 캠냥이 마스코트 */}
+                                <Mascot expression="curious" size={104} />
                                 <div className="text-center">
-                                    <h3 className="text-base font-bold text-white mb-1.5">아직 전달한 콘텐츠가 없어요</h3>
-                                    <p className="text-sm text-[#666666] leading-relaxed">
+                                    <h3 className="text-base font-bold text-ink mb-1.5">아직 전달한 콘텐츠가 없어요</h3>
+                                    <p className="text-sm text-ink3 leading-relaxed">
                                         협찬 후 업로드한 콘텐츠를<br />여기서 관리할 수 있어요
                                     </p>
                                 </div>
                                 <button
                                     onClick={() => setIsContentSubmitModalOpen(true)}
-                                    className="mt-2 px-5 py-2.5 bg-[#01DF82] text-black font-bold text-sm rounded-lg hover:bg-[#00C972] transition-colors flex items-center gap-1.5"
+                                    className="mt-2 px-5 py-2.5 bg-brand text-black font-bold text-sm rounded-lg hover:bg-brand-hover transition-colors flex items-center gap-1.5"
                                 >
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -534,7 +533,7 @@ function DashboardContent() {
                 <>
                     <button
                         onClick={() => setIsFilterSheetOpen(true)}
-                        className="fixed left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 px-5 py-3 bg-[#01DF82] text-black font-bold text-sm rounded-full shadow-lg shadow-black/40 hover:bg-[#00C972] transition-colors cursor-pointer"
+                        className="fixed left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 px-5 py-3 bg-brand text-black font-bold text-sm rounded-full shadow-lg shadow-black/40 hover:bg-brand-hover transition-colors cursor-pointer"
                         style={{ bottom: 'calc(1.25rem + env(safe-area-inset-bottom))' }}
                     >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -5,6 +5,8 @@ import type { Campaign, ChannelType } from '@/types';
 import { COUPON_APPLY_DAYS_CONFIG, formatDiscount } from '@/lib/constants';
 import ApplicationModal from './ApplicationModal';
 import HighlightsModal from './HighlightsModal';
+// CHANGED: 🎟️ 이모지 → 오브젝트 아이콘
+import BrandIcon from './BrandIcon';
 // CHANGED: 모집현황 텍스트 → 프로그레스 바로 교체
 import RecruitmentProgressBar from './RecruitmentProgressBar';
 
@@ -20,14 +22,14 @@ export default function CampaignCard({ campaign, channelTypes }: CampaignCardPro
     if (campaign.isClosed) {
         // 마감 상태
         return (
-            <div className="relative bg-[#1E1E1E] border border-[#333333] rounded-lg overflow-hidden">
+            <div className="relative bg-card border border-line rounded-lg overflow-hidden">
                 {/* 블러 처리된 콘텐츠 */}
                 <div className="blur-sm grayscale opacity-40 p-5">
-                    <h3 className="text-lg font-bold text-white mb-2">
+                    <h3 className="text-lg font-bold text-ink mb-2">
                         {campaign.accommodationName}
                     </h3>
-                    <p className="text-sm text-[#B0B0B0]">{campaign.location}</p>
-                    <p className="text-sm text-[#B0B0B0] mt-2">
+                    <p className="text-sm text-ink2">{campaign.location}</p>
+                    <p className="text-sm text-ink2 mt-2">
                         제작 기한: {campaign.deadline}
                     </p>
                 </div>
@@ -44,25 +46,25 @@ export default function CampaignCard({ campaign, channelTypes }: CampaignCardPro
 
     // 활성 상태
     return (
-        <div className="bg-[#1E1E1E] border border-[#333333] rounded-lg p-5 hover:border-[#01DF82] transition-colors">
+        <div className="bg-card border border-line rounded-lg p-5 hover:border-brand transition-colors">
             {/* CHANGED: 통합 — 쿠폰 이벤트 캠페인이면 "팔로워 쿠폰 협찬" 뱃지 */}
             {campaign.couponEvent && (
                 <div className="mb-3">
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold bg-[#01DF82]/15 text-[#01DF82] border border-[#01DF82]/30 rounded-full">
-                        🎟️ 팔로워 쿠폰 협찬
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold bg-brand-bg text-brand-strong border border-brand/30 rounded-full">
+                        <BrandIcon name="coupon" size={14} /> 팔로워 쿠폰 협찬
                     </span>
                 </div>
             )}
 
             {/* 숙소 이름 */}
-            <h3 className="text-xl font-bold text-white mb-3 leading-tight">
+            <h3 className="text-xl font-bold text-ink mb-3 leading-tight">
                 {campaign.accommodationName}
             </h3>
 
             {/* 위치 */}
             <div className="flex items-center gap-2 mb-3">
-                <span className="text-2xl">📍</span>
-                <span className="text-base text-[#B0B0B0]">{campaign.location}</span>
+                <BrandIcon name="location" size={22} />
+                <span className="text-base text-ink2">{campaign.location}</span>
             </div>
 
             {/* CHANGED: 제공 가능한 사이트 종류 태그 추가 */}
@@ -71,7 +73,7 @@ export default function CampaignCard({ campaign, channelTypes }: CampaignCardPro
                     {campaign.siteTypes.map((siteType) => (
                         <span
                             key={siteType}
-                            className="px-2.5 py-1 text-xs font-medium bg-[#01DF82]/15 text-[#01DF82] border border-[#01DF82]/30 rounded-full"
+                            className="px-2.5 py-1 text-xs font-medium bg-brand-bg text-brand-strong border border-brand/30 rounded-full"
                         >
                             {siteType}
                         </span>
@@ -83,13 +85,13 @@ export default function CampaignCard({ campaign, channelTypes }: CampaignCardPro
             {campaign.highlights && (
                 <button
                     onClick={() => setIsHighlightsOpen(true)}
-                    className="w-full text-left mb-3 px-3 py-2.5 bg-[#252525] border border-[#3A3A3A] rounded-lg hover:border-[#01DF82]/50 transition-colors group"
+                    className="w-full text-left mb-3 px-3 py-2.5 bg-subtle border border-strong rounded-lg hover:border-brand/50 transition-colors group"
                 >
-                    <p className="text-xs text-[#9CA3AF] mb-0.5">숙소 특장점</p>
-                    <p className="text-sm text-[#D0D0D0] truncate group-hover:text-white transition-colors">
+                    <p className="text-xs text-ink2 mb-0.5">숙소 특장점</p>
+                    <p className="text-sm text-ink truncate group-hover:text-ink transition-colors">
                         {campaign.highlights}
                     </p>
-                    <p className="text-xs text-[#01DF82] mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <p className="text-xs text-brand-strong mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         자세히 보기 →
                     </p>
                 </button>
@@ -97,16 +99,16 @@ export default function CampaignCard({ campaign, channelTypes }: CampaignCardPro
 
             {/* 제작 기한 */}
             <div className="flex items-center gap-2 mb-4">
-                <span className="text-2xl">📅</span>
-                <span className="text-base text-[#B0B0B0]">
+                <BrandIcon name="calendar" size={22} />
+                <span className="text-base text-ink2">
                     제작 기한: {campaign.deadline}
                 </span>
             </div>
 
             {/* 협찬 금액 (강조) */}
-            <div className="bg-[#01DF82]/10 border border-[#01DF82] rounded-lg p-4 mb-4">
-                <p className="text-sm text-[#B0B0B0] mb-1">협찬 제안 금액</p>
-                <p className="text-3xl font-bold text-[#01DF82]">
+            <div className="bg-brand-bg border border-brand rounded-lg p-4 mb-4">
+                <p className="text-sm text-ink2 mb-1">협찬 제안 금액</p>
+                <p className="text-3xl font-bold text-brand-strong">
                     {campaign.tierData.price.toLocaleString()}원
                 </p>
             </div>
@@ -116,25 +118,25 @@ export default function CampaignCard({ campaign, channelTypes }: CampaignCardPro
                 const couponEvent = campaign.couponEvent;
                 const dayConfig = COUPON_APPLY_DAYS_CONFIG[couponEvent.couponApplyDays] || COUPON_APPLY_DAYS_CONFIG['평일전용'];
                 return (
-                    <div className="bg-[#252525] border border-[#3A3A3A] rounded-lg p-4 mb-4">
+                    <div className="bg-subtle border border-strong rounded-lg p-4 mb-4">
                         <div className="flex items-center gap-1.5 mb-3">
-                            <span className="text-base">🎟️</span>
-                            <span className="text-sm font-bold text-white">팔로워 쿠폰 이벤트</span>
+                            <BrandIcon name="coupon" size={18} />
+                            <span className="text-sm font-bold text-ink">팔로워 쿠폰 이벤트</span>
                         </div>
                         <div className="space-y-2">
                             <div className="flex items-center justify-between">
-                                <span className="text-xs text-[#9CA3AF]">팔로워 할인</span>
-                                <span className="text-sm font-bold text-[#01DF82]">{formatDiscount(couponEvent.discount)} 할인</span>
+                                <span className="text-xs text-ink2">팔로워 할인</span>
+                                <span className="text-sm font-bold text-brand-strong">{formatDiscount(couponEvent.discount)} 할인</span>
                             </div>
                             <div className="flex items-center justify-between">
-                                <span className="text-xs text-[#9CA3AF]">적용 요일</span>
+                                <span className="text-xs text-ink2">적용 요일</span>
                                 <span className={`px-2.5 py-0.5 text-xs font-medium border rounded-full ${dayConfig.color}`}>
                                     {dayConfig.label}
                                 </span>
                             </div>
                             <div className="flex items-center justify-between">
-                                <span className="text-xs text-[#9CA3AF]">팔로워 쿠폰 수량</span>
-                                <span className="text-sm font-semibold text-white">{couponEvent.couponPerCreator}장</span>
+                                <span className="text-xs text-ink2">팔로워 쿠폰 수량</span>
+                                <span className="text-sm font-semibold text-ink">{couponEvent.couponPerCreator}장</span>
                             </div>
                         </div>
                     </div>
@@ -142,7 +144,7 @@ export default function CampaignCard({ campaign, channelTypes }: CampaignCardPro
             })()}
 
             {/* CHANGED: 모집현황 텍스트 → 프로그레스 바로 교체 */}
-            <div className="mb-4 pb-4 border-b border-[#333333]">
+            <div className="mb-4 pb-4 border-b border-line">
                 <RecruitmentProgressBar
                     totalCount={campaign.tierData.totalCount}
                     availableCount={campaign.tierData.availableCount}
@@ -156,7 +158,7 @@ export default function CampaignCard({ campaign, channelTypes }: CampaignCardPro
                     href={campaign.detailUrl}
                     target="_blank" // CHANGED: 외부 링크가 새 탭에서 열리도록 추가
                     rel="noopener noreferrer" // CHANGED: noreferrer → noopener noreferrer 보안 강화
-                    className="flex-1 h-12 flex items-center justify-center bg-[#2A2A2A] text-white font-medium rounded-lg hover:bg-[#333333] transition-colors text-center"
+                    className="flex-1 h-12 flex items-center justify-center bg-subtle text-ink font-medium rounded-lg hover:bg-subtle transition-colors text-center"
                 >
                     상세보기
                 </a>
@@ -164,7 +166,7 @@ export default function CampaignCard({ campaign, channelTypes }: CampaignCardPro
                 {/* 신청하기 버튼 (In-App Modal) */}
                 <button
                     onClick={() => setIsModalOpen(true)}
-                    className="flex-1 h-12 flex items-center justify-center bg-[#01DF82] text-black font-bold rounded-lg hover:bg-[#00C972] transition-colors text-center"
+                    className="flex-1 h-12 flex items-center justify-center bg-brand text-black font-bold rounded-lg hover:bg-brand-hover transition-colors text-center"
                 >
                     신청하기
                 </button>
