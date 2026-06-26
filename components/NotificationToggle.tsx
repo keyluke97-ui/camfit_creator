@@ -24,8 +24,8 @@ export default function NotificationToggle({ enabled, onToggle }: NotificationTo
             <button
                 onClick={handleClick}
                 className={`flex flex-col items-center gap-0.5 px-2 py-1 transition-colors ${
-                    enabled ? 'text-[#01DF82]' : 'text-[#666666]'
-                } hover:text-white`}
+                    enabled ? 'text-brand-strong' : 'text-ink3'
+                } hover:text-ink`}
                 aria-label={enabled ? '알림 켜짐' : '알림 꺼짐'}
             >
                 {/* CHANGED: 벨 → 이메일 아이콘으로 변경 — 이메일 알림임을 직관적으로 표현 */}
@@ -45,8 +45,8 @@ export default function NotificationToggle({ enabled, onToggle }: NotificationTo
 
             {/* 토스트 메시지 */}
             {toast && (
-                <div className="absolute top-full right-0 mt-2 px-3 py-1.5 bg-[#1E1E1E] border border-[#333333] rounded-lg shadow-lg whitespace-nowrap z-50 animate-in fade-in duration-200">
-                    <p className="text-xs text-white">{toast}</p>
+                <div className="absolute top-full right-0 mt-2 px-3 py-1.5 bg-card border border-line rounded-lg shadow-lg whitespace-nowrap z-50 animate-in fade-in duration-200">
+                    <p className="text-xs text-ink">{toast}</p>
                 </div>
             )}
         </div>

@@ -166,12 +166,12 @@ export default function PremiumRegisterForm() {
     if (isComplete) {
         return (
             <div className="flex flex-col items-center justify-center py-16 gap-6">
-                <div className="w-16 h-16 bg-[#01DF82]/10 rounded-full flex items-center justify-center">
+                <div className="w-16 h-16 bg-brand-bg rounded-full flex items-center justify-center">
                     <span className="text-3xl">✅</span>
                 </div>
                 <div className="text-center">
-                    <h3 className="text-lg font-bold text-white mb-2">프리미엄 협찬 등록 완료</h3>
-                    <p className="text-sm text-[#888888] leading-relaxed">
+                    <h3 className="text-lg font-bold text-ink mb-2">프리미엄 협찬 등록 완료</h3>
+                    <p className="text-sm text-ink3 leading-relaxed">
                         사업자등록증 이미지를<br />
                         카카오톡 채널로 제출해주세요.
                     </p>
@@ -194,7 +194,7 @@ export default function PremiumRegisterForm() {
                             router.push('/login');
                         });
                     }}
-                    className="text-sm text-[#888888] hover:text-white underline transition-colors"
+                    className="text-sm text-ink3 hover:text-ink underline transition-colors"
                 >
                     재로그인하기
                 </button>
@@ -213,7 +213,7 @@ export default function PremiumRegisterForm() {
             {/* 에러 메시지 */}
             {errorMessage && (
                 <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
-                    <p className="text-red-400 text-sm text-center font-medium">{errorMessage}</p>
+                    <p className="text-red-500 text-sm text-center font-medium">{errorMessage}</p>
                 </div>
             )}
 
@@ -249,13 +249,13 @@ export default function PremiumRegisterForm() {
             <SectionTitle title="계좌 정보" />
 
             <div>
-                <label className="block text-sm font-medium text-white mb-2">
-                    은행 <span className="text-red-400">*</span>
+                <label className="block text-sm font-medium text-ink mb-2">
+                    은행 <span className="text-red-500">*</span>
                 </label>
                 <select
                     value={formData.bank}
                     onChange={(event) => handleInputChange('bank', event.target.value)}
-                    className="w-full h-12 px-4 bg-[#1E1E1E] border border-[#333333] rounded-lg text-white text-sm focus:border-[#01DF82] focus:outline-none transition-colors appearance-none"
+                    className="w-full h-12 px-4 bg-card border border-line rounded-lg text-ink text-sm focus:border-brand focus:outline-none transition-colors appearance-none"
                 >
                     <option value="">은행을 선택해주세요</option>
                     {BANK_OPTIONS.map((bank) => (
@@ -313,8 +313,8 @@ export default function PremiumRegisterForm() {
 
             {/* 개인/사업자 선택 */}
             <div>
-                <label className="block text-sm font-medium text-white mb-3">
-                    개인 / 사업자 <span className="text-red-400">*</span>
+                <label className="block text-sm font-medium text-ink mb-3">
+                    개인 / 사업자 <span className="text-red-500">*</span>
                 </label>
                 <div className="flex gap-3">
                     {(['개인', '사업자'] as BusinessType[]).map((type) => (
@@ -324,8 +324,8 @@ export default function PremiumRegisterForm() {
                             onClick={() => handleInputChange('businessType', type)}
                             className={`flex-1 h-12 rounded-lg text-sm font-medium transition-colors ${
                                 formData.businessType === type
-                                    ? 'bg-[#01DF82] text-black'
-                                    : 'bg-[#1E1E1E] border border-[#333333] text-[#888888] hover:border-[#01DF82]'
+                                    ? 'bg-brand text-black'
+                                    : 'bg-card border border-line text-ink3 hover:border-brand'
                             }`}
                         >
                             {type}
@@ -354,8 +354,8 @@ export default function PremiumRegisterForm() {
                         required
                     />
 
-                    <div className="bg-[#1E1E1E] border border-[#333333] rounded-xl p-4">
-                        <p className="text-sm text-[#888888]">
+                    <div className="bg-card border border-line rounded-xl p-4">
+                        <p className="text-sm text-ink3">
                             사업자등록증은 등록 완료 후 카카오톡 채널로 별도 제출해주세요.
                         </p>
                     </div>
@@ -371,12 +371,12 @@ export default function PremiumRegisterForm() {
                 onClick={handleAllConsentsToggle}
                 className={`w-full flex items-center gap-3 p-4 rounded-xl border transition-colors ${
                     allConsentsChecked
-                        ? 'bg-[#01DF82]/10 border-[#01DF82]/30'
-                        : 'bg-[#1E1E1E] border-[#333333]'
+                        ? 'bg-brand-bg border-brand/30'
+                        : 'bg-card border-line'
                 }`}
             >
                 <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 ${
-                    allConsentsChecked ? 'bg-[#01DF82]' : 'border border-[#555555]'
+                    allConsentsChecked ? 'bg-brand' : 'border border-strong'
                 }`}>
                     {allConsentsChecked && (
                         <svg className="w-3 h-3 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -384,7 +384,7 @@ export default function PremiumRegisterForm() {
                         </svg>
                     )}
                 </div>
-                <span className={`text-sm font-bold ${allConsentsChecked ? 'text-[#01DF82]' : 'text-white'}`}>
+                <span className={`text-sm font-bold ${allConsentsChecked ? 'text-brand-strong' : 'text-ink'}`}>
                     전체 동의
                 </span>
             </button>
@@ -392,7 +392,7 @@ export default function PremiumRegisterForm() {
             {/* CHANGED: 개별 동의 항목 — 상세보기 버튼 추가 */}
             <div className="space-y-2">
                 {CONSENT_ITEMS.map((item) => (
-                    <div key={item.key} className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-[#1E1E1E] transition-colors">
+                    <div key={item.key} className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-card transition-colors">
                         {/* 체크박스 + 라벨 */}
                         <button
                             type="button"
@@ -400,7 +400,7 @@ export default function PremiumRegisterForm() {
                             className="flex items-center gap-3 flex-1 min-w-0"
                         >
                             <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 ${
-                                formData[item.key] ? 'bg-[#01DF82]' : 'border border-[#555555]'
+                                formData[item.key] ? 'bg-brand' : 'border border-strong'
                             }`}>
                                 {formData[item.key] && (
                                     <svg className="w-3 h-3 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -408,8 +408,8 @@ export default function PremiumRegisterForm() {
                                     </svg>
                                 )}
                             </div>
-                            <span className={`text-sm text-left ${formData[item.key] ? 'text-white' : 'text-[#888888]'}`}>
-                                {item.label} <span className="text-red-400">*</span>
+                            <span className={`text-sm text-left ${formData[item.key] ? 'text-ink' : 'text-ink3'}`}>
+                                {item.label} <span className="text-red-500">*</span>
                             </span>
                         </button>
 
@@ -417,7 +417,7 @@ export default function PremiumRegisterForm() {
                         <button
                             type="button"
                             onClick={() => setConsentDetailKey(item.key)}
-                            className="text-xs text-[#666666] hover:text-[#01DF82] transition-colors flex-shrink-0 underline"
+                            className="text-xs text-ink3 hover:text-brand-strong transition-colors flex-shrink-0 underline"
                         >
                             상세보기
                         </button>
@@ -432,8 +432,8 @@ export default function PremiumRegisterForm() {
                 disabled={!isFormValid() || submitting}
                 className={`w-full h-14 rounded-xl font-bold text-base transition-colors ${
                     isFormValid() && !submitting
-                        ? 'bg-[#01DF82] text-black hover:bg-[#00C972]'
-                        : 'bg-[#333333] text-[#666666] cursor-not-allowed'
+                        ? 'bg-brand text-black hover:bg-brand-hover'
+                        : 'bg-subtle text-ink3 cursor-not-allowed'
                 }`}
             >
                 {submitting ? '등록 중...' : '프리미엄 협찬 등록하기'}
@@ -446,15 +446,15 @@ export default function PremiumRegisterForm() {
                         className="absolute inset-0 bg-black/60"
                         onClick={() => setConsentDetailKey(null)}
                     />
-                    <div className="relative w-full max-w-md bg-[#1E1E1E] rounded-t-2xl sm:rounded-2xl max-h-[80vh] overflow-y-auto">
+                    <div className="relative w-full max-w-md bg-card rounded-t-2xl sm:rounded-2xl max-h-[80vh] overflow-y-auto">
                         {/* 헤더 */}
-                        <div className="sticky top-0 bg-[#1E1E1E] border-b border-[#333333] px-5 py-4 flex items-center justify-between z-10">
-                            <h2 className="text-base font-bold text-white">
+                        <div className="sticky top-0 bg-card border-b border-line px-5 py-4 flex items-center justify-between z-10">
+                            <h2 className="text-base font-bold text-ink">
                                 {activeConsentDetail.label}
                             </h2>
                             <button
                                 onClick={() => setConsentDetailKey(null)}
-                                className="text-[#666666] hover:text-white transition-colors"
+                                className="text-ink3 hover:text-ink transition-colors"
                             >
                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -463,12 +463,12 @@ export default function PremiumRegisterForm() {
                         </div>
                         {/* 본문 */}
                         <div className="p-5">
-                            <p className="text-sm text-[#B0B0B0] leading-relaxed whitespace-pre-line">
+                            <p className="text-sm text-ink2 leading-relaxed whitespace-pre-line">
                                 {activeConsentDetail.detail}
                             </p>
                         </div>
                         {/* 확인 버튼 */}
-                        <div className="sticky bottom-0 bg-[#1E1E1E] border-t border-[#333333] p-5">
+                        <div className="sticky bottom-0 bg-card border-t border-line p-5">
                             <button
                                 type="button"
                                 onClick={() => {
@@ -478,7 +478,7 @@ export default function PremiumRegisterForm() {
                                     }
                                     setConsentDetailKey(null);
                                 }}
-                                className="w-full h-12 bg-[#01DF82] text-black font-bold rounded-lg hover:bg-[#00C972] transition-colors"
+                                className="w-full h-12 bg-brand text-black font-bold rounded-lg hover:bg-brand-hover transition-colors"
                             >
                                 확인 및 동의
                             </button>
@@ -498,8 +498,8 @@ export default function PremiumRegisterForm() {
 function SectionTitle({ title }: { title: string }) {
     return (
         <div className="pt-2">
-            <h3 className="text-base font-bold text-white">{title}</h3>
-            <div className="mt-2 h-px bg-[#333333]" />
+            <h3 className="text-base font-bold text-ink">{title}</h3>
+            <div className="mt-2 h-px bg-subtle" />
         </div>
     );
 }
@@ -524,12 +524,12 @@ function FormInput({
     required,
     isTextarea
 }: FormInputProps) {
-    const baseClassName = 'w-full px-4 bg-[#1E1E1E] border border-[#333333] rounded-lg text-white text-sm focus:border-[#01DF82] focus:outline-none transition-colors placeholder:text-[#555555]';
+    const baseClassName = 'w-full px-4 bg-card border border-line rounded-lg text-ink text-sm focus:border-brand focus:outline-none transition-colors placeholder:text-ink3';
 
     return (
         <div>
-            <label className="block text-sm font-medium text-white mb-2">
-                {label} {required && <span className="text-red-400">*</span>}
+            <label className="block text-sm font-medium text-ink mb-2">
+                {label} {required && <span className="text-red-500">*</span>}
             </label>
             {isTextarea ? (
                 <textarea

@@ -17,8 +17,8 @@ export default function LocationFilter({ locations, selectedLocation, onLocation
                 onClick={() => onLocationChange('전체')}
                 className={`px-3 py-1.5 text-xs rounded-full whitespace-nowrap cursor-pointer transition-colors ${
                     selectedLocation === '전체'
-                        ? 'bg-[#01DF82] text-black font-medium'
-                        : 'bg-[#2A2A2A] text-[#888888] border border-[#333333]'
+                        ? 'bg-brand text-black font-medium'
+                        : 'bg-subtle text-ink3 border border-line'
                 }`}
             >
                 전체
@@ -30,8 +30,8 @@ export default function LocationFilter({ locations, selectedLocation, onLocation
                     onClick={() => onLocationChange(location)}
                     className={`px-3 py-1.5 text-xs rounded-full whitespace-nowrap cursor-pointer transition-colors ${
                         selectedLocation === location
-                            ? 'bg-[#01DF82] text-black font-medium'
-                            : 'bg-[#2A2A2A] text-[#888888] border border-[#333333]'
+                            ? 'bg-brand text-black font-medium'
+                            : 'bg-subtle text-ink3 border border-line'
                     }`}
                 >
                     {location}

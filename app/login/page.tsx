@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import Mascot from '@/components/Mascot';
 
 const KAKAO_CHANNEL_URL = 'http://pf.kakao.com/_fBxaQG';
 const MIN_SEARCH_LENGTH = 2;
@@ -130,16 +131,20 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center px-4 bg-[#111111]">
+        <div className="min-h-screen flex items-center justify-center px-4 bg-page">
             <div className="w-full max-w-md">
                 {/* 로고/헤더 */}
                 <div className="text-center mb-8">
+                    {/* CHANGED: 캠냥이 마스코트 인사 추가 (기존 ⛺️ 이모지 → 마스코트가 대체) */}
+                    <div className="flex justify-center mb-3">
+                        <Mascot expression="smile" size={104} priority />
+                    </div>
                     {/* CHANGED: 캐주얼 톤으로 헤드라인 교체 — 대시보드 인사말과 어울리도록 */}
-                    <h1 className="text-3xl font-bold text-white mb-2">
+                    <h1 className="text-3xl font-bold text-ink mb-2">
                         캠핏 크리에이터 포털
                     </h1>
-                    <p className="text-[#B0B0B0]">
-                        당신의 다음 캠핑, 여기서 시작돼요 ⛺️
+                    <p className="text-ink2">
+                        당신의 다음 캠핑, 여기서 시작돼요
                     </p>
                 </div>
 
@@ -151,7 +156,7 @@ export default function LoginPage() {
                     <div className="relative" ref={dropdownReference}>
                         <label
                             htmlFor="channelName"
-                            className="block text-sm font-medium text-white mb-2"
+                            className="block text-sm font-medium text-ink mb-2"
                         >
                             크리에이터 채널명
                         </label>
@@ -168,12 +173,12 @@ export default function LoginPage() {
                                 }
                             }}
                             autoComplete="off"
-                            className="w-full h-12 px-4 bg-[#1E1E1E] text-white border border-[#333333] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#01DF82] focus:border-transparent"
+                            className="w-full h-12 px-4 bg-card text-ink border border-line rounded-lg focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
                             required
                         />
                         {/* 자동완성 드롭다운 */}
                         {showDropdown && filteredNames.length > 0 && (
-                            <div className="absolute z-50 w-full mt-1 bg-[#1E1E1E] border border-[#333333] rounded-lg max-h-48 overflow-y-auto shadow-lg">
+                            <div className="absolute z-50 w-full mt-1 bg-card border border-line rounded-lg max-h-48 overflow-y-auto shadow-lg">
                                 {filteredNames.map((name, index) => (
                                     <button
                                         key={name}
@@ -181,8 +186,8 @@ export default function LoginPage() {
                                         onClick={() => selectChannelName(name)}
                                         className={`w-full px-4 py-3 text-left text-sm transition-colors ${
                                             index === highlightIndex
-                                                ? 'bg-[#01DF82]/20 text-[#01DF82]'
-                                                : 'text-white hover:bg-[#2A2A2A]'
+                                                ? 'bg-brand-bg text-brand-strong'
+                                                : 'text-ink hover:bg-subtle'
                                         }`}
                                     >
                                         {name}
@@ -196,7 +201,7 @@ export default function LoginPage() {
                     <div>
                         <label
                             htmlFor="phoneLastFour"
-                            className="block text-sm font-medium text-white mb-2"
+                            className="block text-sm font-medium text-ink mb-2"
                         >
                             연락처 뒷자리 (4자리)
                         </label>
@@ -211,7 +216,7 @@ export default function LoginPage() {
                                 const value = event.target.value.replace(/\D/g, '');
                                 setFormData({ ...formData, phoneLastFour: value });
                             }}
-                            className="w-full h-12 px-4 bg-[#1E1E1E] text-white border border-[#333333] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#01DF82] focus:border-transparent"
+                            className="w-full h-12 px-4 bg-card text-ink border border-line rounded-lg focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
                             required
                         />
                     </div>
@@ -219,20 +224,20 @@ export default function LoginPage() {
                     {/* 점진적 에러 메시지 영역 */}
                     {error && (
                         <div className="space-y-3">
-                            <div className="p-4 bg-red-500/10 border border-red-500/50 rounded-lg">
-                                <p className="text-red-400 text-sm">{error}</p>
+                            <div className="p-4 bg-red-500/10 border border-red-500/40 rounded-lg">
+                                <p className="text-red-600 text-sm">{error}</p>
                                 {failCount >= 1 && (
-                                    <p className="text-red-400/70 text-xs mt-2">
+                                    <p className="text-red-500 text-xs mt-2">
                                         등록된 채널명과 연락처 뒤 4자리로 로그인해주세요.
                                     </p>
                                 )}
                             </div>
                             {failCount >= 2 && (
-                                <div className="p-4 bg-[#FEE500]/10 border border-[#FEE500]/50 rounded-lg">
-                                    <p className="text-[#FEE500] font-bold text-sm mb-1">
+                                <div className="p-4 bg-[#FEE500]/15 border border-[#FEE500] rounded-lg">
+                                    <p className="text-ink font-bold text-sm mb-1">
                                         여러 번 로그인에 실패했습니다
                                     </p>
-                                    <p className="text-[#B0B0B0] text-xs mb-3">
+                                    <p className="text-ink2 text-xs mb-3">
                                         카카오톡으로 문의하시면 빠르게 확인 도와드립니다.
                                     </p>
                                     <a
@@ -252,22 +257,22 @@ export default function LoginPage() {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full h-12 bg-[#01DF82] text-black font-bold rounded-lg hover:bg-[#00C972] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full h-12 bg-brand text-black font-bold rounded-lg hover:bg-brand-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {loading ? '로그인 중...' : '로그인'}
                     </button>
                 </form>
 
                 {/* 하단 안내 메시지 */}
-                <div className="mt-6 p-4 bg-[#1E1E1E] border border-[#333333] rounded-lg">
-                    <p className="text-sm text-[#B0B0B0] text-center">
+                <div className="mt-6 p-4 bg-card border border-line rounded-lg">
+                    <p className="text-sm text-ink2 text-center">
                         채널명과 등록된 연락처 뒤 4자리로 로그인합니다.<br />
                         로그인이 안 되시나요?{' '}
                         <a
                             href={KAKAO_CHANNEL_URL}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-[#01DF82] hover:underline font-bold"
+                            className="text-brand-strong hover:underline font-bold"
                         >
                             캠핏 크리에이터 카카오톡 채널
                         </a>로 문의해주세요.

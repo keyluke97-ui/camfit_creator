@@ -6,18 +6,20 @@ import type { Application } from '@/types';
 import { COUPON_APPLY_DAYS_CONFIG, formatDiscount, COUPON_REGISTER_URL } from '@/lib/constants';
 // CHANGED: 팔로워에게 보낼 깨끗한 메시지 빌더
 import { buildFollowerShareMessage } from '@/lib/couponText';
+// CHANGED: 이모지 → 오브젝트 아이콘
+import BrandIcon from './BrandIcon';
 
 // CHANGED: 쿠폰 혼동 해소 — 예약 변경 완료 화면의 '내 예약 쿠폰' 박스 + 등록 CTA 추출
 //          (CheckinModal 600줄 컨벤션 준수 + ApplicationModal과 동일 패턴: 자동복사 + 새 탭)
 export function ReservationCouponDone({ code }: { code: string }) {
     return (
         <>
-            <div className="bg-[#2A2A2A] border border-[#01DF82] p-6 rounded-xl space-y-4">
-                <p className="text-[#B0B0B0] text-sm">내 예약 쿠폰 코드</p>
-                <p className="text-2xl font-mono font-bold text-[#01DF82] tracking-wider break-all">{code}</p>
+            <div className="bg-subtle border border-brand p-6 rounded-xl space-y-4">
+                <p className="text-ink2 text-sm">내 예약 쿠폰 코드</p>
+                <p className="text-2xl font-mono font-bold text-brand-strong tracking-wider break-all">{code}</p>
                 <button
                     onClick={() => { navigator.clipboard?.writeText(code).catch(() => {}); }}
-                    className="px-6 py-2 bg-[#111] border border-[#333] rounded-full text-white text-sm font-medium hover:bg-[#333] transition-colors"
+                    className="px-6 py-2 bg-page border border-line rounded-full text-ink text-sm font-medium hover:bg-subtle transition-colors"
                 >
                     코드 복사하기
                 </button>
@@ -27,9 +29,9 @@ export function ReservationCouponDone({ code }: { code: string }) {
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => { navigator.clipboard?.writeText(code).catch((err) => console.error('Failed to copy my coupon', err)); }}
-                className="block w-full h-14 flex items-center justify-center bg-[#01DF82] text-black font-bold text-lg rounded-xl hover:bg-[#00C972] transition-colors"
+                className="block w-full h-14 flex items-center justify-center gap-2 bg-brand text-black font-bold text-lg rounded-xl hover:bg-brand-hover transition-colors"
             >
-                📋 내 예약 쿠폰 복사하고 캠핏으로 이동
+                <BrandIcon name="clipboard" size={20} />내 예약 쿠폰 복사하고 캠핏으로 이동
             </a>
         </>
     );
@@ -56,10 +58,10 @@ export function CheckinCouponBox({ app }: { app: Application }) {
     };
     return (
         // CHANGED: 쿠폰 혼동 해소 — 팔로워 쿠폰은 weak 회색 톤 + "내 예약용 아니에요" 안내 (내 예약 쿠폰과 분리)
-        <div className="bg-[#202020] border border-[#3a3a3a] rounded-lg p-3 space-y-2">
-            <p className="text-xs text-[#9CA3AF]">팔로워 쿠폰 코드 <span className="text-[#777]">· 내 예약용 아니에요</span></p>
+        <div className="bg-subtle border border-strong rounded-lg p-3 space-y-2">
+            <p className="text-xs text-ink2">팔로워 쿠폰 코드 <span className="text-ink3">· 내 예약용 아니에요</span></p>
             <div className="flex items-center justify-between gap-2">
-                <p className="font-mono font-bold text-[#CFCFCF] text-base break-all">{app.followerCouponCode}</p>
+                <p className="font-mono font-bold text-ink2 text-base break-all">{app.followerCouponCode}</p>
                 <button
                     onClick={async () => {
                         try {
@@ -70,15 +72,15 @@ export function CheckinCouponBox({ app }: { app: Application }) {
                             /* noop */
                         }
                     }}
-                    className="flex-shrink-0 text-xs px-3 py-1 bg-[#2A2A2A] border border-[#444] text-[#D0D0D0] rounded-full hover:bg-[#333]"
+                    className="flex-shrink-0 text-xs px-3 py-1 bg-subtle border border-strong text-ink rounded-full hover:bg-subtle"
                 >
                     {copied ? '복사 완료!' : '코드 복사'}
                 </button>
             </div>
-            <p className="text-xs text-[#888888] leading-relaxed">팔로워에게 공유하는 쿠폰이에요. 내 예약엔 &lsquo;내 예약 쿠폰&rsquo;을 사용해주세요.</p>
+            <p className="text-xs text-ink3 leading-relaxed">팔로워에게 공유하는 쿠폰이에요. 내 예약엔 &lsquo;내 예약 쿠폰&rsquo;을 사용해주세요.</p>
             {/* CHANGED: 조건 라인은 couponEvent 있을 때만 표시 */}
             {app.couponEvent && (
-                <div className="text-xs text-[#B0B0B0] space-y-0.5 pt-1 border-t border-[#333]">
+                <div className="text-xs text-ink2 space-y-0.5 pt-1 border-t border-line">
                     <p>• {formatDiscount(app.couponEvent.discount)} 할인 ({COUPON_APPLY_DAYS_CONFIG[app.couponEvent.couponApplyDays]?.label || app.couponEvent.couponApplyDays})</p>
                     <p>• 팔로워 쿠폰 {app.couponEvent.couponPerCreator}장 · 팔로워 사용: {app.couponEvent.couponStartDate} ~ {app.couponEvent.couponEndDate}</p>
                     <p>• 내 방문 가능: {app.couponEvent.visitStartDate} ~ {app.couponEvent.visitEndDate}</p>
@@ -88,9 +90,9 @@ export function CheckinCouponBox({ app }: { app: Application }) {
             {app.couponEvent && app.followerCouponCode && (
                 <button
                     onClick={copyShareMessage}
-                    className="w-full py-2 bg-[#2A2A2A] border border-[#01DF82]/50 text-[#01DF82] text-xs font-bold rounded-lg hover:bg-[#01DF82]/10 transition-colors"
+                    className="w-full py-2 bg-subtle border border-brand/50 text-brand-strong text-xs font-bold rounded-lg hover:bg-brand-bg transition-colors inline-flex items-center justify-center gap-1.5"
                 >
-                    {shareCopied ? '복사 완료! 팔로워에게 붙여넣으세요' : '📨 팔로워에게 보낼 메시지 복사'}
+                    {shareCopied ? '복사 완료! 팔로워에게 붙여넣으세요' : <><BrandIcon name="message" size={14} />팔로워에게 보낼 메시지 복사</>}
                 </button>
             )}
         </div>
@@ -101,25 +103,25 @@ export function CheckinCouponBox({ app }: { app: Application }) {
 export function CompletedAppsList({ apps }: { apps: Application[] }) {
     if (apps.length === 0) return null;
     return (
-        <div className="space-y-3 pt-4 border-t border-[#333333]">
-            <p className="text-xs text-[#888888] font-medium">완료된 캠페인</p>
+        <div className="space-y-3 pt-4 border-t border-line">
+            <p className="text-xs text-ink3 font-medium">완료된 캠페인</p>
             {apps.map(app => (
                 <div
                     key={app.id}
-                    className="bg-[#111111] border border-[#333333] rounded-xl p-4 opacity-60"
+                    className="bg-page border border-line rounded-xl p-4 opacity-60"
                 >
                     <div className="flex items-center justify-between">
-                        <h3 className="text-white font-bold">{app.accommodationName}</h3>
-                        <span className="text-xs text-[#888888] bg-[#2A2A2A] px-2 py-0.5 rounded-full">완료</span>
+                        <h3 className="text-ink font-bold">{app.accommodationName}</h3>
+                        <span className="text-xs text-ink3 bg-subtle px-2 py-0.5 rounded-full">완료</span>
                     </div>
                     <div className="flex gap-4 mt-2">
                         <div className="flex-1">
-                            <span className="text-xs text-[#888888]">입실일</span>
-                            <p className="text-[#B0B0B0] text-sm">{app.checkInDate}</p>
+                            <span className="text-xs text-ink3">입실일</span>
+                            <p className="text-ink2 text-sm">{app.checkInDate}</p>
                         </div>
                         <div className="flex-1">
-                            <span className="text-xs text-[#888888]">입실 사이트</span>
-                            <p className="text-[#B0B0B0] text-sm">{app.checkInSite}</p>
+                            <span className="text-xs text-ink3">입실 사이트</span>
+                            <p className="text-ink2 text-sm">{app.checkInSite}</p>
                         </div>
                     </div>
                 </div>

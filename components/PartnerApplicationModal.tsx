@@ -257,17 +257,17 @@ export default function PartnerApplicationModal({
             {/* CHANGED: 성공/체크인 화면에서는 배경 클릭 닫기도 방지 */}
             <div className="absolute inset-0 bg-black/60" onClick={step === 'success' || step === 'checkin' || step === 'checkinSuccess' ? undefined : handleClose} />
 
-            <div className="relative w-full max-w-md bg-[#1E1E1E] rounded-t-2xl sm:rounded-2xl max-h-[85vh] overflow-y-auto">
+            <div className="relative w-full max-w-md bg-card rounded-t-2xl sm:rounded-2xl max-h-[85vh] overflow-y-auto">
                 {/* 헤더 */}
-                <div className="sticky top-0 bg-[#1E1E1E] border-b border-[#333333] px-5 py-4 flex items-center justify-between z-10">
-                    <h2 className="text-lg font-bold text-white">
+                <div className="sticky top-0 bg-card border-b border-line px-5 py-4 flex items-center justify-between z-10">
+                    <h2 className="text-lg font-bold text-ink">
                         {step === 'success' || step === 'checkin' || step === 'checkinSuccess'
                             ? '신청 완료'
                             : step === 'error' ? '신청 실패' : '파트너 협찬 신청'}
                     </h2>
                     {/* CHANGED: 성공/체크인 화면에서 X 닫기 숨김 — 쿠폰 코드를 반드시 확인하도록 유도 */}
                     {step !== 'success' && step !== 'checkin' && step !== 'checkinSuccess' && (
-                        <button onClick={handleClose} className="text-[#666666] hover:text-white transition-colors">
+                        <button onClick={handleClose} className="text-ink3 hover:text-ink transition-colors">
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                             </svg>
@@ -280,30 +280,30 @@ export default function PartnerApplicationModal({
                     {step === 'policy1' && (
                         <div className="space-y-4">
                             {/* CHANGED: Step 진행률 인디케이터 추가 — 타이핑 확인 제거 보완 */}
-                            <p className="text-xs text-[#666666] text-center">Step 1 / 4</p>
-                            <div className="bg-[#252525] border border-[#3A3A3A] rounded-lg p-4">
-                                <p className="text-sm text-[#9CA3AF] mb-1">크리에이터 방문 가능 기간</p>
-                                <p className="text-base font-semibold text-white">
+                            <p className="text-xs text-ink3 text-center">Step 1 / 4</p>
+                            <div className="bg-subtle border border-strong rounded-lg p-4">
+                                <p className="text-sm text-ink2 mb-1">크리에이터 방문 가능 기간</p>
+                                <p className="text-base font-semibold text-ink">
                                     {campaign.visitStartDate} ~ {campaign.visitEndDate}
                                 </p>
                             </div>
                             {/* CHANGED: 크리에이터 쿠폰 안내 추가 — policy2 팔로워 쿠폰 안내와 동일 구조 */}
-                            <div className="bg-[#252525] border border-[#3A3A3A] rounded-lg p-4 space-y-3">
-                                <p className="text-sm font-semibold text-white">크리에이터 쿠폰 안내</p>
+                            <div className="bg-subtle border border-strong rounded-lg p-4 space-y-3">
+                                <p className="text-sm font-semibold text-ink">크리에이터 쿠폰 안내</p>
                                 <div>
-                                    <p className="text-xs text-[#9CA3AF] mb-0.5">제공 숙박 박수</p>
-                                    <p className="text-sm font-semibold text-white">{campaign.creatorStayNights}박</p>
+                                    <p className="text-xs text-ink2 mb-0.5">제공 숙박 박수</p>
+                                    <p className="text-sm font-semibold text-ink">{campaign.creatorStayNights}박</p>
                                 </div>
                                 <div>
-                                    <p className="text-xs text-[#9CA3AF] mb-0.5">할인 금액</p>
-                                    <p className="text-sm font-semibold text-[#01DF82]">100% (무료 숙박)</p>
+                                    <p className="text-xs text-ink2 mb-0.5">할인 금액</p>
+                                    <p className="text-sm font-semibold text-brand-strong">100% (무료 숙박)</p>
                                 </div>
                                 {campaign.siteTypes.length > 0 && (
                                     <div>
-                                        <p className="text-xs text-[#9CA3AF] mb-0.5">적용 가능 존</p>
+                                        <p className="text-xs text-ink2 mb-0.5">적용 가능 존</p>
                                         <div className="flex flex-wrap gap-1 mt-1">
                                             {campaign.siteTypes.map((type) => (
-                                                <span key={type} className="px-2 py-0.5 text-xs bg-[#333333] text-[#B0B0B0] rounded">
+                                                <span key={type} className="px-2 py-0.5 text-xs bg-subtle text-ink2 rounded">
                                                     {type}
                                                 </span>
                                             ))}
@@ -312,16 +312,16 @@ export default function PartnerApplicationModal({
                                 )}
                             </div>
 
-                            <div className="bg-[#252525] border border-[#3A3A3A] rounded-lg p-4">
+                            <div className="bg-subtle border border-strong rounded-lg p-4">
                                 {/* CHANGED: '매칭 완료' 용어 모호성 제거 — 즉시 확정 의미 명확화 */}
-                                <p className="text-sm text-[#B0B0B0]">
-                                    신청과 동시에 예약이 확정돼요 <span className="text-white font-semibold">(캠지기 승인 대기 없음)</span>.
+                                <p className="text-sm text-ink2">
+                                    신청과 동시에 예약이 확정돼요 <span className="text-ink font-semibold">(캠지기 승인 대기 없음)</span>.
                                 </p>
                             </div>
                             {/* CHANGED: 타이핑 확인 제거 → 버튼 클릭 기반으로 전환 */}
                             <button
                                 onClick={() => setStep('policy2')}
-                                className="w-full h-12 bg-[#01DF82] text-black font-bold rounded-lg hover:bg-[#00C972] transition-colors"
+                                className="w-full h-12 bg-brand text-black font-bold rounded-lg hover:bg-brand-hover transition-colors"
                             >
                                 방문 가능합니다
                             </button>
@@ -333,36 +333,36 @@ export default function PartnerApplicationModal({
                     {step === 'policy2' && (
                         <div className="space-y-4">
                             {/* CHANGED: Step 진행률 인디케이터 추가 */}
-                            <p className="text-xs text-[#666666] text-center">Step 2 / 4</p>
-                            <div className="bg-[#252525] border border-[#3A3A3A] rounded-lg p-4 space-y-3">
-                                <p className="text-sm font-semibold text-white">팔로워 쿠폰 안내</p>
+                            <p className="text-xs text-ink3 text-center">Step 2 / 4</p>
+                            <div className="bg-subtle border border-strong rounded-lg p-4 space-y-3">
+                                <p className="text-sm font-semibold text-ink">팔로워 쿠폰 안내</p>
                                 <div>
-                                    <p className="text-xs text-[#9CA3AF] mb-0.5">팔로워 쿠폰 입실 가능 기간</p>
-                                    <p className="text-sm font-semibold text-white">
+                                    <p className="text-xs text-ink2 mb-0.5">팔로워 쿠폰 입실 가능 기간</p>
+                                    <p className="text-sm font-semibold text-ink">
                                         {campaign.couponStartDate} ~ {campaign.couponEndDate}
                                     </p>
                                 </div>
                                 <div>
-                                    <p className="text-xs text-[#9CA3AF] mb-0.5">1인당 팔로워 쿠폰</p>
-                                    <p className="text-sm font-semibold text-white">{campaign.couponPerCreator}장</p>
+                                    <p className="text-xs text-ink2 mb-0.5">1인당 팔로워 쿠폰</p>
+                                    <p className="text-sm font-semibold text-ink">{campaign.couponPerCreator}장</p>
                                 </div>
                                 <div>
-                                    <p className="text-xs text-[#9CA3AF] mb-0.5">할인 금액 (팔로워 쿠폰)</p>
-                                    <p className="text-sm text-white">
+                                    <p className="text-xs text-ink2 mb-0.5">할인 금액 (팔로워 쿠폰)</p>
+                                    <p className="text-sm text-ink">
                                         예약 건당 {campaign.discount.toLocaleString()}원
                                     </p>
                                 </div>
                                 <div>
-                                    <p className="text-xs text-[#9CA3AF] mb-0.5">적용 가능 요일</p>
-                                    <p className="text-sm text-white">{campaign.couponApplyDays}</p>
+                                    <p className="text-xs text-ink2 mb-0.5">적용 가능 요일</p>
+                                    <p className="text-sm text-ink">{campaign.couponApplyDays}</p>
                                 </div>
                                 {/* CHANGED: 제공 가능한 사이트 종류 표시 */}
                                 {campaign.siteTypes.length > 0 && (
                                     <div>
-                                        <p className="text-xs text-[#9CA3AF] mb-0.5">적용 가능 존</p>
+                                        <p className="text-xs text-ink2 mb-0.5">적용 가능 존</p>
                                         <div className="flex flex-wrap gap-1 mt-1">
                                             {campaign.siteTypes.map((type) => (
-                                                <span key={type} className="px-2 py-0.5 text-xs bg-[#333333] text-[#B0B0B0] rounded">
+                                                <span key={type} className="px-2 py-0.5 text-xs bg-subtle text-ink2 rounded">
                                                     {type}
                                                 </span>
                                             ))}
@@ -376,8 +376,8 @@ export default function PartnerApplicationModal({
                                 onClick={handleCopyCouponInfo}
                                 className={`w-full h-10 flex items-center justify-center text-sm font-medium rounded-lg transition-colors ${
                                     couponInfoCopied
-                                        ? 'bg-[#01DF82]/20 text-[#01DF82] border border-[#01DF82]/50'
-                                        : 'bg-[#2A2A2A] text-white border border-[#3A3A3A] hover:bg-[#333333]'
+                                        ? 'bg-brand-bg text-brand-strong border border-brand/50'
+                                        : 'bg-subtle text-ink border border-strong hover:bg-subtle'
                                 }`}
                             >
                                 {couponInfoCopied ? '복사 완료!' : '팔로워 쿠폰 조건 복사하기'}
@@ -386,7 +386,7 @@ export default function PartnerApplicationModal({
                             {/* CHANGED: 타이핑 확인 제거 → 버튼 클릭 기반으로 전환 */}
                             <button
                                 onClick={() => setStep('policy3')}
-                                className="w-full h-12 bg-[#01DF82] text-black font-bold rounded-lg hover:bg-[#00C972] transition-colors"
+                                className="w-full h-12 bg-brand text-black font-bold rounded-lg hover:bg-brand-hover transition-colors"
                             >
                                 쿠폰 조건 확인했어요
                             </button>
@@ -398,89 +398,89 @@ export default function PartnerApplicationModal({
                     {step === 'policy3' && (
                         <div className="space-y-4">
                             {/* CHANGED: Step 진행률 인디케이터 추가 */}
-                            <p className="text-xs text-[#666666] text-center">Step 3 / 4</p>
+                            <p className="text-xs text-ink3 text-center">Step 3 / 4</p>
                             {/* CHANGED: '자동 취소 간주' → '14일 이내 예약 진행 요청' 톤으로 변경 (ApplicationModal과 통일) */}
                             <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
-                                <p className="text-sm text-red-400 font-medium">
+                                <p className="text-sm text-red-500 font-medium">
                                     🚨 최종 신청일로부터 14일 이내 예약을 진행해주세요.
                                 </p>
                             </div>
 
                             {/* CHANGED: 각 항목에 불릿(•) 마커 추가 + 쿠폰 코드 유출 경고 추가 */}
-                            <div className="bg-[#252525] border border-[#3A3A3A] rounded-lg p-4 space-y-2">
-                                <p className="text-sm font-semibold text-white">🚫 취소/변경 정책</p>
+                            <div className="bg-subtle border border-strong rounded-lg p-4 space-y-2">
+                                <p className="text-sm font-semibold text-ink">🚫 취소/변경 정책</p>
                                 <ul className="space-y-1.5 pl-1">
-                                    <li className="text-sm text-[#B0B0B0] flex gap-2">
-                                        <span className="text-[#666666] shrink-0">•</span>
+                                    <li className="text-sm text-ink2 flex gap-2">
+                                        <span className="text-ink3 shrink-0">•</span>
                                         <span>방문일 전까지 취소/변경이 가능합니다.</span>
                                     </li>
-                                    <li className="text-sm text-[#B0B0B0] flex gap-2">
-                                        <span className="text-[#666666] shrink-0">•</span>
+                                    <li className="text-sm text-ink2 flex gap-2">
+                                        <span className="text-ink3 shrink-0">•</span>
                                         <span>취소 시 해당 일정의 예약이 불가해지며, 캠핑장에 <span className="text-yellow-400 font-medium">직접적인 금전적 손해</span>가 발생합니다.</span>
                                     </li>
-                                    <li className="text-sm text-[#B0B0B0] flex gap-2">
-                                        <span className="text-[#666666] shrink-0">•</span>
+                                    <li className="text-sm text-ink2 flex gap-2">
+                                        <span className="text-ink3 shrink-0">•</span>
                                         <span>잦은 취소는 향후 파트너 협찬 참여가 제한될 수 있습니다.</span>
                                     </li>
-                                    <li className="text-sm text-[#B0B0B0] flex gap-2">
-                                        <span className="text-[#666666] shrink-0">•</span>
-                                        <span><span className="text-red-400 font-medium">노쇼(No-show) 또는 당일 취소</span> 시 협찬은 무효 처리되며, 재방문이나 보상은 제공되지 않습니다.</span>
+                                    <li className="text-sm text-ink2 flex gap-2">
+                                        <span className="text-ink3 shrink-0">•</span>
+                                        <span><span className="text-red-500 font-medium">노쇼(No-show) 또는 당일 취소</span> 시 협찬은 무효 처리되며, 재방문이나 보상은 제공되지 않습니다.</span>
                                     </li>
                                 </ul>
                             </div>
 
-                            <div className="bg-[#252525] border border-[#3A3A3A] rounded-lg p-4 space-y-2">
-                                <p className="text-sm font-semibold text-white">📸 콘텐츠 제작 의무</p>
+                            <div className="bg-subtle border border-strong rounded-lg p-4 space-y-2">
+                                <p className="text-sm font-semibold text-ink">📸 콘텐츠 제작 의무</p>
                                 <ul className="space-y-1.5 pl-1">
-                                    <li className="text-sm text-[#B0B0B0] flex gap-2">
-                                        <span className="text-[#666666] shrink-0">•</span>
+                                    <li className="text-sm text-ink2 flex gap-2">
+                                        <span className="text-ink3 shrink-0">•</span>
                                         <span>방문 후 안내된 기한 내에 콘텐츠를 제출해야 합니다. 미제출 또는 반복 지연 시 향후 참여가 제한됩니다.</span>
                                     </li>
-                                    <li className="text-sm text-[#B0B0B0] flex gap-2">
-                                        <span className="text-[#666666] shrink-0">•</span>
+                                    <li className="text-sm text-ink2 flex gap-2">
+                                        <span className="text-ink3 shrink-0">•</span>
                                         <span>콘텐츠에 해당 캠핑장 관련 태그 또는 언급을 포함해야 합니다.</span>
                                     </li>
-                                    <li className="text-sm text-[#B0B0B0] flex gap-2">
-                                        <span className="text-[#666666] shrink-0">•</span>
+                                    <li className="text-sm text-ink2 flex gap-2">
+                                        <span className="text-ink3 shrink-0">•</span>
                                         <span>제공받은 팔로워 쿠폰 코드는 콘텐츠를 통해 배포해야 합니다.</span>
                                     </li>
                                     {/* CHANGED: 쿠폰 유출 경고는 policy4(별도 단계)로 이동 */}
                                 </ul>
                             </div>
 
-                            <div className="bg-[#252525] border border-[#3A3A3A] rounded-lg p-4 space-y-2">
-                                <p className="text-sm font-semibold text-white">©️ 저작권 및 활용</p>
+                            <div className="bg-subtle border border-strong rounded-lg p-4 space-y-2">
+                                <p className="text-sm font-semibold text-ink">©️ 저작권 및 활용</p>
                                 <ul className="space-y-1.5 pl-1">
-                                    <li className="text-sm text-[#B0B0B0] flex gap-2">
-                                        <span className="text-[#666666] shrink-0">•</span>
+                                    <li className="text-sm text-ink2 flex gap-2">
+                                        <span className="text-ink3 shrink-0">•</span>
                                         <span>제작된 콘텐츠는 캠핏 및 해당 캠핑장의 홍보 목적으로 업로드일로부터 12개월간 활용될 수 있습니다.</span>
                                     </li>
-                                    <li className="text-sm text-[#B0B0B0] flex gap-2">
-                                        <span className="text-[#666666] shrink-0">•</span>
+                                    <li className="text-sm text-ink2 flex gap-2">
+                                        <span className="text-ink3 shrink-0">•</span>
                                         <span>게시된 콘텐츠는 사전 협의 없이 임의로 삭제할 수 없습니다.</span>
                                     </li>
                                 </ul>
                             </div>
 
-                            <div className="bg-[#252525] border border-[#3A3A3A] rounded-lg p-4 space-y-2">
-                                <p className="text-sm font-semibold text-white">🏕️ 입실 등록 안내</p>
+                            <div className="bg-subtle border border-strong rounded-lg p-4 space-y-2">
+                                <p className="text-sm font-semibold text-ink">🏕️ 입실 등록 안내</p>
                                 <ul className="space-y-1.5 pl-1">
-                                    <li className="text-sm text-[#B0B0B0] flex gap-2">
-                                        <span className="text-[#666666] shrink-0">•</span>
+                                    <li className="text-sm text-ink2 flex gap-2">
+                                        <span className="text-ink3 shrink-0">•</span>
                                         <span>쿠폰 발급 후 캠핑장에 직접 예약하시고, 반드시 입실일과 입실 사이트를 포털에 등록해주세요.</span>
                                     </li>
-                                    <li className="text-sm text-[#B0B0B0] flex gap-2">
-                                        <span className="text-[#666666] shrink-0">•</span>
+                                    <li className="text-sm text-ink2 flex gap-2">
+                                        <span className="text-ink3 shrink-0">•</span>
                                         <span>입실 정보 미등록 시 협찬 진행 확인이 어렵습니다.</span>
                                     </li>
                                 </ul>
                             </div>
 
-                            <p className="text-xs text-[#9CA3AF] text-center">위 4가지 정책을 모두 확인하셨나요?</p>
+                            <p className="text-xs text-ink2 text-center">위 4가지 정책을 모두 확인하셨나요?</p>
                             {/* CHANGED: 타이핑 확인 제거 → 버튼 클릭 기반으로 전환 */}
                             <button
                                 onClick={() => setStep('policy4')}
-                                className="w-full h-12 bg-[#01DF82] text-black font-bold rounded-lg hover:bg-[#00C972] transition-colors"
+                                className="w-full h-12 bg-brand text-black font-bold rounded-lg hover:bg-brand-hover transition-colors"
                             >
                                 정책에 동의합니다
                             </button>
@@ -491,28 +491,28 @@ export default function PartnerApplicationModal({
                     {step === 'policy4' && (
                         <div className="space-y-4">
                             {/* CHANGED: Step 진행률 인디케이터 추가 */}
-                            <p className="text-xs text-[#666666] text-center">Step 4 / 4</p>
+                            <p className="text-xs text-ink3 text-center">Step 4 / 4</p>
                             <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 space-y-3">
-                                <p className="text-sm font-bold text-red-400">⚠️ 팔로워 쿠폰 코드 보안 정책</p>
+                                <p className="text-sm font-bold text-red-500">⚠️ 팔로워 쿠폰 코드 보안 정책</p>
                                 {/* CHANGED: '외부 유출이 금지' → 행동 지시 톤으로 소프트 랜딩 */}
-                                <p className="text-sm text-[#B0B0B0]">
-                                    팔로워 쿠폰 코드는 <span className="text-red-400 font-medium">외부에 공개하지 말아주세요</span>.
+                                <p className="text-sm text-ink2">
+                                    팔로워 쿠폰 코드는 <span className="text-red-500 font-medium">외부에 공개하지 말아주세요</span>.
                                     무분별한 유출 시 빠르게 마감되어 실제 팔로워에게 혜택이 돌아가지 않습니다.
                                 </p>
-                                <p className="text-sm font-semibold text-white mt-2">반드시 콘텐츠 내에서만 노출해주세요:</p>
+                                <p className="text-sm font-semibold text-ink mt-2">반드시 콘텐츠 내에서만 노출해주세요:</p>
                                 <ul className="space-y-2 pl-1">
-                                    <li className="text-sm text-[#B0B0B0] flex gap-2">
-                                        <span className="text-[#666666] shrink-0">•</span>
-                                        <span><span className="text-white font-medium">유튜버</span>: 영상 내 삽입 또는 더보기란에 기재</span>
+                                    <li className="text-sm text-ink2 flex gap-2">
+                                        <span className="text-ink3 shrink-0">•</span>
+                                        <span><span className="text-ink font-medium">유튜버</span>: 영상 내 삽입 또는 더보기란에 기재</span>
                                     </li>
-                                    <li className="text-sm text-[#B0B0B0] flex gap-2">
-                                        <span className="text-[#666666] shrink-0">•</span>
-                                        <span><span className="text-white font-medium">인스타그램</span>: DM 발송 (DM 발송 서비스 미사용 시 피드/릴스 캡션 삽입)</span>
+                                    <li className="text-sm text-ink2 flex gap-2">
+                                        <span className="text-ink3 shrink-0">•</span>
+                                        <span><span className="text-ink font-medium">인스타그램</span>: DM 발송 (DM 발송 서비스 미사용 시 피드/릴스 캡션 삽입)</span>
                                     </li>
                                 </ul>
                                 {/* CHANGED: 쿠폰 오남용 시 제재 문구 구체화 — 이상 사용 패턴·고의적 오남용 명시 */}
                                 <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-3 mt-2">
-                                    <p className="text-xs text-red-400 font-medium leading-relaxed">
+                                    <p className="text-xs text-red-500 font-medium leading-relaxed">
                                         팔로워 쿠폰 코드 배포 과정에서 이상 사용 패턴 또는 고의적 오남용이 확인되는 경우, 캠핏은 해당 크리에이터의 향후 협찬 참여 제한 조치를 할 수 있습니다.
                                     </p>
                                 </div>
@@ -521,7 +521,7 @@ export default function PartnerApplicationModal({
                             {/* CHANGED: 타이핑 확인 제거 → 버튼 클릭 기반으로 전환 */}
                             <button
                                 onClick={() => setStep('review')}
-                                className="w-full h-12 bg-[#01DF82] text-black font-bold rounded-lg hover:bg-[#00C972] transition-colors"
+                                className="w-full h-12 bg-brand text-black font-bold rounded-lg hover:bg-brand-hover transition-colors"
                             >
                                 이해했습니다
                             </button>
@@ -533,10 +533,10 @@ export default function PartnerApplicationModal({
                         <div className="space-y-4">
                             {/* CHANGED: 패키지 행 제거 (크리에이터에게 불필요) */}
                             {/* CHANGED: 크리에이터 숙박 행 추가 + 팔로워 쿠폰에 '할인' 키워드 추가 */}
-                            <div className="bg-[#252525] border border-[#3A3A3A] rounded-lg p-4 space-y-3">
+                            <div className="bg-subtle border border-strong rounded-lg p-4 space-y-3">
                                 <ReviewRow label="캠핑장" value={campaign.accommodationName} />
                                 <ReviewRow label="크리에이터 숙박" value={`${campaign.creatorStayNights}박 무료`} highlight />
-                                <div className="border-t border-[#333333]" />
+                                <div className="border-t border-line" />
                                 <ReviewRow label="팔로워 쿠폰 할인" value={`예약 건당 ${campaign.discount.toLocaleString()}원`} />
                                 <ReviewRow label="크리에이터 방문 가능" value={`${campaign.visitStartDate} ~ ${campaign.visitEndDate}`} />
                                 <ReviewRow label="팔로워 쿠폰 입실 가능" value={`${campaign.couponStartDate} ~ ${campaign.couponEndDate}`} />
@@ -551,7 +551,7 @@ export default function PartnerApplicationModal({
                                 </p>
                             </div>
 
-                            <p className="text-sm text-[#B0B0B0]">
+                            <p className="text-sm text-ink2">
                                 {myTier === '3' ? '⭐️ 아이콘' : myTier === '2' ? '✔️ 파트너' : '🔥 라이징'} 등급의 남은 자리에 신청합니다.
                             </p>
 
@@ -559,7 +559,7 @@ export default function PartnerApplicationModal({
                             <button
                                 onClick={handleSubmit}
                                 disabled={isSubmitting}
-                                className="w-full h-12 bg-[#01DF82] text-black font-bold rounded-lg hover:bg-[#00C972] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                                className="w-full h-12 bg-brand text-black font-bold rounded-lg hover:bg-brand-hover transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                             >
                                 {isSubmitting ? (
                                     <span className="flex items-center justify-center gap-2">
@@ -578,14 +578,14 @@ export default function PartnerApplicationModal({
                             {/* (A) 성공 메시지 */}
                             <div className="text-center">
                                 <div className="text-4xl mb-2">🎉</div>
-                                <p className="text-lg font-bold text-white">신청 완료!</p>
-                                <p className="text-sm text-[#9CA3AF] mt-1">{campaign.accommodationName}</p>
+                                <p className="text-lg font-bold text-ink">신청 완료!</p>
+                                <p className="text-sm text-ink2 mt-1">{campaign.accommodationName}</p>
                             </div>
 
                             {/* (B) Step 1: 크리에이터 쿠폰 복사 → 캠핏 등록 (메인 플로우) */}
-                            <div className="bg-[#252525] border border-[#3A3A3A] rounded-xl p-4 space-y-3">
-                                <p className="text-xs text-[#9CA3AF]">Step 1</p>
-                                <p className="text-sm font-semibold text-white">크리에이터 쿠폰을 복사 후 캠핏에 등록하세요</p>
+                            <div className="bg-subtle border border-strong rounded-xl p-4 space-y-3">
+                                <p className="text-xs text-ink2">Step 1</p>
+                                <p className="text-sm font-semibold text-ink">크리에이터 쿠폰을 복사 후 캠핏에 등록하세요</p>
 
                                 {couponCodes.creator ? (
                                     <PartnerCouponDisplay
@@ -593,8 +593,8 @@ export default function PartnerApplicationModal({
                                         couponCode={couponCodes.creator}
                                     />
                                 ) : (
-                                    <div className="bg-[#1E1E1E] rounded-lg p-3 text-center">
-                                        <p className="text-sm text-[#9CA3AF]">
+                                    <div className="bg-card rounded-lg p-3 text-center">
+                                        <p className="text-sm text-ink2">
                                             쿠폰 코드는 운영팀 확인 후 포털에서 확인 가능
                                         </p>
                                     </div>
@@ -605,7 +605,7 @@ export default function PartnerApplicationModal({
                                         href={CAMFIT_COUPON_URL}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="block w-full h-12 flex items-center justify-center bg-[#01DF82] text-black font-bold rounded-lg hover:bg-[#00C972] transition-colors"
+                                        className="block w-full h-12 flex items-center justify-center bg-brand text-black font-bold rounded-lg hover:bg-brand-hover transition-colors"
                                     >
                                         캠핏 쿠폰 등록하러 가기 →
                                     </a>
@@ -613,12 +613,12 @@ export default function PartnerApplicationModal({
                             </div>
 
                             {/* (C) Step 2: 입실 일정 등록 (서브 액션) */}
-                            <div className="bg-[#252525] border border-[#3A3A3A] rounded-xl p-4 space-y-3">
-                                <p className="text-xs text-[#9CA3AF]">Step 2</p>
-                                <p className="text-sm font-semibold text-white">캠핑장에 직접 예약 후 입실 일정을 등록해주세요</p>
+                            <div className="bg-subtle border border-strong rounded-xl p-4 space-y-3">
+                                <p className="text-xs text-ink2">Step 2</p>
+                                <p className="text-sm font-semibold text-ink">캠핑장에 직접 예약 후 입실 일정을 등록해주세요</p>
                                 <button
                                     onClick={() => setStep('checkin')}
-                                    className="w-full h-12 bg-[#2A2A2A] text-white font-bold rounded-lg hover:bg-[#333333] transition-colors border border-[#3A3A3A]"
+                                    className="w-full h-12 bg-subtle text-ink font-bold rounded-lg hover:bg-subtle transition-colors border border-strong"
                                 >
                                     입실 일정 등록하기
                                 </button>
@@ -626,8 +626,8 @@ export default function PartnerApplicationModal({
 
                             {/* (D) 팔로워 쿠폰 + 전체 복사 (보조 정보) */}
                             {couponCodes.follower && (
-                                <div className="bg-[#1E1E1E] border border-[#333333] rounded-xl p-4 space-y-3">
-                                    <p className="text-xs text-[#9CA3AF]">팔로워 쿠폰 (콘텐츠 배포 시 사용)</p>
+                                <div className="bg-card border border-line rounded-xl p-4 space-y-3">
+                                    <p className="text-xs text-ink2">팔로워 쿠폰 (콘텐츠 배포 시 사용)</p>
                                     <PartnerCouponDisplay
                                         label="팔로워 쿠폰 코드"
                                         couponCode={couponCodes.follower}
@@ -639,8 +639,8 @@ export default function PartnerApplicationModal({
                                 onClick={handleCopyAll}
                                 className={`w-full h-10 flex items-center justify-center text-sm font-medium rounded-lg transition-colors ${
                                     allCopied
-                                        ? 'bg-[#01DF82]/20 text-[#01DF82] border border-[#01DF82]/50'
-                                        : 'bg-[#333333] text-white hover:bg-[#3A3A3A]'
+                                        ? 'bg-brand-bg text-brand-strong border border-brand/50'
+                                        : 'bg-subtle text-ink hover:bg-subtle'
                                 }`}
                             >
                                 {/* CHANGED: CTA 버튼 이모지 제거 */}
@@ -649,7 +649,7 @@ export default function PartnerApplicationModal({
 
                             <button
                                 onClick={handleClose}
-                                className="w-full h-10 text-[#666666] text-sm hover:text-[#9CA3AF] transition-colors"
+                                className="w-full h-10 text-ink3 text-sm hover:text-ink2 transition-colors"
                             >
                                 닫기
                             </button>
@@ -659,49 +659,49 @@ export default function PartnerApplicationModal({
                     {/* CHANGED: 입실 정보 등록 화면 (성공 후) */}
                     {step === 'checkin' && (
                         <div className="space-y-4">
-                            <h3 className="text-base font-bold text-white">입실 일정 등록</h3>
+                            <h3 className="text-base font-bold text-ink">입실 일정 등록</h3>
 
                             {errorMessage && (
                                 <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
-                                    <p className="text-red-400 text-sm">{errorMessage}</p>
+                                    <p className="text-red-500 text-sm">{errorMessage}</p>
                                 </div>
                             )}
 
                             <div>
-                                <label className="block text-sm text-[#9CA3AF] mb-1.5">입실 희망일</label>
+                                <label className="block text-sm text-ink2 mb-1.5">입실 희망일</label>
                                 <input
                                     type="date"
                                     value={checkInDate}
                                     min={campaign.visitStartDate}
                                     max={campaign.visitEndDate}
                                     onChange={(event) => setCheckInDate(event.target.value)}
-                                    className="w-full h-12 bg-[#252525] border border-[#3A3A3A] rounded-lg px-4 text-white focus:border-[#01DF82] outline-none transition-colors"
+                                    className="w-full h-12 bg-subtle border border-strong rounded-lg px-4 text-ink focus:border-brand outline-none transition-colors"
                                 />
-                                <p className="text-xs text-[#666666] mt-1">
+                                <p className="text-xs text-ink3 mt-1">
                                     {campaign.visitStartDate} ~ {campaign.visitEndDate} 내 선택
                                 </p>
                             </div>
                             <div>
-                                <label className="block text-sm text-[#9CA3AF] mb-1.5">입실 사이트</label>
+                                <label className="block text-sm text-ink2 mb-1.5">입실 사이트</label>
                                 <input
                                     type="text"
                                     value={checkInSite}
                                     onChange={(event) => setCheckInSite(event.target.value)}
                                     placeholder="예: A-1, 오토캠핑 3번"
-                                    className="w-full h-12 bg-[#252525] border border-[#3A3A3A] rounded-lg px-4 text-white placeholder:text-[#555555] focus:border-[#01DF82] outline-none transition-colors"
+                                    className="w-full h-12 bg-subtle border border-strong rounded-lg px-4 text-ink placeholder:text-ink3 focus:border-brand outline-none transition-colors"
                                 />
                             </div>
                             <div className="flex gap-3">
                                 <button
                                     onClick={() => setStep('success')}
-                                    className="flex-1 h-12 bg-[#2A2A2A] text-white font-medium rounded-lg hover:bg-[#333333] transition-colors"
+                                    className="flex-1 h-12 bg-subtle text-ink font-medium rounded-lg hover:bg-subtle transition-colors"
                                 >
                                     돌아가기
                                 </button>
                                 <button
                                     onClick={handleCheckinSubmit}
                                     disabled={!checkInDate || !checkInSite}
-                                    className="flex-1 h-12 bg-[#01DF82] text-black font-bold rounded-lg hover:bg-[#00C972] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                    className="flex-1 h-12 bg-brand text-black font-bold rounded-lg hover:bg-brand-hover transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                                 >
                                     등록하기
                                 </button>
@@ -713,13 +713,13 @@ export default function PartnerApplicationModal({
                     {step === 'checkinSuccess' && (
                         <div className="text-center py-6 space-y-4">
                             <div className="text-5xl">✅</div>
-                            <p className="text-lg font-bold text-white">입실 일정이 등록되었습니다!</p>
-                            <p className="text-sm text-[#B0B0B0]">
+                            <p className="text-lg font-bold text-ink">입실 일정이 등록되었습니다!</p>
+                            <p className="text-sm text-ink2">
                                 입실일: {checkInDate} / 사이트: {checkInSite}
                             </p>
                             <button
                                 onClick={handleClose}
-                                className="w-full h-12 bg-[#01DF82] text-black font-bold rounded-lg hover:bg-[#00C972] transition-colors"
+                                className="w-full h-12 bg-brand text-black font-bold rounded-lg hover:bg-brand-hover transition-colors"
                             >
                                 확인
                             </button>
@@ -730,14 +730,14 @@ export default function PartnerApplicationModal({
                     {step === 'error' && (
                         <div className="text-center py-6 space-y-4">
                             <div className="text-5xl">😥</div>
-                            <p className="text-lg font-bold text-white animate-pulse">{errorMessage}</p>
+                            <p className="text-lg font-bold text-ink animate-pulse">{errorMessage}</p>
                             {isClosedError ? (
-                                <p className="text-sm text-[#9CA3AF]">잠시 후 자동으로 닫힙니다...</p>
+                                <p className="text-sm text-ink2">잠시 후 자동으로 닫힙니다...</p>
                             ) : (
                                 <div className="flex gap-3">
                                     <button
                                         onClick={handleClose}
-                                        className="flex-1 h-12 bg-[#2A2A2A] text-white font-medium rounded-lg hover:bg-[#333333] transition-colors"
+                                        className="flex-1 h-12 bg-subtle text-ink font-medium rounded-lg hover:bg-subtle transition-colors"
                                     >
                                         닫기
                                     </button>
@@ -763,8 +763,8 @@ export default function PartnerApplicationModal({
 function ReviewRow({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
     return (
         <div className="flex justify-between items-start">
-            <span className="text-sm text-[#9CA3AF] shrink-0">{label}</span>
-            <span className={`text-sm text-right ml-4 ${highlight ? 'text-[#01DF82] font-semibold' : 'text-white'}`}>{value}</span>
+            <span className="text-sm text-ink2 shrink-0">{label}</span>
+            <span className={`text-sm text-right ml-4 ${highlight ? 'text-brand-strong font-semibold' : 'text-ink'}`}>{value}</span>
         </div>
     );
 }
