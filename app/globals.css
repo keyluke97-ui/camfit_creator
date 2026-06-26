@@ -6,6 +6,7 @@
   --surface-page: #fafafa;     /* 페이지 배경 (구 #111111) */
   --surface-card: #ffffff;     /* 카드/모달 (구 #1E1E1E) */
   --surface-subtle: #f5f6f8;   /* 보조 면/입력 (구 #2A2A2A·#252525) */
+  --surface-subtle-hover: #eceef4; /* CHANGED: 보조 면 hover(살짝 진하게) — 죽은 hover:bg-subtle 수정용 */
   /* Borders */
   --border-line: #eceef4;      /* 기본 테두리 (구 #333333) */
   --border-strong: #c9cdd3;    /* 강조 테두리 (구 #3A3A3A) */
@@ -25,6 +26,7 @@
   --color-page: var(--surface-page);
   --color-card: var(--surface-card);
   --color-subtle: var(--surface-subtle);
+  --color-subtle-hover: var(--surface-subtle-hover);
   --color-line: var(--border-line);
   --color-strong: var(--border-strong);
   --color-ink: var(--text-ink);
@@ -65,10 +67,13 @@ button:hover {
   opacity: 0.9;
 }
 
-/* 입력창 포커스 스타일 */
+/* 입력창 + 버튼 키보드 포커스 스타일 */
+/* CHANGED: button:focus-visible 추가 — 키보드 포커스가 안 보이던 전역 a11y 결함 수정 */
 input:focus,
 select:focus,
-textarea:focus {
+textarea:focus,
+button:focus-visible,
+a:focus-visible {
   outline: 2px solid var(--brand);
   outline-offset: 2px;
 }

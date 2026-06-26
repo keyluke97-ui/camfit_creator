@@ -62,6 +62,8 @@ function DashboardContent() {
     const [isCheckinModalOpen, setIsCheckinModalOpen] = useState(false);
     // CHANGED: 콘텐츠 탭 state 추가
     const [contentUploads, setContentUploads] = useState<ContentUpload[]>([]);
+    // CHANGED: 콘텐츠 로드 실패를 빈 상태와 구분 — 무음 처리되던 결함 수정
+    const [contentError, setContentError] = useState(false);
     const [isContentSubmitModalOpen, setIsContentSubmitModalOpen] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
     const [showClosedCampaigns, setShowClosedCampaigns] = useState(false);
@@ -108,9 +110,14 @@ function DashboardContent() {
             const data = await response.json();
             if (response.ok) {
                 setContentUploads(data.uploads || []);
+                setContentError(false);
+            } else {
+                // CHANGED: 실패를 빈 상태로 위장하지 않고 에러 상태로 노출
+                setContentError(true);
             }
         } catch (error) {
             console.error(error);
+            setContentError(true);
         }
     };
 
@@ -415,6 +422,36 @@ function DashboardContent() {
                                 </>
                             );
                         })()}
+
+                        {/* CHANGED: 빈 상태 추가 — 캠페인 0개 또는 필터 결과 0이던 백지 화면 갭 메움 */}
+                        {filteredCampaigns.length === 0 && (
+                            <div className="flex flex-col items-center justify-center py-20 gap-5">
+                                <Mascot expression="thinking" size={104} />
+                                <div className="text-center">
+                                    <h3 className="text-base font-bold text-ink mb-1.5">
+                                        {selectedLocation !== '전체'
+                                            ? `${selectedLocation} 캠페인이 없어요`
+                                            : '진행 중인 캠페인이 없어요'}
+                                    </h3>
+                                    <p className="text-sm text-ink3 leading-relaxed">
+                                        {selectedLocation !== '전체'
+                                            ? '다른 지역을 둘러보거나 필터를 초기화해보세요'
+                                            : '새 캠페인이 열리면 여기에 표시돼요'}
+                                    </p>
+                                </div>
+                                {selectedLocation !== '전체' && (
+                                    <button
+                                        onClick={() => setSelectedLocation('전체')}
+                                        className="px-5 py-2.5 bg-brand text-black font-bold text-sm rounded-full hover:bg-brand-hover transition-colors"
+                                    >
+                                        필터 초기화
+                                    </button>
+                                )}
+                            </div>
+                        )}
+
+                        {/* CHANGED: 하단 스페이서 — 고정 정렬·필터 버튼이 마지막 카드 내용을 가리던 문제 해소 */}
+                        <div className="h-24" aria-hidden />
                     </>
                 )}
 
@@ -440,7 +477,24 @@ function DashboardContent() {
                         </div>
 
                         {/* CHANGED: 연도별 그룹핑 — 올해 풀카드, 이전 연도 콤팩트 */}
-                        {contentUploads.length > 0 ? (
+                        {/* CHANGED: 로드 실패 시 빈 상태 대신 에러 + 재시도 (무음 처리 결함 수정) */}
+                        {contentError && contentUploads.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-20 gap-5">
+                                <Mascot expression="sorry" size={104} />
+                                <div className="text-center">
+                                    <h3 className="text-base font-bold text-ink mb-1.5">콘텐츠를 불러오지 못했어요</h3>
+                                    <p className="text-sm text-ink3 leading-relaxed">
+                                        잠시 후 다시 시도해주세요.<br />계속되면 카카오톡 채널로 문의해주세요.
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => fetchContentUploads()}
+                                    className="px-5 py-2.5 bg-brand text-black font-bold text-sm rounded-full hover:bg-brand-hover transition-colors"
+                                >
+                                    다시 시도
+                                </button>
+                            </div>
+                        ) : contentUploads.length > 0 ? (
                             (() => {
                                 const currentYear = new Date().getFullYear().toString();
                                 const thisYearUploads = contentUploads.filter(u => u.uploadDate?.startsWith(currentYear));
@@ -533,7 +587,7 @@ function DashboardContent() {
                 <>
                     <button
                         onClick={() => setIsFilterSheetOpen(true)}
-                        className="fixed left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 px-5 py-3 bg-brand text-black font-bold text-sm rounded-full shadow-lg shadow-black/40 hover:bg-brand-hover transition-colors cursor-pointer"
+                        className="fixed left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 px-5 py-3 bg-brand text-black font-bold text-sm rounded-full shadow-lg shadow-black/10 hover:bg-brand-hover transition-colors cursor-pointer"
                         style={{ bottom: 'calc(1.25rem + env(safe-area-inset-bottom))' }}
                     >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
