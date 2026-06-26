@@ -422,7 +422,7 @@ export default function ApplicationModal({ isOpen, onClose, campaign, channelTyp
                                 <div className="text-left">
                                     <button
                                         onClick={() => setIsFollowerExpanded((prev) => !prev)}
-                                        className="w-full flex items-center justify-between bg-subtle border border-strong rounded-xl px-4 py-3 text-sm text-ink hover:bg-subtle transition-colors"
+                                        className="w-full flex items-center justify-between bg-subtle border border-strong rounded-xl px-4 py-3 text-sm text-ink hover:bg-subtle-hover transition-colors"
                                     >
                                         <span className="inline-flex items-center gap-1"><BrandIcon name="coupon" size={16} />팔로워에게 공유할 쿠폰 보기 <span className="text-ink3">· 내 예약용 아니에요</span></span>
                                         <span className="text-xs text-ink3 shrink-0 ml-2">{isFollowerExpanded ? '접기 ▲' : '펼치기 ▼'}</span>
@@ -497,7 +497,7 @@ export default function ApplicationModal({ isOpen, onClose, campaign, channelTyp
                             <button
                                 onClick={onClose}
                                 disabled={isLoading}
-                                className="flex-1 h-12 bg-subtle text-ink font-medium rounded-lg hover:bg-subtle transition-colors disabled:opacity-50"
+                                className="flex-1 h-12 bg-subtle text-ink font-medium rounded-lg hover:bg-subtle-hover transition-colors disabled:opacity-50"
                             >
                                 취소
                             </button>
@@ -523,7 +523,7 @@ export default function ApplicationModal({ isOpen, onClose, campaign, channelTyp
                                 onClose();
                                 window.location.reload(); // 상태 반영을 위해 새로고침
                             }}
-                            className="w-full h-12 bg-subtle text-ink font-medium rounded-lg hover:bg-subtle transition-colors"
+                            className="w-full h-12 bg-subtle text-ink font-medium rounded-lg hover:bg-subtle-hover transition-colors"
                         >
                             닫기 (완료)
                         </button>

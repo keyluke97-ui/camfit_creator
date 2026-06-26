@@ -59,7 +59,7 @@ export default function ContentCard({ content }: ContentCardProps) {
                         href={content.contentLink}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-2.5 px-3.5 py-2.5 bg-subtle rounded-lg hover:bg-subtle transition-colors group"
+                        className="flex items-center gap-2.5 px-3.5 py-2.5 bg-subtle rounded-lg hover:bg-subtle-hover transition-colors group"
                     >
                         <div className="w-8 h-8 bg-brand-bg rounded-lg flex items-center justify-center flex-shrink-0">
                             <svg className="w-4 h-4 text-brand-strong" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -84,7 +84,7 @@ export default function ContentCard({ content }: ContentCardProps) {
                             href={link}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center gap-2.5 px-3.5 py-2.5 bg-subtle rounded-lg hover:bg-subtle transition-colors group"
+                            className="flex items-center gap-2.5 px-3.5 py-2.5 bg-subtle rounded-lg hover:bg-subtle-hover transition-colors group"
                         >
                             <div className="w-8 h-8 bg-brand-bg rounded-lg flex items-center justify-center flex-shrink-0">
                                 <svg className="w-4 h-4 text-brand-strong" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -109,7 +109,7 @@ export default function ContentCard({ content }: ContentCardProps) {
                             href={content.camfitLoungeUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center gap-2.5 px-3.5 py-2.5 bg-subtle rounded-lg hover:bg-subtle transition-colors group"
+                            className="flex items-center gap-2.5 px-3.5 py-2.5 bg-subtle rounded-lg hover:bg-subtle-hover transition-colors group"
                         >
                             <div className="w-8 h-8 bg-subtle rounded-lg flex items-center justify-center flex-shrink-0">
                                 <svg className="w-4 h-4 text-ink3" fill="none" stroke="currentColor" viewBox="0 0 24 24">

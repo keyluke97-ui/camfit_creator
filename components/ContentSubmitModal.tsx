@@ -348,25 +348,29 @@ export default function ContentSubmitModal({
                                         autoComplete="off"
                                     />
                                     {isAccommodationDropdownOpen && (
-                                        <div className="absolute z-[100] w-full mt-1 bg-card border border-line rounded-lg shadow-[0_10px_40px_rgba(0,0,0,0.5)] max-h-[200px] overflow-y-auto">
+                                        <div role="listbox" className="absolute z-[100] w-full mt-1 bg-card border border-line rounded-lg shadow-[0_10px_40px_rgba(0,0,0,0.12)] max-h-[200px] overflow-y-auto">
                                             {accommodationOptions.length > 0 ? (
                                                 accommodationOptions.map((option) => (
-                                                    <div
+                                                    // CHANGED: div onMouseDown → button (키보드/스크린리더 접근). onMouseDown은 input blur 방지용만 유지, 선택은 onClick(Enter 포함)
+                                                    <button
+                                                        type="button"
+                                                        role="option"
+                                                        aria-selected={selectedAccommodation?.id === option.id}
                                                         key={option.id}
-                                                        className={`px-4 py-3 text-sm cursor-pointer transition-colors ${
+                                                        className={`w-full text-left px-4 py-3 text-sm cursor-pointer transition-colors ${
                                                             selectedAccommodation?.id === option.id
                                                                 ? 'text-brand-strong bg-subtle'
                                                                 : 'text-ink hover:bg-subtle'
                                                         }`}
-                                                        onMouseDown={(e) => {
-                                                            e.preventDefault();
+                                                        onMouseDown={(e) => e.preventDefault()}
+                                                        onClick={() => {
                                                             setSelectedAccommodation(option);
                                                             setAccommodationSearch(option.name);
                                                             setIsAccommodationDropdownOpen(false);
                                                         }}
                                                     >
                                                         {option.name}
-                                                    </div>
+                                                    </button>
                                                 ))
                                             ) : (
                                                 <div className="px-4 py-4 text-sm text-ink3 text-center">
@@ -417,25 +421,29 @@ export default function ContentSubmitModal({
                                     autoComplete="off"
                                 />
                                 {isCampaignDropdownOpen && (
-                                    <div className="absolute z-[100] w-full mt-1 bg-card border border-line rounded-lg shadow-[0_10px_40px_rgba(0,0,0,0.5)] max-h-[200px] overflow-y-auto">
+                                    <div role="listbox" className="absolute z-[100] w-full mt-1 bg-card border border-line rounded-lg shadow-[0_10px_40px_rgba(0,0,0,0.12)] max-h-[200px] overflow-y-auto">
                                         {campaignOptions.length > 0 ? (
                                             campaignOptions.map((option) => (
-                                                <div
+                                                // CHANGED: div onMouseDown → button (키보드/스크린리더 접근). 선택은 onClick(Enter 포함)
+                                                <button
+                                                    type="button"
+                                                    role="option"
+                                                    aria-selected={selectedCampaign?.id === option.id}
                                                     key={option.id}
-                                                    className={`px-4 py-3 text-sm cursor-pointer transition-colors ${
+                                                    className={`w-full text-left px-4 py-3 text-sm cursor-pointer transition-colors ${
                                                         selectedCampaign?.id === option.id
                                                             ? 'text-brand-strong bg-subtle'
                                                             : 'text-ink hover:bg-subtle'
                                                     }`}
-                                                    onMouseDown={(e) => {
-                                                        e.preventDefault();
+                                                    onMouseDown={(e) => e.preventDefault()}
+                                                    onClick={() => {
                                                         setSelectedCampaign(option);
                                                         setCampaignSearch(option.name);
                                                         setIsCampaignDropdownOpen(false);
                                                     }}
                                                 >
                                                     {option.name}
-                                                </div>
+                                                </button>
                                             ))
                                         ) : (
                                             // CHANGED: 빈 결과 시 노출 정책 안내 추가

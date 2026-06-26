@@ -72,7 +72,7 @@ export function CheckinCouponBox({ app }: { app: Application }) {
                             /* noop */
                         }
                     }}
-                    className="flex-shrink-0 text-xs px-3 py-1 bg-subtle border border-strong text-ink rounded-full hover:bg-subtle"
+                    className="flex-shrink-0 text-xs px-3 py-1 bg-subtle border border-strong text-ink rounded-full hover:bg-subtle-hover"
                 >
                     {copied ? '복사 완료!' : '코드 복사'}
                 </button>

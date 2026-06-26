@@ -355,7 +355,7 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
                                                 {/* CHANGED: 협찬 조건 복사 버튼 */}
                                                 <button
                                                     onClick={() => handleCopyConditions(app)}
-                                                    className="w-full h-9 bg-subtle border border-strong text-ink rounded-lg text-xs hover:bg-subtle transition-colors flex items-center justify-center gap-1.5"
+                                                    className="w-full h-9 bg-subtle border border-strong text-ink rounded-lg text-xs hover:bg-subtle-hover transition-colors flex items-center justify-center gap-1.5"
                                                 >
                                                     {copiedAppId === app.id ? (
                                                         <><svg className="w-3.5 h-3.5 text-brand-strong" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>복사 완료!</>
@@ -406,7 +406,7 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
                                                 {/* CHANGED: 협찬 조건 복사 버튼 (미등록 상태에서도 표시) */}
                                                 <button
                                                     onClick={() => handleCopyConditions(app)}
-                                                    className="w-full h-9 bg-subtle border border-strong text-ink rounded-lg text-xs hover:bg-subtle transition-colors flex items-center justify-center gap-1.5"
+                                                    className="w-full h-9 bg-subtle border border-strong text-ink rounded-lg text-xs hover:bg-subtle-hover transition-colors flex items-center justify-center gap-1.5"
                                                 >
                                                     {copiedAppId === app.id ? (
                                                         <><svg className="w-3.5 h-3.5 text-brand-strong" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>복사 완료!</>
@@ -525,7 +525,7 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
                     <div className="p-5 border-t border-line flex gap-3 flex-shrink-0">
                         <button
                             onClick={handleBackToList}
-                            className="flex-1 h-12 bg-subtle text-ink font-medium rounded-lg hover:bg-subtle transition-colors"
+                            className="flex-1 h-12 bg-subtle text-ink font-medium rounded-lg hover:bg-subtle-hover transition-colors"
                         >
                             취소
                         </button>
@@ -546,7 +546,7 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
                     <div className="p-5 border-t border-line flex-shrink-0">
                         <button
                             onClick={handleBackToList}
-                            className="w-full h-12 bg-subtle text-ink font-medium rounded-lg hover:bg-subtle transition-colors"
+                            className="w-full h-12 bg-subtle text-ink font-medium rounded-lg hover:bg-subtle-hover transition-colors"
                         >
                             목록으로 돌아가기
                         </button>

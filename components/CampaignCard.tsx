@@ -158,7 +158,7 @@ export default function CampaignCard({ campaign, channelTypes }: CampaignCardPro
                     href={campaign.detailUrl}
                     target="_blank" // CHANGED: 외부 링크가 새 탭에서 열리도록 추가
                     rel="noopener noreferrer" // CHANGED: noreferrer → noopener noreferrer 보안 강화
-                    className="flex-1 h-12 flex items-center justify-center bg-subtle text-ink font-medium rounded-lg hover:bg-subtle transition-colors text-center"
+                    className="flex-1 h-12 flex items-center justify-center bg-subtle text-ink font-medium rounded-lg hover:bg-subtle-hover transition-colors text-center"
                 >
                     상세보기
                 </a>
