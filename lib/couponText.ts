@@ -71,26 +71,29 @@ export function buildSponsorshipSummary(input: SponsorshipTextInput): string {
 }
 
 // 팔로워에게 그대로 전달하는 깨끗한 메시지 (본인 정보 배제). 쿠폰이벤트+분배 코드 있을 때만 의미.
+// CHANGED: SNS 감성 톤으로 개편 — 선물 헤드라인 + 선착순 수량(couponPerCreator) + 예약 1건당 1회 안내 추가
 export function buildFollowerShareMessage(input: SponsorshipTextInput): string {
     const { accommodationName, couponEvent, followerCouponCode } = input;
     if (!couponEvent || !followerCouponCode) return '';
     const dayConfig = COUPON_APPLY_DAYS_CONFIG[couponEvent.couponApplyDays];
     const dayLabel = dayConfig?.label || couponEvent.couponApplyDays;
     const lines: string[] = [];
-    lines.push(`🎁 ${accommodationName} 팔로워 전용 할인 쿠폰`);
+    lines.push('🏕️ 팔로워분들께 드리는 캠핑 선물!');
+    lines.push(`${accommodationName} 예약할 때 쓸 수 있는 ${formatDiscount(couponEvent.discount)} 할인 쿠폰이에요 🎁`);
     lines.push('');
-    lines.push(`✅ ${formatDiscount(couponEvent.discount)} 할인 (${dayLabel})`);
-    lines.push(`📌 쿠폰 코드: ${followerCouponCode}`);
+    lines.push(`🎟️ 쿠폰 코드: ${followerCouponCode}`);
     lines.push('');
     lines.push('[사용 방법]');
     lines.push('① 위 쿠폰 코드 복사');
     lines.push(`② 캠핏 쿠폰 등록 페이지에서 등록 → ${COUPON_REGISTER_URL}`);
-    lines.push("③ 쿠폰함에서 '사용하기'");
-    lines.push(`④ ${accommodationName} 예약할 때 자동 적용`);
+    lines.push("③ 쿠폰함에서 '사용하기' 누르기");
+    lines.push(`④ ${accommodationName} 예약하면 자동 적용, 끝!`);
     lines.push('');
+    lines.push(`📅 ${couponEvent.couponStartDate} ~ ${couponEvent.couponEndDate} · ${dayLabel} 사용 가능`);
+    lines.push(`👥 선착순 ${couponEvent.couponPerCreator}장 한정! 소진되면 자동 만료돼요`);
     // CHANGED: 옵션별 제외 안내 — 공휴일 전일·당일 미사용 문의 다발 대응 (제외 없는 옵션은 미노출)
     if (dayConfig?.exclusionNote) lines.push(`⚠️ ${dayConfig.exclusionNote}`);
-    lines.push(`※ ${couponEvent.couponStartDate} ~ ${couponEvent.couponEndDate} 사용 가능 · 수량 소진 시 자동 만료`);
+    lines.push('※ 쿠폰 1장당 예약 1건 적용 (숙박 일수 무관)');
     return lines.join('\n');
 }
 
