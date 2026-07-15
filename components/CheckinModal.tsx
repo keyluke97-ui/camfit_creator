@@ -266,7 +266,9 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
     const isRegistered = (app: Application) => !!(app.checkInDate && app.checkInSite);
 
     // CHANGED: 입실일 지난 캠페인 분리 + 정렬
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    // CHANGED: KST 기준 오늘(YYYY-MM-DD) — 기존 UTC(toISOString)는 한국에서 자정 무렵 하루 어긋남.
+    //          isPast 분류 + CompletedAppsList의 쿠폰 유효(couponEndDate) 판정 공용 기준.
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Seoul' }); // 'YYYY-MM-DD'
     const isPast = (app: Application) => isRegistered(app) && app.checkInDate < today;
 
     const activeApps = applications
@@ -440,7 +442,13 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
                                 ))}
 
                                 {/* CHANGED: 완료된 캠페인 (입실일 지난 것) — 추출: CompletedAppsList */}
-                                <CompletedAppsList apps={completedApps} />
+                                {/* CHANGED: 입실 후에도 유효 쿠폰(couponEndDate)·특장점 유지 위해 today/복사핸들러 전달 */}
+                                <CompletedAppsList
+                                    apps={completedApps}
+                                    today={today}
+                                    copiedAppId={copiedAppId}
+                                    onCopyConditions={handleCopyConditions}
+                                />
                             </div>
                         )
                     ) : step === 2 ? (

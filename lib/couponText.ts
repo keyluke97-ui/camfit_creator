@@ -4,6 +4,15 @@
 import type { CouponEvent, ChannelType } from '@/types';
 import { COUPON_APPLY_DAYS_CONFIG, formatDiscount, COUPON_REGISTER_URL } from '@/lib/constants';
 
+// CHANGED: 박수 조건 라벨 — 발행 쿠폰 minBookingDays/maxBookingDays 기준. 1박 예약엔 할인 미적용 문의 방지.
+//          min만 → 'N박 이상', min===max → 'N박', 둘 다·상이 → 'N박~M박', 없으면 '' (미노출).
+export function formatBookingNights(min?: number, max?: number): string {
+    if (!min && !max) return '';
+    if (min && max) return min === max ? `${min}박` : `${min}박~${max}박`;
+    if (min) return `${min}박 이상`;
+    return `${max}박 이하`;
+}
+
 export interface SponsorshipTextInput {
     accommodationName: string;
     myCouponCode?: string;          // 내 예약 쿠폰
@@ -37,6 +46,9 @@ export function buildSponsorshipSummary(input: SponsorshipTextInput): string {
         lines.push('[팔로워 쿠폰] (팔로워 공유용 · 내 예약엔 사용 X)');
         lines.push(`• 팔로워 쿠폰 코드: ${followerCouponCode}`);
         lines.push(`• 할인: ${formatDiscount(couponEvent.discount)} (${dayLabel})`);
+        // CHANGED: 박수 조건 — 1박 예약엔 할인 미적용 문의 방지 (미설정 시 미노출)
+        const summaryNights = formatBookingNights(couponEvent.minBookingNights, couponEvent.maxBookingNights);
+        if (summaryNights) lines.push(`• 예약 조건: ${summaryNights} 예약에만 사용 가능`);
         // CHANGED: 옵션별 제외 안내 — 공휴일 전일·당일 미사용 문의 다발 대응 (제외 없는 옵션은 미노출)
         if (dayConfig?.exclusionNote) lines.push(`• ⚠️ ${dayConfig.exclusionNote}`);
         lines.push('• 적용 사이트: 해당 캠핑장 내 모든 사이트');
@@ -90,6 +102,9 @@ export function buildFollowerShareMessage(input: SponsorshipTextInput): string {
     lines.push(`④ ${accommodationName} 예약하면 자동 적용, 끝!`);
     lines.push('');
     lines.push(`📅 ${couponEvent.couponStartDate} ~ ${couponEvent.couponEndDate} · ${dayLabel} 사용 가능`);
+    // CHANGED: 박수 조건 노출 — 1박 예약엔 할인 미적용 문의 방지 (미설정 시 미노출)
+    const nightsLabel = formatBookingNights(couponEvent.minBookingNights, couponEvent.maxBookingNights);
+    if (nightsLabel) lines.push(`🛏️ ${nightsLabel} 예약에 사용 가능`);
     lines.push(`👥 선착순 ${couponEvent.couponPerCreator}장 한정! 소진되면 자동 만료돼요`);
     // CHANGED: 옵션별 제외 안내 — 공휴일 전일·당일 미사용 문의 다발 대응 (제외 없는 옵션은 미노출)
     if (dayConfig?.exclusionNote) lines.push(`⚠️ ${dayConfig.exclusionNote}`);

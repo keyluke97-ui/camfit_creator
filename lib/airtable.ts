@@ -271,6 +271,9 @@ export async function getCampaigns(tier: TierLevel): Promise<Campaign[]> {
                     visitEndDate: fields['크리에이터 방문 가능 종료일']!,
                     couponStartDate: fields['쿠폰 유효 시작일']!,
                     couponEndDate: fields['쿠폰 유효 종료일']!,
+                    // CHANGED: 박수 조건 매핑 — 미설정(0/누락)이면 undefined → 메시지 미노출
+                    minBookingNights: fields['사용가능 최소 예약 박수'] || undefined,
+                    maxBookingNights: fields['사용가능 최대 예약 박수'] || undefined,
                 }
                 : undefined;
 
@@ -607,6 +610,9 @@ export async function getUserApplications(channelName: string): Promise<Applicat
                         visitEndDate: cf['크리에이터 방문 가능 종료일']!,
                         couponStartDate: cf['쿠폰 유효 시작일']!,
                         couponEndDate: cf['쿠폰 유효 종료일']!,
+                        // CHANGED: 박수 조건 매핑 — 미설정(0/누락)이면 undefined → 메시지 미노출
+                        minBookingNights: cf['사용가능 최소 예약 박수'] || undefined,
+                        maxBookingNights: cf['사용가능 최대 예약 박수'] || undefined,
                     };
                 }
             }
