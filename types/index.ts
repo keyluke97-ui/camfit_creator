@@ -46,6 +46,10 @@ export interface CouponEvent {
   visitEndDate: string;          // 크리에이터 방문 가능 종료일
   couponStartDate: string;       // 쿠폰 유효 시작일
   couponEndDate: string;         // 쿠폰 유효 종료일
+  // CHANGED: 팔로워 쿠폰 사용 박수 조건 — 발행된 쿠폰의 minBookingDays/maxBookingDays와 동일.
+  //          미설정(0/누락)이면 undefined → 메시지에 미노출. 1박 예약엔 할인 미적용 문의 방지용.
+  minBookingNights?: number;     // 사용가능 최소 예약 박수
+  maxBookingNights?: number;     // 사용가능 최대 예약 박수
 }
 
 // CHANGED: 캠페인 목록 정렬 키 — 대시보드 정렬 메뉴와 sortCampaigns()가 공유
@@ -123,6 +127,9 @@ export interface AirtableCampaignRecord {
     '크리에이터 방문 가능 종료일'?: string;
     '쿠폰 유효 시작일'?: string;
     '쿠폰 유효 종료일'?: string;
+    // CHANGED: 팔로워 쿠폰 사용 박수 조건 (발행 쿠폰 minBookingDays/maxBookingDays 소스)
+    '사용가능 최소 예약 박수'?: number;
+    '사용가능 최대 예약 박수'?: number;
     // CHANGED: 통합 분배 — 어드민 자동 발행이 N줄로 채우는 풀(applyCampaign 신청 시 첫 줄 슬라이싱)
     '팔로워 쿠폰 코드'?: string;
     // CHANGED: 분배된 코드 이력 누적 (Long text, race 검증 소스)

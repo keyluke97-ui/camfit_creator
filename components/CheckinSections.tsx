@@ -99,33 +99,93 @@ export function CheckinCouponBox({ app }: { app: Application }) {
     );
 }
 
+// CHANGED: 특장점 인라인 표시 (접기/더보기) — 완료 캠페인 카드에서 콘텐츠 제작용으로 바로 읽게.
+//          HighlightsModal(바텀시트, 캠페인 탐색 전용)과 달리 화면 인라인.
+function HighlightsInline({ text }: { text: string }) {
+    const [expanded, setExpanded] = useState(false);
+    return (
+        <div className="bg-subtle border border-line rounded-lg p-3 space-y-1.5">
+            <p className="text-xs text-ink2 font-medium">캠지기 포인트 (특장점)</p>
+            <p className={`text-xs text-ink2 whitespace-pre-line leading-relaxed ${expanded ? '' : 'line-clamp-3'}`}>
+                {text}
+            </p>
+            <button
+                onClick={() => setExpanded(v => !v)}
+                className="text-xs text-brand-strong font-medium hover:underline"
+            >
+                {expanded ? '접기' : '더보기'}
+            </button>
+        </div>
+    );
+}
+
 // 입실일 지난 완료 캠페인 목록 (없으면 렌더 안 함)
-export function CompletedAppsList({ apps }: { apps: Application[] }) {
+// CHANGED: 입실일이 지나도 (1) 유효한 팔로워 쿠폰(couponEndDate까지)과 (2) 특장점을 계속 노출.
+//          노출 기준을 입실일(checkInDate) → 쿠폰 수명(couponEndDate)으로 정정. 콘텐츠는 방문 후 제작하므로 특장점도 유지.
+export function CompletedAppsList({ apps, today, copiedAppId, onCopyConditions }: {
+    apps: Application[];
+    today: string;                              // KST 기준 YYYY-MM-DD (부모에서 계산)
+    copiedAppId: string | null;                 // '협찬 조건 복사' 피드백 (활성 카드와 공용)
+    onCopyConditions: (app: Application) => void;
+}) {
     if (apps.length === 0) return null;
     return (
         <div className="space-y-3 pt-4 border-t border-line">
             <p className="text-xs text-ink3 font-medium">완료된 캠페인</p>
-            {apps.map(app => (
-                <div
-                    key={app.id}
-                    className="bg-page border border-line rounded-xl p-4 opacity-60"
-                >
-                    <div className="flex items-center justify-between">
-                        <h3 className="text-ink font-bold">{app.accommodationName}</h3>
-                        <span className="text-xs text-ink3 bg-subtle px-2 py-0.5 rounded-full">완료</span>
-                    </div>
-                    <div className="flex gap-4 mt-2">
-                        <div className="flex-1">
-                            <span className="text-xs text-ink3">입실일</span>
-                            <p className="text-ink2 text-sm">{app.checkInDate}</p>
+            {apps.map(app => {
+                // CHANGED: 쿠폰은 크리에이터 입실일과 무관하게 couponEndDate까지 유효 → 그동안 팔로워 쿠폰 박스 유지
+                const couponActive = !!(
+                    app.couponEvent &&
+                    app.followerCouponCode &&
+                    app.couponEvent.couponEndDate >= today
+                );
+                return (
+                    <div
+                        key={app.id}
+                        className="bg-page border border-line rounded-xl p-4 space-y-3"
+                    >
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-ink font-bold">{app.accommodationName}</h3>
+                            <span className="text-xs text-ink3 bg-subtle px-2 py-0.5 rounded-full">완료</span>
                         </div>
-                        <div className="flex-1">
-                            <span className="text-xs text-ink3">입실 사이트</span>
-                            <p className="text-ink2 text-sm">{app.checkInSite}</p>
+                        <div className="flex gap-4">
+                            <div className="flex-1">
+                                <span className="text-xs text-ink3">입실일</span>
+                                <p className="text-ink2 text-sm">{app.checkInDate}</p>
+                            </div>
+                            <div className="flex-1">
+                                <span className="text-xs text-ink3">입실 사이트</span>
+                                <p className="text-ink2 text-sm">{app.checkInSite}</p>
+                            </div>
                         </div>
+
+                        {/* CHANGED: 쿠폰 유효기간 내이면 팔로워 쿠폰 박스 유지 (입실 후에도 팔로워에게 계속 공유) */}
+                        {couponActive && (
+                            <div className="space-y-1.5">
+                                <p className="text-xs text-brand-strong font-medium flex items-center gap-1">
+                                    <BrandIcon name="coupon" size={13} />팔로워 쿠폰 아직 사용 가능 · ~{app.couponEvent!.couponEndDate}
+                                </p>
+                                <CheckinCouponBox app={app} />
+                            </div>
+                        )}
+
+                        {/* CHANGED: 특장점 인라인 노출 (콘텐츠 제작 지원) */}
+                        {app.highlights && <HighlightsInline text={app.highlights} />}
+
+                        {/* CHANGED: '협찬 조건 복사' 복원 — 활성 카드와 동일(특장점 포함 텍스트). 단일 핸들러 재사용 */}
+                        <button
+                            onClick={() => onCopyConditions(app)}
+                            className="w-full h-9 bg-subtle border border-strong text-ink rounded-lg text-xs hover:bg-subtle transition-colors flex items-center justify-center gap-1.5"
+                        >
+                            {copiedAppId === app.id ? (
+                                <><svg className="w-3.5 h-3.5 text-brand-strong" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>복사 완료!</>
+                            ) : (
+                                <><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>협찬 조건 복사</>
+                            )}
+                        </button>
                     </div>
-                </div>
-            ))}
+                );
+            })}
         </div>
     );
 }
