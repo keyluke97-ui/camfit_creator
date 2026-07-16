@@ -1,5 +1,5 @@
 import Airtable, { FieldSet } from 'airtable';
-import { hasPartnerEligibleChannel } from '@/lib/constants'; // CHANGED: 통합 — 블로거 차단 헬퍼
+import { hasPartnerEligibleChannel, WONJEONG_MAP } from '@/lib/constants'; // CHANGED: 통합 — 블로거 차단 헬퍼 / 지명형 원정 맵
 import type {
     TierLevel,
     ChannelType,
@@ -18,7 +18,10 @@ import type {
     AirtablePartnerCampaignRecord,
     AirtablePartnerApplicationRecord,
     ContentSubmitPayload,
-    ContentUpload
+    ContentUpload,
+    CreatorProfile,
+    SettlementSummary,
+    CreatorProfileUpdate
 } from '@/types';
 
 /**
@@ -1255,6 +1258,179 @@ export async function updateCreatorNotification(recordId: string, enabled: boole
         return true;
     } catch (error) {
         console.error('Update notification error:', error);
+        throw error;
+    }
+}
+
+// ──────────────────────────────────────────────
+// 지명형 협찬 1a — 크리에이터 포트폴리오 / 조건 / 정산 (SDD v4 A′)
+// 스펙: specs/2026-07-16-지명형협찬-1a-*.md
+// ──────────────────────────────────────────────
+
+/** 정산 주소(자유 텍스트)에서 기준 지역(시/도) 후보 파싱 — 프리필용 best-effort. 못 뽑으면 '' */
+function parseBaseRegionFromAddress(address: string): string {
+    if (!address) return '';
+    const a = address.replace(/\s/g, '');
+    // 순서 주의: 북도/남도 구분 키워드를 먼저. 매칭 실패 시 '' (사용자가 확인/수정)
+    const rules: Array<[RegExp, string]> = [
+        [/(서울|인천|경기)/, '경기도(서울, 인천 포함)'],
+        [/강원/, '강원도'],
+        [/(충청북도|충북)/, '충청북도'],
+        [/(충청남도|충남|대전|세종)/, '충청남도'],
+        [/(전라북도|전북)/, '전라북도'],
+        [/(전라남도|전남|광주)/, '전라남도'],
+        [/(경상북도|경북|대구)/, '경상북도'],
+        [/(경상남도|경남|부산|울산)/, '경상남도'],
+        [/제주/, '제주도'],
+    ];
+    for (const [re, region] of rules) {
+        if (re.test(a)) return region;
+    }
+    return '';
+}
+
+/**
+ * 정산정보 마스킹 조회 (유저 테이블 READ only) — premiumId 없으면 미등록 반환.
+ * 전체 계좌번호·주민번호는 절대 반환 안 함(뒤 4자리만). 주소는 기준 지역 프리필로만 변환해 반환.
+ */
+async function getPremiumSettlement(premiumId: string | null): Promise<SettlementSummary> {
+    const unregistered: SettlementSummary = {
+        registered: false, bank: '', accountLast4: '', accountHolder: '', baseRegionPrefill: '',
+    };
+    if (!premiumId) return unregistered;
+    try {
+        const user = await userTable().find(premiumId);
+        const bankRaw = (user.get('은행') as string) || '';
+        // '기타(직접입력)'이면 동반 필드에서 실제 은행명
+        const bank = bankRaw === '기타(직접입력)'
+            ? ((user.get('기타 은행 (직접 입력)') as string) || '기타')
+            : bankRaw;
+        const accountDigits = ((user.get('계좌번호') as string) || '').replace(/[^0-9]/g, '');
+        const address = (user.get('주소 (상세주소 포함)') as string) || '';
+        return {
+            registered: true,
+            bank,
+            accountLast4: accountDigits.slice(-4),
+            accountHolder: (user.get('예금주') as string) || '',
+            baseRegionPrefill: parseBaseRegionFromAddress(address),
+        };
+    } catch (error) {
+        console.error('Get premium settlement error:', error);
+        // premiumId는 있으니 registered=true 유지(재등록 오유도 방지), 마스킹 값만 비움
+        return { registered: true, bank: '', accountLast4: '', accountHolder: '', baseRegionPrefill: '' };
+    }
+}
+
+/**
+ * 크리에이터 프로필 전체 조회 (포트폴리오+조건+원정+공개 + 정산요약).
+ * JWT creatorId로만 조회(IDOR 방어). 조회 실패 시 null.
+ */
+export async function getCreatorProfile(creatorId: string): Promise<CreatorProfile | null> {
+    try {
+        const record = await creatorTable().find(creatorId);
+
+        // 프로필 이미지 — 첨부 첫 장의 (만료성) URL
+        const images = record.get('프로필 이미지') as Array<{ url?: string }> | undefined;
+        const hasProfileImage = Array.isArray(images) && images.length > 0;
+        const profileImageUrl = hasProfileImage ? (images![0]?.url || '') : '';
+
+        const ratingValue = record.get('등급화');
+        const tier = (ratingValue ? String(ratingValue) : '1') as TierLevel;
+
+        // premiumId → 정산 마스킹
+        const premiumLinks = record.get('프리미엄 협찬 신청 인플루언서') as string[] | undefined;
+        const premiumId = Array.isArray(premiumLinks) && premiumLinks.length > 0 ? premiumLinks[0] : null;
+        const settlement = await getPremiumSettlement(premiumId);
+
+        return {
+            profileImageUrl,
+            hasProfileImage,
+            representativeLink: (record.get('대표 콘텐츠 링크') as string) || '',
+            minSponsorAmount: (record.get('협찬 희망 금액') as number) || 0,
+            visitRegions: (record.get('방문 가능 지역') as string[]) || [],
+            visitDays: (record.get('방문 가능 요일') as string[]) || [],
+            acceptSiteTypes: (record.get('수용 사이트 종류') as string[]) || [],
+            baseRegion: (record.get('기준 지역') as string) || '',
+            wonjeongRegions: (record.get('원정 가능 지역') as string[]) || [],
+            isPublic: record.get('프로필 공개') === true,
+            autoAcceptActive: record.get('자동수락 활성') === true,
+            channelName: (record.get('크리에이터 채널명') as string) || '',
+            tier,
+            followerRange: (record.get('팔로워 구간') as string) || '',
+            settlement,
+        };
+    } catch (error) {
+        console.error('Get creator profile error:', error);
+        return null;
+    }
+}
+
+/** updateCreatorProfile 결과 — ok=false면 API가 400으로 매핑 */
+export type UpdateProfileResult =
+    | { ok: true }
+    | { ok: false; code: 'INVALID_WONJEONG' | 'AUTO_ACCEPT_REQUIRES_PUBLIC' | 'INCOMPLETE'; missing?: string[] };
+
+/**
+ * 크리에이터 프로필/조건/원정/공개 저장. JWT creatorId로만 수정(IDOR 방어).
+ * 서버 검증: ① 원정 지역 ⊆ WONJEONG_MAP[기준] 이고 방문가능과 서로소 ② 자동수락은 공개의 하위
+ * ③ 공개 ON 시 §5 필수항목 재검증(클라이언트 우회 차단). 위반 시 ok:false 반환(쓰기 안 함).
+ */
+export async function updateCreatorProfile(
+    creatorId: string,
+    payload: CreatorProfileUpdate
+): Promise<UpdateProfileResult> {
+    try {
+        const isPublic = payload.isPublic === true;
+        // 자동수락은 공개의 하위 — 공개 false면 자동수락도 강제 false
+        const autoAcceptActive = isPublic ? payload.autoAcceptActive === true : false;
+
+        const visitRegions = payload.visitRegions || [];
+        const wonjeongRegions = payload.wonjeongRegions || [];
+
+        // ① 원정 검증: 기준 지역 맵으로 제한 + 방문가능과 상호배타 (근거리 프리미엄 어뷰징 차단)
+        const candidates = WONJEONG_MAP[payload.baseRegion] ?? [];
+        const invalidWonjeong = wonjeongRegions.some((r) => !candidates.includes(r));
+        const overlap = wonjeongRegions.some((r) => visitRegions.includes(r));
+        if (invalidWonjeong || overlap) {
+            return { ok: false, code: 'INVALID_WONJEONG' };
+        }
+
+        // ③ 공개 게이팅 서버 재검증 (이미지·premiumId는 payload에 없으므로 레코드에서 확인)
+        if (isPublic) {
+            const record = await creatorTable().find(creatorId);
+            const images = record.get('프로필 이미지') as unknown[] | undefined;
+            const hasImage = Array.isArray(images) && images.length > 0;
+            const premiumLinks = record.get('프리미엄 협찬 신청 인플루언서') as string[] | undefined;
+            const hasPremium = Array.isArray(premiumLinks) && premiumLinks.length > 0;
+
+            const missing: string[] = [];
+            if (!hasImage) missing.push('프로필 이미지');
+            if (!payload.representativeLink) missing.push('대표 콘텐츠 링크');
+            if (visitRegions.length === 0) missing.push('방문 가능 지역');
+            if ((payload.visitDays || []).length === 0) missing.push('방문 가능 요일');
+            if ((payload.acceptSiteTypes || []).length === 0) missing.push('수용 사이트 종류');
+            if (!(payload.minSponsorAmount > 0)) missing.push('최소 협찬 단가');
+            if (!hasPremium) missing.push('정산 정보');
+            if (missing.length > 0) return { ok: false, code: 'INCOMPLETE', missing };
+        }
+
+        const updateFields: Record<string, unknown> = {
+            '대표 콘텐츠 링크': payload.representativeLink,
+            '협찬 희망 금액': payload.minSponsorAmount,
+            '방문 가능 지역': visitRegions,
+            '방문 가능 요일': payload.visitDays || [],
+            '수용 사이트 종류': payload.acceptSiteTypes || [],
+            '원정 가능 지역': wonjeongRegions,
+            '프로필 공개': isPublic,
+            '자동수락 활성': autoAcceptActive,
+            // singleSelect: 빈 값이면 '' 대신 null로 클리어
+            '기준 지역': payload.baseRegion || null,
+        };
+
+        await creatorTable().update(creatorId, updateFields as unknown as Partial<FieldSet>);
+        return { ok: true };
+    } catch (error) {
+        console.error('Update creator profile error:', error);
         throw error;
     }
 }
