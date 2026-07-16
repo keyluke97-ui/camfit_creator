@@ -1,5 +1,5 @@
 import Airtable, { FieldSet } from 'airtable';
-import { hasPartnerEligibleChannel, WONJEONG_MAP } from '@/lib/constants'; // CHANGED: 통합 — 블로거 차단 헬퍼 / 지명형 원정 맵
+import { hasPartnerEligibleChannel, VISIT_REGIONS, VISIT_DAYS, SPONSOR_SITE_TYPES, getWonjeongCandidates } from '@/lib/constants'; // CHANGED: 통합 블로거 차단 / 지명형 옵션·원정 헬퍼
 import type {
     TierLevel,
     ChannelType,
@@ -1267,24 +1267,28 @@ export async function updateCreatorNotification(recordId: string, enabled: boole
 // 스펙: specs/2026-07-16-지명형협찬-1a-*.md
 // ──────────────────────────────────────────────
 
-/** 정산 주소(자유 텍스트)에서 기준 지역(시/도) 후보 파싱 — 프리필용 best-effort. 못 뽑으면 '' */
+/**
+ * 정산 주소(자유 텍스트)에서 기준 지역(시/도) 후보 파싱 — 프리필용 best-effort. 못 뽑으면 ''.
+ * 한국 주소는 시/도로 시작하므로 **선두 토큰(startsWith)**으로 판정한다.
+ * (부분일치 금지 — 상세주소에 섞인 '세종아파트'·'대구리' 같은 토큰이 실제 도를 오분류하는 것 방지.)
+ */
 function parseBaseRegionFromAddress(address: string): string {
     if (!address) return '';
     const a = address.replace(/\s/g, '');
-    // 순서 주의: 북도/남도 구분 키워드를 먼저. 매칭 실패 시 '' (사용자가 확인/수정)
-    const rules: Array<[RegExp, string]> = [
-        [/(서울|인천|경기)/, '경기도(서울, 인천 포함)'],
-        [/강원/, '강원도'],
-        [/(충청북도|충북)/, '충청북도'],
-        [/(충청남도|충남|대전|세종)/, '충청남도'],
-        [/(전라북도|전북)/, '전라북도'],
-        [/(전라남도|전남|광주)/, '전라남도'],
-        [/(경상북도|경북|대구)/, '경상북도'],
-        [/(경상남도|경남|부산|울산)/, '경상남도'],
-        [/제주/, '제주도'],
+    // 각 지역의 가능한 선두 접두어 목록. 접두어 disjoint라 순서 무관.
+    const rules: Array<[string[], string]> = [
+        [['서울', '인천', '경기'], '경기도(서울, 인천 포함)'],
+        [['강원'], '강원도'],
+        [['충청북도', '충북'], '충청북도'],
+        [['충청남도', '충남', '대전', '세종'], '충청남도'],
+        [['전라북도', '전북'], '전라북도'],
+        [['전라남도', '전남', '광주'], '전라남도'],
+        [['경상북도', '경북', '대구'], '경상북도'],
+        [['경상남도', '경남', '부산', '울산'], '경상남도'],
+        [['제주'], '제주도'],
     ];
-    for (const [re, region] of rules) {
-        if (re.test(a)) return region;
+    for (const [prefixes, region] of rules) {
+        if (prefixes.some((p) => a.startsWith(p))) return region;
     }
     return '';
 }
@@ -1368,7 +1372,7 @@ export async function getCreatorProfile(creatorId: string): Promise<CreatorProfi
 /** updateCreatorProfile 결과 — ok=false면 API가 400으로 매핑 */
 export type UpdateProfileResult =
     | { ok: true }
-    | { ok: false; code: 'INVALID_WONJEONG' | 'AUTO_ACCEPT_REQUIRES_PUBLIC' | 'INCOMPLETE'; missing?: string[] };
+    | { ok: false; code: 'INVALID_OPTION' | 'INVALID_WONJEONG' | 'AUTO_ACCEPT_REQUIRES_PUBLIC' | 'INCOMPLETE'; missing?: string[] };
 
 /**
  * 크리에이터 프로필/조건/원정/공개 저장. JWT creatorId로만 수정(IDOR 방어).
@@ -1387,8 +1391,21 @@ export async function updateCreatorProfile(
         const visitRegions = payload.visitRegions || [];
         const wonjeongRegions = payload.wonjeongRegions || [];
 
+        // ⓪ 옵션 화이트리스트 검증 — 잘못된 값이 Airtable 422→불투명한 500으로 새거나,
+        //    기준지역 상속키(__proto__ 등)가 WONJEONG_MAP 인덱싱 취약점을 타는 것을 클린 400으로 차단.
+        const badOption =
+            visitRegions.some((r) => !VISIT_REGIONS.includes(r)) ||
+            wonjeongRegions.some((r) => !VISIT_REGIONS.includes(r)) ||
+            (payload.visitDays || []).some((d) => !VISIT_DAYS.includes(d)) ||
+            (payload.acceptSiteTypes || []).some((s) => !SPONSOR_SITE_TYPES.includes(s)) ||
+            (payload.baseRegion !== '' && !VISIT_REGIONS.includes(payload.baseRegion));
+        if (badOption) {
+            return { ok: false, code: 'INVALID_OPTION' };
+        }
+
         // ① 원정 검증: 기준 지역 맵으로 제한 + 방문가능과 상호배타 (근거리 프리미엄 어뷰징 차단)
-        const candidates = WONJEONG_MAP[payload.baseRegion] ?? [];
+        //    baseRegion은 위에서 화이트리스트 통과했으므로 getWonjeongCandidates 인덱싱 안전.
+        const candidates = getWonjeongCandidates(payload.baseRegion);
         const invalidWonjeong = wonjeongRegions.some((r) => !candidates.includes(r));
         const overlap = wonjeongRegions.some((r) => visitRegions.includes(r));
         if (invalidWonjeong || overlap) {

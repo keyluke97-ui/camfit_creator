@@ -12,12 +12,18 @@ if (!process.env.NEXTAUTH_SECRET) {
 const JWT_SECRET = new TextEncoder().encode(process.env.NEXTAUTH_SECRET);
 
 // JWT에서 creatorId 추출 (IDOR 방어 — body로 record id 받지 않고 항상 토큰의 creatorId만 사용)
+// 무효/만료/위조 토큰은 null 반환 → 401(토큰 없음과 동일). jwtVerify throw가 500으로 새지 않게.
 async function resolveCreatorId(): Promise<string | null> {
     const cookieStore = await cookies();
     const token = cookieStore.get('auth-token')?.value;
     if (!token) return null;
-    const { payload } = await jwtVerify(token, JWT_SECRET);
-    return ((payload.creatorId || payload.id) as string) || null;
+    try {
+        const { payload } = await jwtVerify(token, JWT_SECRET);
+        return ((payload.creatorId || payload.id) as string) || null;
+    } catch (error) {
+        console.error('Invalid auth token on /api/creator/profile:', error);
+        return null;
+    }
 }
 
 export async function GET() {
