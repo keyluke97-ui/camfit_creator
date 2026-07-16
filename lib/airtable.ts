@@ -1452,6 +1452,60 @@ export async function updateCreatorProfile(
     }
 }
 
+/**
+ * 크리에이터 프로필 이미지 업로드 → 크리에이터 명단 `프로필 이미지` 첨부 필드에 직접 저장.
+ * airtable SDK엔 첨부 업로드가 없어 content.airtable.com uploadAttachment 엔드포인트를 직접 호출한다
+ * (외부 호스트 불필요, 파일당 ≤5MB). 첨부는 append 동작이라 기존 이미지에 이어 붙는다.
+ * @param creatorId    크리에이터 명단 레코드 ID (JWT creatorId — 본인 것만)
+ * @param fileBase64   data URL 접두어 제거된 순수 base64 문자열
+ * @param contentType  MIME 타입 (예: image/jpeg)
+ * @param filename     저장 파일명
+ * @returns 업로드 후 마지막(방금 올린) 첨부의 (만료성) URL. 파싱 실패 시 ''
+ */
+export async function uploadCreatorProfileImage(
+    creatorId: string,
+    fileBase64: string,
+    contentType: string,
+    filename: string
+): Promise<string> {
+    const baseId = process.env.AIRTABLE_BASE_ID;
+    const token = process.env.AIRTABLE_ACCESS_TOKEN;
+    if (!baseId || !token) {
+        throw new Error('AIRTABLE_BASE_ID/ACCESS_TOKEN 환경변수 미설정');
+    }
+
+    // ⚠️ 업로드 첨부는 api.airtable.com이 아니라 content.airtable.com 호스트를 쓴다.
+    //    첨부 필드명(한글·공백)은 URL 인코딩. fieldId로도 접근 가능하나, 존재가 확인된 실제명을 사용.
+    const fieldPath = encodeURIComponent('프로필 이미지');
+    const url = `https://content.airtable.com/v0/${baseId}/${creatorId}/${fieldPath}/uploadAttachment`;
+
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ contentType, filename, file: fileBase64 })
+    });
+
+    if (!response.ok) {
+        const detail = await response.text();
+        console.error('uploadAttachment failed:', response.status, detail);
+        throw new Error('IMAGE_UPLOAD_FAILED');
+    }
+
+    const data = await response.json();
+    // ⚠️ 응답의 fields는 필드명이 아니라 fieldId로 키잉된다(Airtable 문서 확인).
+    //    이름 → 알려진 fieldId → 첫 배열 순으로 견고하게 파싱(업로드 대상 필드는 하나뿐).
+    const fields = (data?.fields ?? {}) as Record<string, unknown>;
+    const attachments =
+        (fields['프로필 이미지'] as Array<{ url?: string }> | undefined) ??
+        (fields['fldpuIQagshFh2v2s'] as Array<{ url?: string }> | undefined) ??
+        (Object.values(fields).find(Array.isArray) as Array<{ url?: string }> | undefined) ??
+        [];
+    return attachments.length > 0 ? attachments[attachments.length - 1]?.url || '' : '';
+}
+
 // ──────────────────────────────────────────────
 // 콘텐츠 업로드 함수
 // ──────────────────────────────────────────────
