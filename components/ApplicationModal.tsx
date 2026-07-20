@@ -2,8 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react';
 import type { Campaign, ChannelType } from '@/types';
-// CHANGED: 등록 페이지 상수
-import { COUPON_REGISTER_URL } from '@/lib/constants';
+// CHANGED: 등록 페이지 상수 + 입실 문제 발생 시 안내할 카카오 채널 문의 URL
+import { COUPON_REGISTER_URL, KAKAO_CHANNEL_URL } from '@/lib/constants';
 // CHANGED: 협찬 조건/팔로워 메시지 통합 빌더 (handleCopyConditions와 단일 소스 공유)
 import { buildSponsorshipSummary, buildFollowerShareMessage, type SponsorshipTextInput } from '@/lib/couponText';
 // CHANGED: 통합 — 쿠폰 이벤트 UI 블록 추출 (파일 크기 컨벤션 준수)
@@ -247,6 +247,18 @@ export default function ApplicationModal({ isOpen, onClose, campaign, channelTyp
                             <div>
                                 <h3 className="text-ink font-bold text-lg mb-3">4️⃣ 콘텐츠 제작 및 수정</h3>
                                 <div className="bg-subtle p-4 rounded-lg text-sm text-ink2 space-y-2">
+                                    {/* CHANGED: 콘텐츠 진정성 조항 신설 — 기존 정책엔 '직접 방문 경험 기반 제작' 명시가 없어 과거 영상 재사용 건을 제재할 근거가 없었음 */}
+                                    <p><span className="text-brand-strong">콘텐츠 진정성</span>: 콘텐츠는 이번 협찬으로 직접 방문·숙박하신 경험을 기반으로, <strong className="text-ink">입실일 이후 촬영한 소재</strong>로 제작해주세요. 과거 방문분이나 다른 캠핑장 영상을 재사용한 경우 <span className="text-ink font-bold underline">협찬은 무효 처리되며 원고료가 지급되지 않습니다.</span></p>
+                                    {/* CHANGED: 협찬 무효 시 팔로워 쿠폰 처리 원칙 — 팔로워는 귀책이 없으므로 '이미 사용분 유효'를 함께 명시 */}
+                                    {campaign.couponEvent && (
+                                        <p className="text-xs text-ink3">※ 협찬이 무효 처리되면 아직 사용되지 않은 팔로워 쿠폰도 함께 사용 중단됩니다. (팔로워분들이 이미 등록·사용하신 쿠폰은 그대로 유효합니다.)</p>
+                                    )}
+                                    {/* CHANGED: escape hatch — 입실 무산 시 '콘텐츠 제작 전 연락' 경로가 없어 재사용 콘텐츠 업로드로 이어졌음. '불이익 없음' 명시가 신고를 여는 핵심 */}
+                                    <p>
+                                        <span className="text-brand-strong">입실에 문제가 생겼다면</span>: 예약 오류·현장 입실 불가 등으로 방문이 어려워진 경우, <strong className="text-ink">콘텐츠를 제작하시기 전에</strong> 먼저{' '}
+                                        <a href={KAKAO_CHANNEL_URL} target="_blank" rel="noopener noreferrer" className="text-brand-strong underline font-semibold">운영팀</a>
+                                        으로 연락 주세요. 크리에이터님 귀책이 아닌 사유는 불이익 없이 처리해드립니다.
+                                    </p>
                                     <p><span className="text-brand-strong">기한 및 페널티</span>: 안내된 기한 내 콘텐츠 미제출 또는 반복 지연 시 향후 프리미엄 협찬 참여가 제한됩니다.</p>
                                     <p><span className="text-brand-strong">사실 오류 수정</span>: 콘텐츠 내 사실 정보 오류가 있을 경우 1회 수정 요청이 발생할 수 있습니다.</p>
                                 </div>
