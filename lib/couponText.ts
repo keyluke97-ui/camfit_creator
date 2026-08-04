@@ -94,13 +94,11 @@ export function buildFollowerShareMessage(input: SponsorshipTextInput): string {
     lines.push(`${accommodationName} 예약할 때 쓸 수 있는 ${formatDiscount(couponEvent.discount)} 할인 쿠폰이에요 🎁`);
     lines.push('');
     lines.push(`🎟️ 쿠폰 코드: ${followerCouponCode}`);
+    // CHANGED: 사용 조건을 사용 방법보다 앞으로. 네이버/인스타는 URL을 큰 링크 카드로 자동 변환해
+    //          링크 뒤 문구가 스크롤 아래로 밀린다 → 제외 안내(공휴일·공휴일 전날)를 못 보고 문의가 다발했다.
+    //          제외 안내는 반드시 링크 위, 링크는 맨 아래.
     lines.push('');
-    lines.push('[사용 방법]');
-    lines.push('① 위 쿠폰 코드 복사');
-    lines.push(`② 캠핏 쿠폰 등록 페이지에서 등록 → ${COUPON_REGISTER_URL}`);
-    lines.push("③ 쿠폰함에서 '사용하기' 누르기");
-    lines.push(`④ ${accommodationName} 예약하면 자동 적용, 끝!`);
-    lines.push('');
+    lines.push('[사용 조건]');
     lines.push(`📅 ${couponEvent.couponStartDate} ~ ${couponEvent.couponEndDate} · ${dayLabel} 사용 가능`);
     // CHANGED: 박수 조건 노출 — 1박 예약엔 할인 미적용 문의 방지 (미설정 시 미노출)
     const nightsLabel = formatBookingNights(couponEvent.minBookingNights, couponEvent.maxBookingNights);
@@ -109,6 +107,14 @@ export function buildFollowerShareMessage(input: SponsorshipTextInput): string {
     // CHANGED: 옵션별 제외 안내 — 공휴일 전일·당일 미사용 문의 다발 대응 (제외 없는 옵션은 미노출)
     if (dayConfig?.exclusionNote) lines.push(`⚠️ ${dayConfig.exclusionNote}`);
     lines.push('※ 쿠폰 1장당 예약 1건 적용 (숙박 일수 무관)');
+    lines.push('');
+    lines.push('[사용 방법]');
+    lines.push('① 위 쿠폰 코드 복사');
+    lines.push('② 아래 캠핏 쿠폰 등록 페이지에서 등록');
+    lines.push("③ 쿠폰함에서 '사용하기' 누르기");
+    lines.push(`④ ${accommodationName} 예약하면 자동 적용, 끝!`);
+    lines.push('');
+    lines.push(`🔗 쿠폰 등록하기 → ${COUPON_REGISTER_URL}`);
     return lines.join('\n');
 }
 
