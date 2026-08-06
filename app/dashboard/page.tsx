@@ -291,6 +291,24 @@ function DashboardContent() {
                     </div>
                 )}
 
+                {/* CHANGED (지명형 1a): 내 협찬 프로필 진입 배너 — 조건 걸고 공개하면 캠지기가 제안 */}
+                {!showContentView && userInfo && (
+                    <div className="mb-4">
+                        <button
+                            onClick={() => router.push('/dashboard/portfolio')}
+                            className="w-full flex items-center justify-between bg-card border border-line rounded-xl p-4 hover:border-brand transition-colors text-left"
+                        >
+                            <div>
+                                <p className="text-sm font-bold text-ink">내 협찬 프로필</p>
+                                <p className="text-xs text-ink3 mt-0.5">조건을 걸고 공개하면 캠지기가 제안해요</p>
+                            </div>
+                            <svg className="w-5 h-5 text-ink3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                        </button>
+                    </div>
+                )}
+
                 {/* 에러 메시지 */}
                 {errorMessage && (
                     <div className="mb-6 bg-red-500/10 border border-red-500/30 rounded-xl p-4">
