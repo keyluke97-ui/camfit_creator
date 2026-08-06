@@ -25,7 +25,20 @@ export const KAKAO_CHANNEL_URL = 'http://pf.kakao.com/_fBxaQG';
  * 캠핏 쿠폰 등록 페이지 URL (고정)
  * — 팔로워가 쿠폰 코드를 등록하는 페이지. 크리에이터 본인의 예약 쿠폰 등록에도 동일 사용.
  */
-export const COUPON_REGISTER_URL = 'https://camfit.co.kr/mypage/coupon/register';
+// CHANGED: 도메인을 www로 통일 — 딥링크(buildCouponDeepLink) 정식 형태가 www 기준이라 표기 혼재 방지.
+export const COUPON_REGISTER_URL = 'https://www.camfit.co.kr/mypage/coupon/register';
+
+/**
+ * 쿠폰 코드 자동입력 딥링크 빌더
+ * — 등록 URL 뒤에 `/{코드}`를 붙이면 코드가 미리 입력된 등록 페이지로 열린다.
+ *   예: `_YXi6_ee3` → https://www.camfit.co.kr/mypage/coupon/register/_YXi6_ee3
+ *   쿠폰 코드가 대소문자·언더바 혼합 난수라 팔로워 수기 입력 실패가 잦아 도입된 캠핏 본앱 기능.
+ *   코드에 특수문자가 섞여도 안전하도록 path 세그먼트를 encodeURIComponent 처리.
+ */
+export function buildCouponDeepLink(code: string): string {
+    if (!code) return COUPON_REGISTER_URL;
+    return `${COUPON_REGISTER_URL}/${encodeURIComponent(code)}`;
+}
 
 /**
  * 크리에이터가 콘텐츠/팔로워에게 안내할 링크 목록
