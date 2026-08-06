@@ -2,7 +2,7 @@
 // CHANGED: 신청완료(handleCopyAll) + 입실등록(handleCopyConditions)의 복붙 텍스트를 통합.
 //          두 화면이 같은 빌더를 공유해 드리프트(한쪽만 수정되어 내용 어긋남) 제거.
 import type { CouponEvent, ChannelType } from '@/types';
-import { COUPON_APPLY_DAYS_CONFIG, formatDiscount, COUPON_REGISTER_URL } from '@/lib/constants';
+import { COUPON_APPLY_DAYS_CONFIG, formatDiscount, buildCouponDeepLink } from '@/lib/constants';
 
 // CHANGED: 박수 조건 라벨 — 발행 쿠폰 minBookingDays/maxBookingDays 기준. 1박 예약엔 할인 미적용 문의 방지.
 //          min만 → 'N박 이상', min===max → 'N박', 둘 다·상이 → 'N박~M박', 없으면 '' (미노출).
@@ -44,7 +44,10 @@ export function buildSponsorshipSummary(input: SponsorshipTextInput): string {
         const dayLabel = dayConfig?.label || couponEvent.couponApplyDays;
         lines.push('');
         lines.push('[팔로워 쿠폰] (팔로워 공유용 · 내 예약엔 사용 X)');
-        lines.push(`• 팔로워 쿠폰 코드: ${followerCouponCode}`);
+        // CHANGED: 링크 우선 — 팔로워가 링크만 누르면 코드가 자동 입력된다. 난수 코드 수기 입력 실패 방지.
+        //          코드는 링크가 안 열릴 때의 폴백으로 병기.
+        lines.push(`• 팔로워에게 보낼 등록 링크: ${buildCouponDeepLink(followerCouponCode)}`);
+        lines.push(`• 팔로워 쿠폰 코드(링크 안 될 때): ${followerCouponCode}`);
         lines.push(`• 할인: ${formatDiscount(couponEvent.discount)} (${dayLabel})`);
         // CHANGED: 박수 조건 — 1박 예약엔 할인 미적용 문의 방지 (미설정 시 미노출)
         const summaryNights = formatBookingNights(couponEvent.minBookingNights, couponEvent.maxBookingNights);
@@ -92,8 +95,8 @@ export function buildFollowerShareMessage(input: SponsorshipTextInput): string {
     const lines: string[] = [];
     lines.push('🏕️ 팔로워분들께 드리는 캠핑 선물!');
     lines.push(`${accommodationName} 예약할 때 쓸 수 있는 ${formatDiscount(couponEvent.discount)} 할인 쿠폰이에요 🎁`);
-    lines.push('');
-    lines.push(`🎟️ 쿠폰 코드: ${followerCouponCode}`);
+    // CHANGED: 링크 우선 — 코드 직접 노출(🎟️ 줄)을 걷어내고 딥링크를 주 동선으로. 코드는 아래 폴백 줄에만 남긴다.
+    //          쿠폰 코드가 대소문자·언더바 혼합 난수라 팔로워 수기 입력 실패가 잦았다.
     // CHANGED: 사용 조건을 사용 방법보다 앞으로. 네이버/인스타는 URL을 큰 링크 카드로 자동 변환해
     //          링크 뒤 문구가 스크롤 아래로 밀린다 → 제외 안내(공휴일·공휴일 전날)를 못 보고 문의가 다발했다.
     //          제외 안내는 반드시 링크 위, 링크는 맨 아래.
@@ -109,21 +112,27 @@ export function buildFollowerShareMessage(input: SponsorshipTextInput): string {
     lines.push('※ 쿠폰 1장당 예약 1건 적용 (숙박 일수 무관)');
     lines.push('');
     lines.push('[사용 방법]');
-    lines.push('① 위 쿠폰 코드 복사');
-    lines.push('② 아래 캠핏 쿠폰 등록 페이지에서 등록');
-    lines.push("③ 쿠폰함에서 '사용하기' 누르기");
-    lines.push(`④ ${accommodationName} 예약하면 자동 적용, 끝!`);
+    lines.push('① 맨 아래 링크 누르기 → 쿠폰 코드가 자동으로 입력돼요');
+    lines.push("② '쿠폰 등록' 누르고, 쿠폰함에서 '사용하기'");
+    lines.push(`③ ${accommodationName} 예약하면 자동 적용, 끝!`);
+    // CHANGED: 폴백은 링크보다 위에. 링크 뒤에 두면 링크 카드 아래로 밀려 안 보인다.
+    //          폴백에 별도 URL을 또 쓰지 않는다 — 한 글에 링크 카드가 2개 생겨 오히려 혼란.
     lines.push('');
-    lines.push(`🔗 쿠폰 등록하기 → ${COUPON_REGISTER_URL}`);
+    lines.push('💡 링크가 안 열리면 캠핏 앱 → 마이페이지 → 쿠폰 등록에서');
+    lines.push(`쿠폰 코드 [ ${followerCouponCode} ] 를 직접 입력해 주세요`);
+    lines.push('');
+    lines.push('👇 쿠폰 받기 (누르면 코드가 자동 입력돼요)');
+    lines.push(buildCouponDeepLink(followerCouponCode));
     return lines.join('\n');
 }
 
-// 팔로워 쿠폰 사용 방법 4단계 (하드코딩, 쿠폰이벤트일 때만 노출)
+// 팔로워 쿠폰 사용 방법 (하드코딩, 쿠폰이벤트일 때만 노출)
+// CHANGED: 링크 우선 안내 — 위에 출력된 '등록 링크'를 누르면 코드가 자동 입력된다. 폴백은 코드 직접 입력.
 function followerHowToLines(): string[] {
     return [
         '[팔로워 쿠폰 사용 방법] (팔로워에게 안내)',
-        '① 쿠폰 코드 받기 → ② 캠핏 쿠폰 등록 페이지에서 등록',
-        "③ 쿠폰함에서 '사용하기' → ④ 예약할 때 자동 적용",
-        `🔗 쿠폰 등록: ${COUPON_REGISTER_URL}`,
+        '① 위 등록 링크 누르기 → 쿠폰 코드 자동 입력',
+        "② '쿠폰 등록' 후 쿠폰함에서 '사용하기' → ③ 예약할 때 자동 적용",
+        '💡 링크가 안 열리면 캠핏 앱 → 마이페이지 → 쿠폰 등록에서 코드 직접 입력',
     ];
 }
