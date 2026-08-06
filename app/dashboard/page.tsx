@@ -263,14 +263,18 @@ function DashboardContent() {
                                 </div>
                             </div>
 
-                            {/* CHANGED: 입실 일정 등록 버튼 — 프리미엄(정산정보) 등록 시에만 노출 */}
+                            {/* CHANGED: 협찬 관리 버튼 — 프리미엄(정산정보) 등록 시에만 노출 */}
                             {userInfo?.premiumId && (
                                 <button
                                     onClick={() => setIsCheckinModalOpen(true)}
                                     className="w-full h-12 bg-brand text-black font-bold text-base rounded-xl hover:bg-brand-hover transition-colors shadow-lg shadow-brand/20 flex items-center justify-center gap-2"
+                                    aria-label="내 협찬 관리 — 입실일 등록, 팔로워 쿠폰, 협찬 조건"
                                 >
-                                    {/* CHANGED: CTA 버튼 이모지 제거 */}
-                                    <span>입실 일정 등록하기</span>
+                                    {/* CHANGED: '입실 일정 등록하기' → '내 협찬 관리'. 입실일 등록은 1회성인데,
+                                                 이 버튼 뒤에는 팔로워 쿠폰·협찬 조건·캠지기 특장점이 함께 있어
+                                                 크리에이터가 캠핑장 현장·영상 편집 시점에 반복해 여는 화면이다.
+                                                 등록 유도는 모달 내 '입실일 등록 필요' 뱃지가 대신한다. */}
+                                    <span>내 협찬 관리</span>
                                 </button>
                             )}
                         </>

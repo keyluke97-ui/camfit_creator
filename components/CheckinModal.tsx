@@ -294,7 +294,10 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
                 {/* 헤더 */}
                 <div className="p-5 border-b border-line flex justify-between items-center flex-shrink-0">
                     <h2 className="text-xl font-bold text-ink">
-                        {step === 1 && '입실 일정 등록'}
+                        {/* CHANGED: '입실 일정 등록' → '내 협찬 관리'. 이 화면은 입실일 등록(1회성) 외에
+                                    팔로워 쿠폰·협찬 조건·캠지기 특장점을 담고 있어, 크리에이터가 현장·편집 시점에
+                                    반복해서 여는 곳이다. 1회성 작업 이름이 상시 정보의 입구를 가리고 있었다. */}
+                        {step === 1 && '내 협찬 관리'}
                         {step === 2 && (actionType === 'change' ? '예약 변경 확인' : '신청 취소 확인')}
                         {step === 3 && (actionType === 'change' ? '예약 변경 완료' : '신청 취소 완료')}
                     </h2>
@@ -333,6 +336,13 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
                                             {(app.couponEvent || app.followerCouponCode) && (
                                                 <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 bg-brand-bg text-brand-strong border border-brand/30 rounded-full">
                                                     <BrandIcon name="coupon" size={13} /> 팔로워 쿠폰 협찬
+                                                </span>
+                                            )}
+                                            {/* CHANGED: 진입점 이름을 '내 협찬 관리'로 바꾸면서, 기존 CTA 문구가 하던 등록 유도 역할을
+                                                        미등록 건 뱃지로 대체. (미등록 건은 activeApps 정렬상 이미 상단에 온다) */}
+                                            {!isRegistered(app) && (
+                                                <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-300 rounded-full">
+                                                    입실일 등록 필요
                                                 </span>
                                             )}
                                         </div>
