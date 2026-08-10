@@ -15,7 +15,7 @@ export function formatBookingNights(min?: number, max?: number): string {
 
 export interface SponsorshipTextInput {
     accommodationName: string;
-    myCouponCode?: string;          // 내 예약 쿠폰
+    // CHANGED: myCouponCode 제거 — 내 예약 쿠폰은 복사 텍스트가 아니라 화면(MyCouponBox)이 책임진다.
     deadline?: string;              // 콘텐츠 제작 기한
     highlights?: string;            // 캠지기 포인트
     channelTypes?: ChannelType[];   // 인스타 태그 안내용 (신청완료만 보유)
@@ -27,14 +27,17 @@ export interface SponsorshipTextInput {
 
 // 크리에이터 본인 기록용 — 협찬 조건 전체 (카톡 나에게 보내기/메모장 저장용)
 export function buildSponsorshipSummary(input: SponsorshipTextInput): string {
-    const { accommodationName, myCouponCode, deadline, highlights, channelTypes, hostInstagram, detailUrl, couponEvent, followerCouponCode } = input;
+    const { accommodationName, deadline, highlights, channelTypes, hostInstagram, detailUrl, couponEvent, followerCouponCode } = input;
     const lines: string[] = [];
     lines.push(`📌 협찬 조건 — ${accommodationName}`);
 
     // [내 예약]
+    // CHANGED: '내 예약 쿠폰' 줄 제거 — 이 코드는 지금 등록해서 써야 할 '행동 항목'인데,
+    //          참고용 텍스트 덩어리에 섞여 있으면 묻힌다(신청 단계에서 놓치는 사례 발생).
+    //          내 예약 쿠폰은 '내 협찬 관리' 카드의 전용 박스에서 상시 노출한다(MyCouponBox).
+    //          이 복사본은 '팔로워 공유·콘텐츠 제작 참고'용으로 역할을 좁힌다.
     lines.push('');
     lines.push('[내 예약]');
-    if (myCouponCode) lines.push(`• 내 예약 쿠폰(캠핏에 등록): ${myCouponCode}`);
     if (deadline) lines.push(`• 콘텐츠 제작 기한: ${deadline}`);
     if (couponEvent) lines.push(`• 내 입실(방문) 가능 기한: ${couponEvent.visitStartDate} ~ ${couponEvent.visitEndDate}`);
 
