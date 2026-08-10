@@ -3,7 +3,8 @@
 import { useState, useRef, useEffect } from 'react';
 import type { Campaign, ChannelType } from '@/types';
 // CHANGED: 등록 페이지 상수 + 입실 문제 발생 시 안내할 카카오 채널 문의 URL
-import { COUPON_REGISTER_URL, KAKAO_CHANNEL_URL } from '@/lib/constants';
+// CHANGED: 내 예약 쿠폰도 딥링크로 — 복사→붙여넣기 대신 '누르면 코드가 입력된 상태'로 열리게.
+import { buildCouponDeepLink, KAKAO_CHANNEL_URL } from '@/lib/constants';
 // CHANGED: 협찬 조건/팔로워 메시지 통합 빌더 (handleCopyConditions와 단일 소스 공유)
 import { buildSponsorshipSummary, buildFollowerShareMessage, type SponsorshipTextInput } from '@/lib/couponText';
 // CHANGED: 통합 — 쿠폰 이벤트 UI 블록 추출 (파일 크기 컨벤션 준수)
@@ -135,7 +136,6 @@ export default function ApplicationModal({ isOpen, onClose, campaign, channelTyp
     // CHANGED: 통합 빌더 입력 — 내 기록용 요약/미리보기/팔로워 메시지가 공유
     const summaryInput: SponsorshipTextInput = {
         accommodationName: campaign.accommodationName,
-        myCouponCode: couponCode,
         deadline: campaign.deadline,
         highlights: campaign.highlights,
         channelTypes,
@@ -405,7 +405,7 @@ export default function ApplicationModal({ isOpen, onClose, campaign, channelTyp
                             <div className="space-y-2">
                                 {/* CHANGED: 예측 가능한 CTA + 내 예약 쿠폰 자동복사 + 새 탭(보안 규칙 충족). 팔로워 코드 오등록 방지 */}
                                 <a
-                                    href={COUPON_REGISTER_URL}
+                                    href={buildCouponDeepLink(couponCode)}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     onClick={() => {
@@ -418,13 +418,15 @@ export default function ApplicationModal({ isOpen, onClose, campaign, channelTyp
                                     }}
                                     className="block w-full h-14 flex items-center justify-center gap-2 bg-brand text-black font-bold text-lg rounded-xl hover:bg-brand-hover transition-colors"
                                 >
-                                    <BrandIcon name="clipboard" size={20} />내 예약 쿠폰 복사하고 캠핏으로 이동
+                                    <BrandIcon name="clipboard" size={20} />내 예약 쿠폰 등록하러 가기
                                 </a>
+                                {/* CHANGED: 딥링크라 붙여넣기가 필요 없다. 안내 문구도 그에 맞게 교정하고,
+                                            나중에 다시 볼 수 있다는 점을 알려 '지금 안 하면 사라진다'는 압박을 없앤다. */}
                                 <p className="text-xs">
                                     {isMineCtaCopied ? (
-                                        <span className="text-brand-strong font-medium">✓ 내 예약 쿠폰을 복사했어요. 새 탭에서 등록해주세요.</span>
+                                        <span className="text-brand-strong font-medium">✓ 코드도 복사해뒀어요. 자동 입력이 안 되면 붙여넣어 주세요.</span>
                                     ) : (
-                                        <span className="text-ink3">* 버튼을 누르면 내 예약 쿠폰이 복사되고 캠핏 등록 페이지가 새 탭으로 열려요.</span>
+                                        <span className="text-ink3">* 누르면 코드가 입력된 등록 페이지가 새 탭으로 열려요. 이 코드는 언제든 &lsquo;내 협찬 관리&rsquo;에서 다시 볼 수 있어요.</span>
                                     )}
                                 </p>
                             </div>

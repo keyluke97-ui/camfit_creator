@@ -3,7 +3,8 @@
 // CHANGED: 통합 — CheckinModal의 쿠폰 코드 박스 + 완료 캠페인 목록 추출 (파일 크기 컨벤션 준수, 동작 동일)
 import { useState } from 'react';
 import type { Application } from '@/types';
-import { COUPON_APPLY_DAYS_CONFIG, formatDiscount, COUPON_REGISTER_URL } from '@/lib/constants';
+// CHANGED: 내 예약 쿠폰도 딥링크로 — 난수 코드를 복사·붙여넣기 시키던 동선을 '누르면 자동 입력'으로.
+import { COUPON_APPLY_DAYS_CONFIG, formatDiscount, buildCouponDeepLink } from '@/lib/constants';
 // CHANGED: 팔로워에게 보낼 깨끗한 메시지 빌더
 import { buildFollowerShareMessage } from '@/lib/couponText';
 // CHANGED: 이모지 → 오브젝트 아이콘
@@ -24,16 +25,57 @@ export function ReservationCouponDone({ code }: { code: string }) {
                     코드 복사하기
                 </button>
             </div>
+            {/* CHANGED: 딥링크 — 누르면 코드가 입력된 등록 페이지로. 클립보드 복사는 링크 실패 시 폴백으로 유지. */}
             <a
-                href={COUPON_REGISTER_URL}
+                href={buildCouponDeepLink(code)}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => { navigator.clipboard?.writeText(code).catch((err) => console.error('Failed to copy my coupon', err)); }}
                 className="block w-full h-14 flex items-center justify-center gap-2 bg-brand text-black font-bold text-lg rounded-xl hover:bg-brand-hover transition-colors"
             >
-                <BrandIcon name="clipboard" size={20} />내 예약 쿠폰 복사하고 캠핏으로 이동
+                <BrandIcon name="clipboard" size={20} />내 예약 쿠폰 등록하러 가기
             </a>
         </>
+    );
+}
+
+// CHANGED: 신청 카드 내 "내 예약 쿠폰" 박스 — 신청완료 모달을 닫으면 이 코드를 다시 볼 곳이
+//          '협찬 조건 복사' 텍스트뿐이라 크리에이터가 놓치는 사례가 발생했다. 카드에 상시 노출한다.
+//          ReservationCouponDone(예약 변경 완료 화면 주인공)과 같은 정보지만, 카드 안에서는
+//          팔로워 쿠폰 박스와 나란히 놓이므로 크기를 줄이고 위계만 유지한다(brand 강조 vs 팔로워 weak 회색).
+export function MyCouponBox({ app }: { app: Application }) {
+    const [copied, setCopied] = useState(false);
+    const code = app.couponCode || '';
+    if (!code) return null;
+    return (
+        <div className="bg-brand-bg border border-brand rounded-lg p-3 space-y-2">
+            <p className="text-xs text-brand-strong font-bold">내 예약 쿠폰 코드 <span className="text-ink2 font-normal">· 캠핏에 등록하고 예약하세요</span></p>
+            <div className="flex items-center justify-between gap-2">
+                <p className="font-mono font-bold text-ink text-base break-all">{code}</p>
+                <button
+                    onClick={async () => {
+                        try {
+                            await navigator.clipboard.writeText(code);
+                            setCopied(true);
+                            setTimeout(() => setCopied(false), 2000);
+                        } catch {
+                            /* noop */
+                        }
+                    }}
+                    className="flex-shrink-0 text-xs px-3 py-1 bg-card border border-strong text-ink rounded-full hover:bg-subtle"
+                >
+                    {copied ? '복사 완료!' : '코드 복사'}
+                </button>
+            </div>
+            <a
+                href={buildCouponDeepLink(code)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full py-2 bg-brand text-black text-xs font-bold rounded-lg hover:bg-brand-hover transition-colors inline-flex items-center justify-center gap-1.5"
+            >
+                <BrandIcon name="clipboard" size={14} />쿠폰 등록하러 가기
+            </a>
+        </div>
     );
 }
 

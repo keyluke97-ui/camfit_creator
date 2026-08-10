@@ -17,7 +17,7 @@ import ContentEntryBanner from '@/components/ContentEntryBanner';
 // CHANGED: 캠냥이 마스코트 (빈 상태) + 오브젝트 아이콘
 import Mascot from '@/components/Mascot';
 import BrandIcon from '@/components/BrandIcon';
-import type { Campaign, ContentUpload, TierLevel, ChannelType, CampaignSortKey } from '@/types';
+import type { Application, Campaign, ContentUpload, TierLevel, ChannelType, CampaignSortKey } from '@/types';
 // CHANGED: 공통 상수를 constants.ts에서 import
 import { KAKAO_CHANNEL_URL } from '@/lib/constants';
 // CHANGED: 캠페인 정렬 로직
@@ -60,6 +60,10 @@ function DashboardContent() {
     const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
     // CHANGED: userRecordId 상태 제거 — API에서 JWT로 사용자 식별
     const [isCheckinModalOpen, setIsCheckinModalOpen] = useState(false);
+    // CHANGED: 입실일 미등록 건수 — CTA 뱃지용. 모달을 열어야만 알 수 있던 '남은 할 일'을
+    //          대시보드에서 바로 보이게 한다. 모달은 자체 패칭을 유지하고(변경/취소 후 갱신 필요),
+    //          여기서는 카운트만 별도로 읽는다.
+    const [pendingCheckinCount, setPendingCheckinCount] = useState(0);
     // CHANGED: 콘텐츠 탭 state 추가
     const [contentUploads, setContentUploads] = useState<ContentUpload[]>([]);
     // CHANGED: 콘텐츠 로드 실패를 빈 상태와 구분 — 무음 처리되던 결함 수정
@@ -85,6 +89,23 @@ function DashboardContent() {
     const handleCloseContentView = () => {
         setShowContentView(false);
         window.history.replaceState(null, '', '/dashboard');
+    };
+
+    // CHANGED: 입실일 미등록 건수 조회 — 모달과 같은 엔드포인트를 읽되 카운트만 쓴다.
+    //          실패해도 뱃지만 안 보일 뿐 대시보드는 정상 동작해야 하므로 조용히 0 유지.
+    const fetchPendingCheckinCount = async () => {
+        try {
+            const res = await fetch('/api/applications/my');
+            const data = await res.json();
+            if (!res.ok) {
+                console.error(data.error);
+                return;
+            }
+            const apps: Application[] = data.applications || [];
+            setPendingCheckinCount(apps.filter(app => !app.checkInDate || !app.checkInSite).length);
+        } catch (error) {
+            console.error('Failed to fetch pending checkin count', error);
+        }
     };
 
     const fetchCampaigns = async () => {
@@ -182,6 +203,7 @@ function DashboardContent() {
         if (!userInfo) return;
         if (userInfo.premiumId) {
             fetchCampaigns();
+            fetchPendingCheckinCount();
         }
     }, [userInfo]);
 
@@ -275,6 +297,12 @@ function DashboardContent() {
                                                  크리에이터가 캠핑장 현장·영상 편집 시점에 반복해 여는 화면이다.
                                                  등록 유도는 모달 내 '입실일 등록 필요' 뱃지가 대신한다. */}
                                     <span>내 협찬 관리</span>
+                                    {/* CHANGED: 미등록 건수 뱃지 — 모달을 열어야만 보이던 '남은 할 일'을 밖으로 꺼낸다. */}
+                                    {pendingCheckinCount > 0 && (
+                                        <span className="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 bg-black text-white text-xs font-bold rounded-full">
+                                            {pendingCheckinCount}
+                                        </span>
+                                    )}
                                 </button>
                             )}
                         </>
@@ -569,7 +597,11 @@ function DashboardContent() {
 
             <CheckinModal
                 isOpen={isCheckinModalOpen}
-                onClose={() => setIsCheckinModalOpen(false)}
+                onClose={() => {
+                    setIsCheckinModalOpen(false);
+                    // CHANGED: 모달 안에서 입실일을 등록/취소했을 수 있으므로 닫을 때 뱃지 카운트 재계산
+                    fetchPendingCheckinCount();
+                }}
             />
             {/* CHANGED: 콘텐츠 제출 모달 */}
             {userInfo && (

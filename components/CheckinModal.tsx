@@ -5,7 +5,7 @@ import type { Application } from '@/types';
 // CHANGED: 협찬 조건 복사 텍스트는 통합 빌더(couponText)로 일원화 — 기존 쿠폰 헬퍼 import 제거
 import { buildSponsorshipSummary } from '@/lib/couponText';
 // CHANGED: 통합 — 쿠폰 박스 + 완료 목록 추출 (파일 크기 컨벤션 준수)
-import { CheckinCouponBox, CompletedAppsList, ReservationCouponDone } from './CheckinSections';
+import { CheckinCouponBox, CompletedAppsList, MyCouponBox, ReservationCouponDone } from './CheckinSections';
 // CHANGED: 캠냥이 마스코트 + 오브젝트 아이콘
 import Mascot from './Mascot';
 import BrandIcon from './BrandIcon';
@@ -237,7 +237,6 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
     const handleCopyConditions = async (app: Application) => {
         const text = buildSponsorshipSummary({
             accommodationName: app.accommodationName,
-            myCouponCode: app.couponCode,
             deadline: app.deadline,
             highlights: app.highlights,
             detailUrl: app.detailUrl,
@@ -346,6 +345,19 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
                                                 </span>
                                             )}
                                         </div>
+
+                                        {/* CHANGED: 미등록 건은 남은 2단계를 명시. 놓치는 건 ②가 아니라 ①(쿠폰 등록·예약)이었다. */}
+                                        {!isRegistered(app) && (
+                                            <div className="flex items-center gap-2 text-xs bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                                                <span className="text-amber-800 font-bold">① 쿠폰 등록하고 예약</span>
+                                                <span className="text-amber-500">→</span>
+                                                <span className="text-amber-700">② 입실일 등록</span>
+                                            </div>
+                                        )}
+
+                                        {/* CHANGED: 내 예약 쿠폰 상시 노출 — 신청완료 모달을 닫으면 다시 볼 곳이 없던 문제 해소.
+                                                    팔로워 쿠폰 박스보다 위에 두어 '내가 쓸 것'이 먼저 읽히게 한다. */}
+                                        <MyCouponBox app={app} />
 
                                         {/* CHANGED: 통합 — followerCouponCode 있으면 코드 박스 노출 (추출: CheckinCouponBox) */}
                                         {app.followerCouponCode && <CheckinCouponBox app={app} />}
