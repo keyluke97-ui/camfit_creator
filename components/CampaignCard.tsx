@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import type { Campaign, ChannelType } from '@/types';
 import { COUPON_APPLY_DAYS_CONFIG, formatDiscount } from '@/lib/constants';
+// CHANGED: 제작 기한 D-day 표시 (단일 소스)
+import { getDeadlineStatus, DEADLINE_TONE_CLASS } from '@/lib/deadline';
 import ApplicationModal from './ApplicationModal';
 import HighlightsModal from './HighlightsModal';
 // CHANGED: 🎟️ 이모지 → 오브젝트 아이콘
@@ -18,6 +20,7 @@ interface CampaignCardProps {
 export default function CampaignCard({ campaign, channelTypes }: CampaignCardProps) {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isHighlightsOpen, setIsHighlightsOpen] = useState(false);
+    const deadlineStatus = getDeadlineStatus(campaign.deadlineDate);
 
     if (campaign.isClosed) {
         // 마감 상태
@@ -98,11 +101,18 @@ export default function CampaignCard({ campaign, channelTypes }: CampaignCardPro
             )}
 
             {/* 제작 기한 */}
-            <div className="flex items-center gap-2 mb-4">
+            {/* CHANGED: 남은 일수(D-day) 뱃지 추가 — 날짜만으로는 기간을 체감하지 못해
+                         "기한을 몰랐다"는 연장 요청이 반복됐다. 14일 이내부터 색으로 경고. */}
+            <div className="flex items-center gap-2 mb-4 flex-wrap">
                 <BrandIcon name="calendar" size={22} />
                 <span className="text-base text-ink2">
                     제작 기한: {campaign.deadline}
                 </span>
+                {deadlineStatus && (
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${DEADLINE_TONE_CLASS[deadlineStatus.tone]}`}>
+                        {deadlineStatus.tone === 'passed' ? `기한 지남 ${deadlineStatus.label}` : deadlineStatus.label}
+                    </span>
+                )}
             </div>
 
             {/* 협찬 금액 (강조) */}

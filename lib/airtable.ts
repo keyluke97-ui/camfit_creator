@@ -282,6 +282,10 @@ export async function getCampaigns(tier: TierLevel): Promise<Campaign[]> {
                 accommodationName: fields['숙소 이름을 적어주세요.'] || '',
                 location: fields['숙소 위치'] || '',
                 deadline: fields['⏰ 콘텐츠 제작 기한'] || '',
+                // CHANGED: D-day 계산용 — date 필드를 YYYY-MM-DD로 절삭해 전달
+                deadlineDate: fields['콘텐츠 제작 기한 (날짜)']
+                    ? String(fields['콘텐츠 제작 기한 (날짜)']).slice(0, 10)
+                    : undefined,
                 createdTime: fields['Created'] || '', // CHANGED: 최신등록순 정렬용
 
                 detailUrl: fields['숙소 링크 (캠핏 내 상세페이지만 삽입 가능)'] || '',
@@ -578,6 +582,7 @@ export async function getUserApplications(channelName: string): Promise<Applicat
             let detailUrl = '';
             let highlights = '';
             let deadline = '';
+            let deadlineDate = ''; // CHANGED: D-day 계산용 date 필드
             let couponEvent: CouponEvent | undefined = undefined;
 
             const campRecord = campaignId ? campaignMap.get(campaignId) : undefined;
@@ -587,6 +592,9 @@ export async function getUserApplications(channelName: string): Promise<Applicat
                 detailUrl = campRecord.fields['숙소 링크 (캠핏 내 상세페이지만 삽입 가능)'] || '';
                 highlights = campRecord.fields['숙소의 특장점'] || '';
                 deadline = campRecord.fields['⏰ 콘텐츠 제작 기한'] || '';
+                deadlineDate = campRecord.fields['콘텐츠 제작 기한 (날짜)']
+                    ? String(campRecord.fields['콘텐츠 제작 기한 (날짜)']).slice(0, 10)
+                    : '';
 
                 // CHANGED: 통합 — couponEvent 매핑 (getCampaigns와 동일 가드 패턴)
                 const cf = campRecord.fields;
@@ -630,6 +638,7 @@ export async function getUserApplications(channelName: string): Promise<Applicat
                 detailUrl: detailUrl || undefined,
                 highlights: highlights || undefined,
                 deadline: deadline || undefined,
+                deadlineDate: deadlineDate || undefined,
                 // CHANGED: 통합 — 신청 시 분배된 본인 팔로워 쿠폰 코드 + 캠페인 쿠폰 조건
                 followerCouponCode: fields['팔로워 쿠폰 코드'] || undefined,
                 couponEvent

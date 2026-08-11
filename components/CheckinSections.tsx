@@ -7,8 +7,29 @@ import type { Application } from '@/types';
 import { COUPON_APPLY_DAYS_CONFIG, formatDiscount, buildCouponDeepLink } from '@/lib/constants';
 // CHANGED: 팔로워에게 보낼 깨끗한 메시지 빌더
 import { buildFollowerShareMessage } from '@/lib/couponText';
+// CHANGED: 제작 기한 D-day 표시 (단일 소스)
+import { getDeadlineStatus, DEADLINE_TONE_CLASS } from '@/lib/deadline';
 // CHANGED: 이모지 → 오브젝트 아이콘
 import BrandIcon from './BrandIcon';
+
+// CHANGED: 신청 카드 상단 제작 기한 D-day 뱃지.
+//          크리에이터가 이 화면을 여는 시점이 캠핑장 현장·영상 편집이라, 기한을 상기시키기 가장 좋은 자리다.
+//          날짜만 적혀 있으면 남은 기간을 체감하지 못해 "기한을 몰랐다"는 연장 요청이 반복됐다.
+export function DeadlineBadge({ app }: { app: Application }) {
+    const status = getDeadlineStatus(app.deadlineDate);
+    if (!status || !app.deadline) return null;
+    return (
+        // CHANGED: gap-x/y 분리 + whitespace-nowrap — 좁은 폭에서 'D-DAY'가 'D-'/'DAY'로 쪼개지고
+        //          날짜가 중간에 끊겨 읽히지 않던 문제 수정. 토큰 단위로만 줄바꿈되게 한다.
+        <div className={`flex items-center gap-x-2 gap-y-0.5 flex-wrap text-xs px-3 py-2 rounded-lg border ${DEADLINE_TONE_CLASS[status.tone]}`}>
+            <span className="flex items-center gap-1 font-bold whitespace-nowrap">
+                <BrandIcon name="calendar" size={14} />
+                {status.tone === 'passed' ? `제작 기한 지남 ${status.label}` : `콘텐츠 제작 기한 ${status.label}`}
+            </span>
+            <span className="opacity-80 whitespace-nowrap">· {app.deadline}</span>
+        </div>
+    );
+}
 
 // CHANGED: 쿠폰 혼동 해소 — 예약 변경 완료 화면의 '내 예약 쿠폰' 박스 + 등록 CTA 추출
 //          (CheckinModal 600줄 컨벤션 준수 + ApplicationModal과 동일 패턴: 자동복사 + 새 탭)
