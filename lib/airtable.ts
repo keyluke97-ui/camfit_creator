@@ -1,5 +1,5 @@
 import Airtable, { FieldSet } from 'airtable';
-import { hasPartnerEligibleChannel } from '@/lib/constants'; // CHANGED: 통합 — 블로거 차단 헬퍼
+import { hasPartnerEligibleChannel, VISIT_REGIONS, VISIT_DAYS, SPONSOR_SITE_TYPES, getWonjeongCandidates } from '@/lib/constants'; // CHANGED: 통합 블로거 차단 / 지명형 옵션·원정 헬퍼
 import type {
     TierLevel,
     ChannelType,
@@ -18,7 +18,10 @@ import type {
     AirtablePartnerCampaignRecord,
     AirtablePartnerApplicationRecord,
     ContentSubmitPayload,
-    ContentUpload
+    ContentUpload,
+    CreatorProfile,
+    SettlementSummary,
+    CreatorProfileUpdate
 } from '@/types';
 
 /**
@@ -1346,6 +1349,250 @@ export async function updateCreatorNotification(recordId: string, enabled: boole
         console.error('Update notification error:', error);
         throw error;
     }
+}
+
+// ──────────────────────────────────────────────
+// 지명형 협찬 1a — 크리에이터 포트폴리오 / 조건 / 정산 (SDD v4 A′)
+// 스펙: specs/2026-07-16-지명형협찬-1a-*.md
+// ──────────────────────────────────────────────
+
+/**
+ * 정산 주소(자유 텍스트)에서 기준 지역(시/도) 후보 파싱 — 프리필용 best-effort. 못 뽑으면 ''.
+ * 한국 주소는 시/도로 시작하므로 **선두 토큰(startsWith)**으로 판정한다.
+ * (부분일치 금지 — 상세주소에 섞인 '세종아파트'·'대구리' 같은 토큰이 실제 도를 오분류하는 것 방지.)
+ */
+function parseBaseRegionFromAddress(address: string): string {
+    if (!address) return '';
+    const a = address.replace(/\s/g, '');
+    // 각 지역의 가능한 선두 접두어 목록. 접두어 disjoint라 순서 무관.
+    const rules: Array<[string[], string]> = [
+        [['서울', '인천', '경기'], '경기도(서울, 인천 포함)'],
+        [['강원'], '강원도'],
+        [['충청북도', '충북'], '충청북도'],
+        [['충청남도', '충남', '대전', '세종'], '충청남도'],
+        [['전라북도', '전북'], '전라북도'],
+        [['전라남도', '전남', '광주'], '전라남도'],
+        [['경상북도', '경북', '대구'], '경상북도'],
+        [['경상남도', '경남', '부산', '울산'], '경상남도'],
+        [['제주'], '제주도'],
+    ];
+    for (const [prefixes, region] of rules) {
+        if (prefixes.some((p) => a.startsWith(p))) return region;
+    }
+    return '';
+}
+
+/**
+ * 정산정보 마스킹 조회 (유저 테이블 READ only) — premiumId 없으면 미등록 반환.
+ * 전체 계좌번호·주민번호는 절대 반환 안 함(뒤 4자리만). 주소는 기준 지역 프리필로만 변환해 반환.
+ */
+async function getPremiumSettlement(premiumId: string | null): Promise<SettlementSummary> {
+    const unregistered: SettlementSummary = {
+        registered: false, bank: '', accountLast4: '', accountHolder: '', baseRegionPrefill: '',
+    };
+    if (!premiumId) return unregistered;
+    try {
+        const user = await userTable().find(premiumId);
+        const bankRaw = (user.get('은행') as string) || '';
+        // '기타(직접입력)'이면 동반 필드에서 실제 은행명
+        const bank = bankRaw === '기타(직접입력)'
+            ? ((user.get('기타 은행 (직접 입력)') as string) || '기타')
+            : bankRaw;
+        const accountDigits = ((user.get('계좌번호') as string) || '').replace(/[^0-9]/g, '');
+        const address = (user.get('주소 (상세주소 포함)') as string) || '';
+        return {
+            registered: true,
+            bank,
+            accountLast4: accountDigits.slice(-4),
+            accountHolder: (user.get('예금주') as string) || '',
+            baseRegionPrefill: parseBaseRegionFromAddress(address),
+        };
+    } catch (error) {
+        console.error('Get premium settlement error:', error);
+        // premiumId는 있으니 registered=true 유지(재등록 오유도 방지), 마스킹 값만 비움
+        return { registered: true, bank: '', accountLast4: '', accountHolder: '', baseRegionPrefill: '' };
+    }
+}
+
+/**
+ * 크리에이터 프로필 전체 조회 (포트폴리오+조건+원정+공개 + 정산요약).
+ * JWT creatorId로만 조회(IDOR 방어). 조회 실패 시 null.
+ */
+export async function getCreatorProfile(creatorId: string): Promise<CreatorProfile | null> {
+    try {
+        const record = await creatorTable().find(creatorId);
+
+        // 프로필 이미지 — 첨부 첫 장의 (만료성) URL
+        const images = record.get('프로필 이미지') as Array<{ url?: string }> | undefined;
+        const hasProfileImage = Array.isArray(images) && images.length > 0;
+        const profileImageUrl = hasProfileImage ? (images![0]?.url || '') : '';
+
+        const ratingValue = record.get('등급화');
+        const tier = (ratingValue ? String(ratingValue) : '1') as TierLevel;
+
+        // premiumId → 정산 마스킹
+        const premiumLinks = record.get('프리미엄 협찬 신청 인플루언서') as string[] | undefined;
+        const premiumId = Array.isArray(premiumLinks) && premiumLinks.length > 0 ? premiumLinks[0] : null;
+        const settlement = await getPremiumSettlement(premiumId);
+
+        return {
+            profileImageUrl,
+            hasProfileImage,
+            representativeLink: (record.get('대표 콘텐츠 링크') as string) || '',
+            minSponsorAmount: (record.get('협찬 희망 금액') as number) || 0,
+            visitRegions: (record.get('방문 가능 지역') as string[]) || [],
+            visitDays: (record.get('방문 가능 요일') as string[]) || [],
+            acceptSiteTypes: (record.get('수용 사이트 종류') as string[]) || [],
+            baseRegion: (record.get('기준 지역') as string) || '',
+            wonjeongRegions: (record.get('원정 가능 지역') as string[]) || [],
+            isPublic: record.get('프로필 공개') === true,
+            autoAcceptActive: record.get('자동수락 활성') === true,
+            channelName: (record.get('크리에이터 채널명') as string) || '',
+            tier,
+            followerRange: (record.get('팔로워 구간') as string) || '',
+            settlement,
+        };
+    } catch (error) {
+        console.error('Get creator profile error:', error);
+        return null;
+    }
+}
+
+/** updateCreatorProfile 결과 — ok=false면 API가 400으로 매핑 */
+export type UpdateProfileResult =
+    | { ok: true }
+    | { ok: false; code: 'INVALID_OPTION' | 'INVALID_WONJEONG' | 'AUTO_ACCEPT_REQUIRES_PUBLIC' | 'INCOMPLETE'; missing?: string[] };
+
+/**
+ * 크리에이터 프로필/조건/원정/공개 저장. JWT creatorId로만 수정(IDOR 방어).
+ * 서버 검증: ① 원정 지역 ⊆ WONJEONG_MAP[기준] 이고 방문가능과 서로소 ② 자동수락은 공개의 하위
+ * ③ 공개 ON 시 §5 필수항목 재검증(클라이언트 우회 차단). 위반 시 ok:false 반환(쓰기 안 함).
+ */
+export async function updateCreatorProfile(
+    creatorId: string,
+    payload: CreatorProfileUpdate
+): Promise<UpdateProfileResult> {
+    try {
+        const isPublic = payload.isPublic === true;
+        // 자동수락은 공개의 하위 — 공개 false면 자동수락도 강제 false
+        const autoAcceptActive = isPublic ? payload.autoAcceptActive === true : false;
+
+        const visitRegions = payload.visitRegions || [];
+        const wonjeongRegions = payload.wonjeongRegions || [];
+
+        // ⓪ 옵션 화이트리스트 검증 — 잘못된 값이 Airtable 422→불투명한 500으로 새거나,
+        //    기준지역 상속키(__proto__ 등)가 WONJEONG_MAP 인덱싱 취약점을 타는 것을 클린 400으로 차단.
+        const badOption =
+            visitRegions.some((r) => !VISIT_REGIONS.includes(r)) ||
+            wonjeongRegions.some((r) => !VISIT_REGIONS.includes(r)) ||
+            (payload.visitDays || []).some((d) => !VISIT_DAYS.includes(d)) ||
+            (payload.acceptSiteTypes || []).some((s) => !SPONSOR_SITE_TYPES.includes(s)) ||
+            (payload.baseRegion !== '' && !VISIT_REGIONS.includes(payload.baseRegion));
+        if (badOption) {
+            return { ok: false, code: 'INVALID_OPTION' };
+        }
+
+        // ① 원정 검증: 기준 지역 맵으로 제한 + 방문가능과 상호배타 (근거리 프리미엄 어뷰징 차단)
+        //    baseRegion은 위에서 화이트리스트 통과했으므로 getWonjeongCandidates 인덱싱 안전.
+        const candidates = getWonjeongCandidates(payload.baseRegion);
+        const invalidWonjeong = wonjeongRegions.some((r) => !candidates.includes(r));
+        const overlap = wonjeongRegions.some((r) => visitRegions.includes(r));
+        if (invalidWonjeong || overlap) {
+            return { ok: false, code: 'INVALID_WONJEONG' };
+        }
+
+        // ③ 공개 게이팅 서버 재검증 (이미지·premiumId는 payload에 없으므로 레코드에서 확인)
+        if (isPublic) {
+            const record = await creatorTable().find(creatorId);
+            const images = record.get('프로필 이미지') as unknown[] | undefined;
+            const hasImage = Array.isArray(images) && images.length > 0;
+            const premiumLinks = record.get('프리미엄 협찬 신청 인플루언서') as string[] | undefined;
+            const hasPremium = Array.isArray(premiumLinks) && premiumLinks.length > 0;
+
+            const missing: string[] = [];
+            if (!hasImage) missing.push('프로필 이미지');
+            if (!payload.representativeLink) missing.push('대표 콘텐츠 링크');
+            if (visitRegions.length === 0) missing.push('방문 가능 지역');
+            if ((payload.visitDays || []).length === 0) missing.push('방문 가능 요일');
+            if ((payload.acceptSiteTypes || []).length === 0) missing.push('수용 사이트 종류');
+            if (!(payload.minSponsorAmount > 0)) missing.push('최소 협찬 단가');
+            if (!hasPremium) missing.push('정산 정보');
+            if (missing.length > 0) return { ok: false, code: 'INCOMPLETE', missing };
+        }
+
+        const updateFields: Record<string, unknown> = {
+            '대표 콘텐츠 링크': payload.representativeLink,
+            '협찬 희망 금액': payload.minSponsorAmount,
+            '방문 가능 지역': visitRegions,
+            '방문 가능 요일': payload.visitDays || [],
+            '수용 사이트 종류': payload.acceptSiteTypes || [],
+            '원정 가능 지역': wonjeongRegions,
+            '프로필 공개': isPublic,
+            '자동수락 활성': autoAcceptActive,
+            // singleSelect: 빈 값이면 '' 대신 null로 클리어
+            '기준 지역': payload.baseRegion || null,
+        };
+
+        await creatorTable().update(creatorId, updateFields as unknown as Partial<FieldSet>);
+        return { ok: true };
+    } catch (error) {
+        console.error('Update creator profile error:', error);
+        throw error;
+    }
+}
+
+/**
+ * 크리에이터 프로필 이미지 업로드 → 크리에이터 명단 `프로필 이미지` 첨부 필드에 직접 저장.
+ * airtable SDK엔 첨부 업로드가 없어 content.airtable.com uploadAttachment 엔드포인트를 직접 호출한다
+ * (외부 호스트 불필요, 파일당 ≤5MB). 첨부는 append 동작이라 기존 이미지에 이어 붙는다.
+ * @param creatorId    크리에이터 명단 레코드 ID (JWT creatorId — 본인 것만)
+ * @param fileBase64   data URL 접두어 제거된 순수 base64 문자열
+ * @param contentType  MIME 타입 (예: image/jpeg)
+ * @param filename     저장 파일명
+ * @returns 업로드 후 마지막(방금 올린) 첨부의 (만료성) URL. 파싱 실패 시 ''
+ */
+export async function uploadCreatorProfileImage(
+    creatorId: string,
+    fileBase64: string,
+    contentType: string,
+    filename: string
+): Promise<string> {
+    const baseId = process.env.AIRTABLE_BASE_ID;
+    const token = process.env.AIRTABLE_ACCESS_TOKEN;
+    if (!baseId || !token) {
+        throw new Error('AIRTABLE_BASE_ID/ACCESS_TOKEN 환경변수 미설정');
+    }
+
+    // ⚠️ 업로드 첨부는 api.airtable.com이 아니라 content.airtable.com 호스트를 쓴다.
+    //    첨부 필드명(한글·공백)은 URL 인코딩. fieldId로도 접근 가능하나, 존재가 확인된 실제명을 사용.
+    const fieldPath = encodeURIComponent('프로필 이미지');
+    const url = `https://content.airtable.com/v0/${baseId}/${creatorId}/${fieldPath}/uploadAttachment`;
+
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ contentType, filename, file: fileBase64 })
+    });
+
+    if (!response.ok) {
+        const detail = await response.text();
+        console.error('uploadAttachment failed:', response.status, detail);
+        throw new Error('IMAGE_UPLOAD_FAILED');
+    }
+
+    const data = await response.json();
+    // ⚠️ 응답의 fields는 필드명이 아니라 fieldId로 키잉된다(Airtable 문서 확인).
+    //    이름 → 알려진 fieldId → 첫 배열 순으로 견고하게 파싱(업로드 대상 필드는 하나뿐).
+    const fields = (data?.fields ?? {}) as Record<string, unknown>;
+    const attachments =
+        (fields['프로필 이미지'] as Array<{ url?: string }> | undefined) ??
+        (fields['fldpuIQagshFh2v2s'] as Array<{ url?: string }> | undefined) ??
+        (Object.values(fields).find(Array.isArray) as Array<{ url?: string }> | undefined) ??
+        [];
+    return attachments.length > 0 ? attachments[attachments.length - 1]?.url || '' : '';
 }
 
 // ──────────────────────────────────────────────
