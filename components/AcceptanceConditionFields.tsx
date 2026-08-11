@@ -116,13 +116,14 @@ export default function AcceptanceConditionFields({
             </div>
 
             {/* 3. 원정 제안 (기준 지역 선택 + 후보 있을 때만) */}
-            {wonjeongCandidates.length > 0 && (
-                <div className="rounded-lg border border-line bg-subtle p-4">
-                    <p className="text-sm font-medium text-ink mb-1">
-                        원정도 받으시겠어요? <span className="text-brand-strong font-semibold">유류비 +{surcharge}원</span>
-                    </p>
-                    <p className="text-xs text-ink3 leading-relaxed mb-3">
-                        원정 지역은 캠지기가 유류비 {surcharge}원을 얹어 제안하면, 자동수락이 켜져 있을 때 자동 확정됩니다.
+            {/* CHANGED: 1a-v2 D4 — 방문 가능 지역을 1개 이상 고른 뒤에만 원정 제안 노출.
+                저장은 강제하지 않는다(저장 안 한 사람이 원정을 영영 못 보는 것 방지). */}
+            {visitRegions.length > 0 && wonjeongCandidates.length > 0 && (
+                <div className="rounded-xl border border-brand/30 bg-brand-bg p-4">
+                    <p className="text-sm font-bold text-ink mb-1">더 받으실 수 있어요</p>
+                    {/* CHANGED: 1a-v2 D1 — '자동수락이 켜져 있을 때' 문구 제거(토글 폐지). */}
+                    <p className="text-xs text-ink2 leading-relaxed mb-3">
+                        안 가신다고 하신 지역 중에 유류비 {surcharge}원을 더 드리면 가주실 곳이 있나요?
                     </p>
                     <div className="space-y-2">
                         {wonjeongCandidates.map((region) => {
@@ -140,7 +141,9 @@ export default function AcceptanceConditionFields({
                                             aria-pressed={on}
                                             className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
                                                 on
-                                                    ? 'bg-brand-bg text-brand-strong border-brand/30 font-medium'
+                                                    // CHANGED: 1a-v2 D4 — 컨테이너가 bg-brand-bg로 바뀌어
+                                                    // 선택 칩(brand-bg)이 배경에 묻혔다. 채움 대비로 교체.
+                                                    ? 'bg-brand text-black border-brand font-bold'
                                                     : 'bg-card text-ink3 border-line hover:border-brand'
                                             }`}
                                         >
@@ -186,11 +189,18 @@ export default function AcceptanceConditionFields({
                 />
             </div>
 
-            {/* 6. 최소 협찬 단가 */}
+            {/* 6. 협찬 금액 */}
+            {/* CHANGED: 1a-v2 D5 — '이 금액 이상'은 협상 여지가 있다는 오해를 준다.
+                캠지기는 금액을 바꿀 수 없고 이 값 그대로 제안한다. */}
             <div>
                 <label className="block text-sm font-medium text-ink mb-2">
-                    최소 협찬 단가 <span className="text-ink3 font-normal">(이 금액 이상 제안만 받아요)</span>
+                    협찬 금액 <span className="text-red-500">*</span>
                 </label>
+                <p className="text-xs text-ink2 mb-2 leading-relaxed">
+                    캠지기가 <strong className="text-brand-strong">이 금액으로</strong> 제안합니다.<br />
+                    등록하신 채널 <strong>전부</strong>에 콘텐츠를 올리는 조건의 금액이에요.
+                    채널을 추가하시면 금액도 함께 다시 봐주세요.
+                </p>
                 <div className="relative">
                     <input
                         type="number"
@@ -204,8 +214,11 @@ export default function AcceptanceConditionFields({
                 </div>
             </div>
 
+            {/* CHANGED: 1a-v2 D1 — '개별 승인 없이 자동 확정'은 사실과 다르다.
+                실제 흐름은 제안서 이메일 → 24~48시간 확인 → 무응답 시 자동 확정이다.
+                전체 흐름 고지는 PublishRequestCard가 담당하므로 여기선 조건 매칭만 안내한다. */}
             <p className="text-xs text-ink3 leading-relaxed">
-                조건에 맞는 제안만 도착하고, 캠지기가 선입금하면 개별 승인 없이 자동 확정됩니다.
+                이 조건에 맞는 제안만 도착합니다. 제안이 오면 이메일로 알려드리고, 24~48시간 안에 확인해주시면 돼요.
             </p>
         </div>
     );

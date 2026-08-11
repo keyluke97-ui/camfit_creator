@@ -1,14 +1,21 @@
-// PortfolioEditForm.tsx - 지명형 크리에이터 포트폴리오 편집(4섹션)
-// D2/D5 반영: payload에 baseRegion·wonjeongRegions·autoAcceptActive 스레딩,
-// 자동수락은 공개의 하위(공개 off→강제 false), 조건 입력에 원정 props 전달.
+// PortfolioEditForm.tsx - 지명형 크리에이터 포트폴리오 편집(6섹션)
+// CHANGED: 1a-v2 — 채널 포트폴리오·콘텐츠 형식 섹션 추가, 완성도 바 도입,
+//          공개는 2단 토글(PublishToggle) 대신 제안 흐름 고지 카드(PublishRequestCard)로 교체.
+//          자동수락 토글 폐지(D1) — 무응답 자동확정이 이미 전원 기본값이라 토글이 사실과 반대로 읽힌다.
 'use client';
 
 import { useState, useEffect } from 'react';
 import type { CreatorProfile, SettlementSummary, CreatorProfileUpdate } from '@/types';
+import { CONTENT_FORMAT_CHANNEL } from '@/lib/constants';
+import { collectMissingForPublish, computeCompletion } from '@/lib/creatorProfileRules';
 import ProfileImageUploader from './ProfileImageUploader';
+import ChannelSelector from './ChannelSelector';
+import ChannelDetailTabs from './ChannelDetailTabs';
+import ContentFormatFields from './ContentFormatFields';
 import AcceptanceConditionFields from './AcceptanceConditionFields';
 import SettlementConfirmCard from './SettlementConfirmCard';
-import PublishToggle from './PublishToggle';
+import ProfileCompletionBar from './ProfileCompletionBar';
+import PublishRequestCard from './PublishRequestCard';
 
 function SectionTitle({ title, desc }: { title: string; desc?: string }) {
     return (
@@ -18,6 +25,29 @@ function SectionTitle({ title, desc }: { title: string; desc?: string }) {
             <div className="mt-2 h-px bg-subtle" />
         </div>
     );
+}
+
+/** CreatorProfile → 서버로 보낼 payload. save()와 완성도·누락 계산이 같은 값을 쓰도록 한 곳에 모은다 */
+function buildPayload(profile: CreatorProfile, isPublicOverride?: boolean): CreatorProfileUpdate {
+    return {
+        representativeLink: profile.representativeLink,
+        minSponsorAmount: profile.minSponsorAmount,
+        visitRegions: profile.visitRegions,
+        visitDays: profile.visitDays,
+        acceptSiteTypes: profile.acceptSiteTypes,
+        baseRegion: profile.baseRegion,
+        wonjeongRegions: profile.wonjeongRegions,
+        isPublic: isPublicOverride ?? profile.isPublic,
+        // CHANGED: 1a-v2 — 채널 포트폴리오·콘텐츠
+        channelTypes: profile.channelTypes,
+        representativeChannel: profile.representativeChannel,
+        channels: profile.channels,
+        representativeLink2: profile.representativeLink2,
+        representativeLink3: profile.representativeLink3,
+        contentFormats: profile.contentFormats,
+        contentStandard: profile.contentStandard,
+        creatorEmail: profile.creatorEmail,
+    };
 }
 
 export default function PortfolioEditForm() {
@@ -52,57 +82,53 @@ export default function PortfolioEditForm() {
         setMessage('');
     }
 
-    // 공개 필수 게이팅 (클라이언트 표시용 — 서버가 최종 검증)
-    function computeMissing(p: CreatorProfile, s: SettlementSummary | null): string[] {
-        const missing: string[] = [];
-        if (!p.hasProfileImage) missing.push('프로필 이미지');
-        if (!p.representativeLink.trim()) missing.push('대표 콘텐츠 링크');
-        if (p.visitRegions.length === 0) missing.push('방문 가능 지역');
-        if (p.visitDays.length === 0) missing.push('방문 가능 요일');
-        if (p.acceptSiteTypes.length === 0) missing.push('수용 사이트 종류');
-        if (!(p.minSponsorAmount > 0)) missing.push('최소 협찬 단가');
-        if (!s?.registered) missing.push('정산 정보');
-        return missing;
+    /**
+     * 채널 선택 변경. 해제된 채널의 콘텐츠 형식을 함께 걷어낸다.
+     * 안 걷어내면 유튜브를 끈 채 '유튜브 롱폼'이 payload에 남아 서버가 400(FORMAT_CHANNEL_MISMATCH)을
+     * 던지고, 사용자는 자기가 건드린 적 없는 항목 때문에 저장이 막힌다.
+     */
+    function handleChannelChange(patch: { channelTypes?: string[]; representativeChannel?: string }) {
+        if (!patch.channelTypes) {
+            patchProfile(patch);
+            return;
+        }
+        const nextTypes = patch.channelTypes;
+        setProfile((prev) =>
+            prev
+                ? {
+                      ...prev,
+                      ...patch,
+                      contentFormats: prev.contentFormats.filter((format) =>
+                          nextTypes.includes(CONTENT_FORMAT_CHANNEL[format])
+                      ),
+                  }
+                : prev
+        );
+        setMessage('');
     }
 
-    // 저장 — overrides 없으면 현재 플래그 유지. 자동수락은 공개의 하위(공개 off면 강제 false).
-    async function save(overrides?: { isPublic?: boolean; autoAcceptActive?: boolean }) {
+    // CHANGED: 1a-v2 — 자동수락 폐지(D1). overrides는 공개 여부만 받는다.
+    async function save(overrides?: { isPublic?: boolean }) {
         if (!profile) return;
         const nextIsPublic = overrides?.isPublic ?? profile.isPublic;
-        const nextAutoAccept = nextIsPublic
-            ? overrides?.autoAcceptActive ?? profile.autoAcceptActive
-            : false;
 
         setSaving(true);
         setError('');
         setMessage('');
-        const payload: CreatorProfileUpdate = {
-            representativeLink: profile.representativeLink,
-            minSponsorAmount: profile.minSponsorAmount,
-            visitRegions: profile.visitRegions,
-            visitDays: profile.visitDays,
-            acceptSiteTypes: profile.acceptSiteTypes,
-            baseRegion: profile.baseRegion,
-            wonjeongRegions: profile.wonjeongRegions,
-            isPublic: nextIsPublic,
-            autoAcceptActive: nextAutoAccept,
-        };
         try {
             const response = await fetch('/api/creator/profile', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+                body: JSON.stringify(buildPayload(profile, nextIsPublic))
             });
             const data = await response.json();
             if (!response.ok) {
                 setError(data.error || '저장에 실패했습니다.');
                 return;
             }
-            patchProfile({ isPublic: nextIsPublic, autoAcceptActive: nextAutoAccept });
-            if (overrides?.isPublic === true) setMessage('공개되었습니다.');
-            else if (overrides?.isPublic === false) setMessage('비공개로 전환되었습니다.');
-            else if (overrides?.autoAcceptActive === true) setMessage('자동수락이 켜졌습니다.');
-            else if (overrides?.autoAcceptActive === false) setMessage('자동수락이 꺼졌습니다.');
+            patchProfile({ isPublic: nextIsPublic });
+            if (overrides?.isPublic === true) setMessage('공개를 신청했습니다. 캠핏 확인 후 캠지기에게 보입니다.');
+            else if (overrides?.isPublic === false) setMessage('공개를 중지했습니다.');
             else setMessage('저장되었습니다.');
         } catch {
             setError('네트워크 오류가 발생했습니다.');
@@ -122,7 +148,11 @@ export default function PortfolioEditForm() {
         return <p className="text-center text-ink3 py-20">{error || '프로필을 불러오지 못했습니다.'}</p>;
     }
 
-    const missing = computeMissing(profile, settlement);
+    // CHANGED: 1a-v2 — 로컬 computeMissing 삭제. 서버(updateCreatorProfile)와 같은 함수를 쓴다.
+    const payloadForCheck = buildPayload(profile);
+    const hasPremium = !!settlement?.registered;
+    const missing = collectMissingForPublish(payloadForCheck, profile.hasProfileImage, hasPremium);
+    const { percent, nextHint } = computeCompletion(payloadForCheck, profile.hasProfileImage, hasPremium);
 
     return (
         <div className="space-y-6">
@@ -137,11 +167,19 @@ export default function PortfolioEditForm() {
                 </div>
             )}
 
-            {/* 섹션 1 — 포트폴리오 */}
+            <ProfileCompletionBar percent={percent} nextHint={nextHint} />
+
+            {/* ① 기본 */}
             <SectionTitle title="포트폴리오" desc="캠지기가 보는 내 소개" />
             <ProfileImageUploader
                 imageUrl={profile.profileImageUrl}
-                onUploaded={(url) => patchProfile({ profileImageUrl: url, hasProfileImage: !!url })}
+                onUploaded={(url) => {
+                    patchProfile({ profileImageUrl: url, hasProfileImage: !!url });
+                    // 이미지는 업로드 API가 이미 첨부로 저장했다. 여기서 save()를 태우는 건
+                    // 이미지를 올리다 만 나머지 입력이 유실되지 않게 함께 커밋하려는 것.
+                    // ⚠️ 이미지 교체는 현재 재검토(needsReReview) 판정 대상이 아니다 — 스펙 §4.2 참고.
+                    void save();
+                }}
             />
             <div className="text-center">
                 <p className="text-sm font-bold text-ink">{profile.channelName}</p>
@@ -150,17 +188,73 @@ export default function PortfolioEditForm() {
                 </p>
             </div>
             <div>
-                <label className="block text-sm font-medium text-ink mb-2">대표 콘텐츠 링크</label>
+                <label className="block text-sm font-medium text-ink mb-2">
+                    이메일 <span className="text-red-500">*</span>
+                </label>
+                <p className="text-xs text-ink3 mb-2">제안서를 이 주소로 보내드려요.</p>
                 <input
-                    type="url"
-                    value={profile.representativeLink}
-                    onChange={(event) => patchProfile({ representativeLink: event.target.value })}
-                    placeholder="https://..."
+                    type="email"
+                    value={profile.creatorEmail}
+                    onChange={(event) => patchProfile({ creatorEmail: event.target.value })}
+                    placeholder="name@example.com"
                     className="w-full h-12 px-4 bg-card border border-line rounded-lg text-ink text-sm focus:border-brand focus:outline-none transition-colors placeholder:text-ink3"
                 />
             </div>
+            <div className="flex flex-col gap-3">
+                <div>
+                    <label className="block text-sm font-medium text-ink mb-2">
+                        대표 콘텐츠 링크 <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                        type="url"
+                        value={profile.representativeLink}
+                        onChange={(event) => patchProfile({ representativeLink: event.target.value })}
+                        placeholder="https://..."
+                        className="w-full h-12 px-4 bg-card border border-line rounded-lg text-ink text-sm focus:border-brand focus:outline-none transition-colors placeholder:text-ink3"
+                    />
+                </div>
+                <input
+                    type="url"
+                    value={profile.representativeLink2}
+                    onChange={(event) => patchProfile({ representativeLink2: event.target.value })}
+                    placeholder="대표 콘텐츠 링크 2 (선택)"
+                    className="w-full h-12 px-4 bg-card border border-line rounded-lg text-ink text-sm focus:border-brand focus:outline-none transition-colors placeholder:text-ink3"
+                />
+                <input
+                    type="url"
+                    value={profile.representativeLink3}
+                    onChange={(event) => patchProfile({ representativeLink3: event.target.value })}
+                    placeholder="대표 콘텐츠 링크 3 (선택)"
+                    className="w-full h-12 px-4 bg-card border border-line rounded-lg text-ink text-sm focus:border-brand focus:outline-none transition-colors placeholder:text-ink3"
+                />
+                <p className="text-xs text-ink3">
+                    링크를 더 걸어두시면 캠지기가 판단하기 쉬워 제안을 더 받으실 수 있어요.
+                </p>
+            </div>
 
-            {/* 섹션 2 — 협찬 수락 조건 (지역 2단 + 원정) */}
+            {/* ② 내 채널 */}
+            <SectionTitle title="내 채널" desc="운영 중인 채널과 규모" />
+            <ChannelSelector
+                channelTypes={profile.channelTypes}
+                representativeChannel={profile.representativeChannel}
+                onChange={handleChannelChange}
+            />
+            <ChannelDetailTabs
+                channelTypes={profile.channelTypes}
+                channels={profile.channels}
+                onChange={(channels) => patchProfile({ channels })}
+            />
+
+            {/* ③ 만들어 드리는 콘텐츠 */}
+            <SectionTitle title="만들어 드리는 콘텐츠" desc="캠지기가 받게 되는 것" />
+            <ContentFormatFields
+                channelTypes={profile.channelTypes}
+                contentFormats={profile.contentFormats}
+                contentStandard={profile.contentStandard}
+                onChange={patchProfile}
+            />
+
+            {/* ④ 협찬 수락 조건 (지역 2단 + 원정) */}
             <SectionTitle title="협찬 수락 조건" desc="이 조건에 맞는 제안만 받아요" />
             <AcceptanceConditionFields
                 baseRegion={profile.baseRegion}
@@ -173,7 +267,7 @@ export default function PortfolioEditForm() {
                 onChange={patchProfile}
             />
 
-            {/* 섹션 3 — 정산 정보 */}
+            {/* ⑤ 정산 정보 */}
             <SectionTitle title="정산 정보" desc="협찬비를 받을 계좌" />
             {settlement && <SettlementConfirmCard settlement={settlement} />}
 
@@ -187,14 +281,15 @@ export default function PortfolioEditForm() {
                 {saving ? '저장 중...' : '저장'}
             </button>
 
-            {/* 섹션 4 — 공개 (2단 토글) */}
+            {/* ⑥ 공개 */}
             <SectionTitle title="공개" />
-            <PublishToggle
+            <PublishRequestCard
                 isPublic={profile.isPublic}
-                autoAcceptActive={profile.autoAcceptActive}
+                reviewStatus={profile.reviewStatus}
+                reviewRejectReason={profile.reviewRejectReason}
                 missing={missing}
+                saving={saving}
                 onChangePublic={(next) => save({ isPublic: next })}
-                onChangeAutoAccept={(next) => save({ autoAcceptActive: next })}
             />
         </div>
     );
