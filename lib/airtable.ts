@@ -674,23 +674,112 @@ export async function updateApplicationCheckin(
 
 /**
  * 예약 상태 (변경/취소) 업데이트
+ *
+ * CHANGED: 취소 시 팔로워 쿠폰 자동 반납 추가.
+ *   기존엔 '예약 취소/변경'만 '취소'로 바꿔서, 자리는 돌아오는데(등급별 신청 수 rollup이
+ *   취소건을 제외) 쿠폰은 `배포 완료된 쿠폰`에 남아 풀로 안 돌아왔다. 그 결과 캠페인이
+ *   `풀 < 열린 자리`가 되어 다음 신청자가 COUPON_POOL_EMPTY를 맞았다.
+ *   (실사례 2026-08-10 가평물골숲·가델 — 운영자가 tools/coupon-pool/cancel-application.cjs로
+ *    사후 수습해야만 정합성이 맞았다. 취소 소식을 못 들으면 그대로 샌다.)
+ *
+ *   여기서 하는 일은 [applyCampaign](lib/airtable.ts)의 분배를 그대로 뒤집은 것이다.
+ *     분배: 풀 첫 줄 → 신청 레코드에 저장 → 풀에서 제거 → 배포완료에 추가
+ *     반납: 신청 레코드의 코드 → 신청 레코드에서 제거 → 풀 맨 아래 추가 → 배포완료에서 제거
+ *
+ * ⚠️ 쓰기 순서를 바꾸지 마라 (신청 레코드 → 캠페인).
+ *   Airtable엔 트랜잭션이 없어 둘 중 하나만 성공할 수 있다.
+ *   - 캠페인 먼저 실패 시: 풀에 코드가 들어갔는데 신청 레코드가 아직 그 코드를 쥔 상태 →
+ *     다음 신청자가 같은 코드를 배정받아 팔로워 쿠폰을 두 사람이 공유한다. (최악)
+ *   - 신청 레코드 먼저 실패 시: 코드가 배포완료에 갇혀 풀만 부족해진다 →
+ *     tools/coupon-pool/audit.cjs가 '붕뜬 코드'로 잡아내는 복구 가능한 상태. (덜 나쁨)
+ *   그래서 소유권 해제(신청 레코드)를 먼저 확정하고 풀 반납을 뒤에 둔다.
+ *
+ * 반납 실패는 취소 자체를 되돌리지 않는다 — 크리에이터의 취소는 정당한 요청이고,
+ * 정합성은 주간 감사로 복구 가능하다. 대신 console.error로 크게 남긴다.
  */
 export async function updateApplicationStatus(
     recordId: string,
     status: '변경' | '취소'
 ): Promise<boolean> {
     try {
+        // CHANGED: 반납 대상 파악 — 취소일 때만. '변경'은 협찬이 유지되므로 쿠폰도 그대로 둔다.
+        let couponCode = '';
+        let campaignId = '';
+        if (status === '취소') {
+            const appRecord = await applicationTable().find(recordId) as unknown as AirtableApplicationRecord;
+            couponCode = (appRecord.fields['팔로워 쿠폰 코드'] || '').trim();
+            campaignId = appRecord.fields['숙소 이름 (유료 오퍼)']?.[0] || '';
+        }
+        const shouldReturnCoupon = Boolean(couponCode && campaignId);
+
+        // 1. 신청 레코드 — 취소 표시 + 입실 정보 초기화 (+ 반납 대상이면 본인 코드 소유권 해제)
         // CHANGED: Airtable REST API는 null로 필드를 초기화하지만, SDK FieldSet 타입은 null 미지원
         // → unknown 경유 단언 (SDK 타입 한계, REST API에서는 null이 유효한 값)
-        const updates = {
+        const updates: Record<string, unknown> = {
             '예약 취소/변경': status,
             '입실일': null,
             '입실 사이트': null,
-        } as unknown as Partial<FieldSet>;
+        };
+        if (shouldReturnCoupon) updates['팔로워 쿠폰 코드'] = null;
 
         await applicationTable().update([
-            { id: recordId, fields: updates }
+            { id: recordId, fields: updates as unknown as Partial<FieldSet> }
         ]);
+
+        if (!shouldReturnCoupon) return true;
+
+        // 2. 캠페인 — 풀 맨 아래에 반납 + 배포완료에서 제거
+        try {
+            const campaignRecord = await campaignTable().find(campaignId) as unknown as AirtableCampaignRecord;
+            const pool = (campaignRecord.fields['팔로워 쿠폰 코드'] || '')
+                .split('\n')
+                .map((line) => line.trim())
+                .filter(Boolean);
+            const dispensed = (campaignRecord.fields['배포 완료된 쿠폰'] || '')
+                .split('\n')
+                .map((line) => line.trim())
+                .filter(Boolean);
+
+            // CHANGED: 멱등성 — 이미 풀에 있으면 재반납하지 않는다(중복 반납 시 한 코드를 두 명이 받는다).
+            if (pool.includes(couponCode)) {
+                console.warn(`[Coupon Return] 이미 반납됨, 스킵: campaignId=${campaignId}, code=${couponCode}`);
+                return true;
+            }
+
+            await campaignTable().update([
+                {
+                    id: campaignId,
+                    fields: {
+                        '팔로워 쿠폰 코드': [...pool, couponCode].join('\n'),
+                        '배포 완료된 쿠폰': dispensed.filter((code) => code !== couponCode).join('\n'),
+                    } as unknown as Partial<FieldSet>
+                }
+            ]);
+
+            // CHANGED: 사후 검증 — applyCampaign의 race 방어와 같은 패턴.
+            // 동시 반납/분배로 내 update가 덮였거나 중복 적재됐는지 확인. 실패해도 취소는 유지하고 로깅만.
+            const verified = await campaignTable().find(campaignId) as unknown as AirtableCampaignRecord;
+            const poolAfter = (verified.fields['팔로워 쿠폰 코드'] || '').split('\n').map((line) => line.trim());
+            const dispensedAfter = (verified.fields['배포 완료된 쿠폰'] || '').split('\n').map((line) => line.trim());
+            const poolCount = poolAfter.filter((line) => line === couponCode).length;
+            const stillDispensed = dispensedAfter.includes(couponCode);
+            if (poolCount !== 1 || stillDispensed) {
+                console.error(
+                    `[Coupon Return 검증 실패] campaignId=${campaignId}, code=${couponCode}, ` +
+                    `풀 내 개수=${poolCount}, 배포완료 잔존=${stillDispensed} — ` +
+                    `tools/coupon-pool/audit.cjs 로 확인 후 SOP(docs/SOP-프리미엄협찬-쿠폰풀-정합성.md) §3 방법 B로 수동 정리 필요`
+                );
+            }
+        } catch (couponError) {
+            // CHANGED: 반납 실패로 취소를 되돌리지 않는다. 코드가 배포완료에 갇혀 풀만 부족해지며,
+            //          주간 audit.cjs가 '붕뜬 코드'로 잡는다. 취소 요청 자체는 이미 반영됐다.
+            console.error(
+                `[Coupon Return 실패] recordId=${recordId}, campaignId=${campaignId}, code=${couponCode} — ` +
+                `취소는 정상 반영됨. 쿠폰 풀 수동 반납 필요(SOP §3 방법 B).`,
+                couponError
+            );
+        }
+
         return true;
     } catch (error) {
         console.error('Update application status error:', error);
