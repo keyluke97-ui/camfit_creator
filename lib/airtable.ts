@@ -1,5 +1,7 @@
 import Airtable, { FieldSet } from 'airtable';
 import { hasPartnerEligibleChannel, VISIT_REGIONS, VISIT_DAYS, SPONSOR_SITE_TYPES, getWonjeongCandidates } from '@/lib/constants'; // CHANGED: 통합 블로거 차단 / 지명형 옵션·원정 헬퍼
+import { CHANNEL_TYPES, CHANNEL_FIELD_MAP } from '@/lib/constants'; // CHANGED: 1a-v2 채널 포트폴리오 필드 매핑
+import { validateChannelPayload, collectMissingForPublish, needsReReview } from '@/lib/creatorProfileRules'; // CHANGED: 1a-v2 서버·폼 공유 판정 로직
 import type {
     TierLevel,
     ChannelType,
@@ -21,7 +23,9 @@ import type {
     ContentUpload,
     CreatorProfile,
     SettlementSummary,
-    CreatorProfileUpdate
+    CreatorProfileUpdate,
+    ChannelDetail,
+    ReviewStatus
 } from '@/types';
 
 /**
@@ -1424,7 +1428,27 @@ async function getPremiumSettlement(premiumId: string | null): Promise<Settlemen
 }
 
 /**
- * 크리에이터 프로필 전체 조회 (포트폴리오+조건+원정+공개 + 정산요약).
+ * 크리에이터 레코드에서 채널별 자기신고 정보를 뽑는다.
+ * ⚠️ 보유하지 않은 채널까지 3채널 전부 채워 반환한다 — UI에서 채널을 껐다 켜도 입력값이 날아가지 않게.
+ *    실제로 Airtable에 쓸지는 updateCreatorProfile이 `채널 종류` 기준으로 다시 판단한다.
+ */
+function readChannelDetails(record: { get: (field: string) => unknown }): Record<string, ChannelDetail> {
+    const result: Record<string, ChannelDetail> = {};
+    for (const channel of CHANNEL_TYPES) {
+        const map = CHANNEL_FIELD_MAP[channel];
+        result[channel] = {
+            url: (record.get(map.url) as string) || '',
+            follower: (record.get(map.follower) as number) || 0,
+            engagement: map.engagement ? ((record.get(map.engagement) as number) || 0) : 0,
+            blogIndex: map.blogIndex ? ((record.get(map.blogIndex) as string) || '') : '',
+            strength: (record.get(map.strength) as string) || '',
+        };
+    }
+    return result;
+}
+
+/**
+ * 크리에이터 프로필 전체 조회 (포트폴리오+채널+조건+원정+공개+심사 + 정산요약).
  * JWT creatorId로만 조회(IDOR 방어). 조회 실패 시 null.
  */
 export async function getCreatorProfile(creatorId: string): Promise<CreatorProfile | null> {
@@ -1455,7 +1479,18 @@ export async function getCreatorProfile(creatorId: string): Promise<CreatorProfi
             baseRegion: (record.get('기준 지역') as string) || '',
             wonjeongRegions: (record.get('원정 가능 지역') as string[]) || [],
             isPublic: record.get('프로필 공개') === true,
-            autoAcceptActive: record.get('자동수락 활성') === true,
+            // CHANGED: 1a-v2 D1 — autoAcceptActive 매핑 제거(자동수락 토글 폐지)
+            // CHANGED: 1a-v2 — 채널 포트폴리오·콘텐츠·심사 필드 매핑
+            channelTypes: (record.get('채널 종류') as string[]) || [],
+            representativeChannel: (record.get('대표 채널') as string) || '',
+            channels: readChannelDetails(record),
+            representativeLink2: (record.get('대표 콘텐츠 링크 2') as string) || '',
+            representativeLink3: (record.get('대표 콘텐츠 링크 3') as string) || '',
+            contentFormats: (record.get('제작 콘텐츠 형식') as string[]) || [],
+            contentStandard: (record.get('콘텐츠 제작 기준') as string) || '',
+            creatorEmail: (record.get('크리에이터 이메일') as string) || '',
+            reviewStatus: ((record.get('프로필 심사 상태') as string) || '') as ReviewStatus,
+            reviewRejectReason: (record.get('심사 반려 사유') as string) || '',
             channelName: (record.get('크리에이터 채널명') as string) || '',
             tier,
             followerRange: (record.get('팔로워 구간') as string) || '',
@@ -1470,12 +1505,14 @@ export async function getCreatorProfile(creatorId: string): Promise<CreatorProfi
 /** updateCreatorProfile 결과 — ok=false면 API가 400으로 매핑 */
 export type UpdateProfileResult =
     | { ok: true }
-    | { ok: false; code: 'INVALID_OPTION' | 'INVALID_WONJEONG' | 'AUTO_ACCEPT_REQUIRES_PUBLIC' | 'INCOMPLETE'; missing?: string[] };
+    // CHANGED: 1a-v2 — AUTO_ACCEPT_REQUIRES_PUBLIC 제거(자동수락 폐지), 채널 위반 detail 추가
+    | { ok: false; code: 'INVALID_OPTION' | 'INVALID_WONJEONG' | 'INCOMPLETE'; missing?: string[]; detail?: string };
 
 /**
- * 크리에이터 프로필/조건/원정/공개 저장. JWT creatorId로만 수정(IDOR 방어).
- * 서버 검증: ① 원정 지역 ⊆ WONJEONG_MAP[기준] 이고 방문가능과 서로소 ② 자동수락은 공개의 하위
- * ③ 공개 ON 시 §5 필수항목 재검증(클라이언트 우회 차단). 위반 시 ok:false 반환(쓰기 안 함).
+ * 크리에이터 프로필/채널/조건/원정/공개 저장. JWT creatorId로만 수정(IDOR 방어).
+ * 서버 검증: ① 옵션 화이트리스트 ② 원정 지역 ⊆ WONJEONG_MAP[기준] 이고 방문가능과 서로소
+ * ③ 채널·콘텐츠 형식 정합(creatorProfileRules) ④ 공개 ON 시 필수항목 재검증(클라이언트 우회 차단).
+ * 위반 시 ok:false 반환(쓰기 안 함). 심사 상태는 서버만 전이시킨다(1a-v2 §4).
  */
 export async function updateCreatorProfile(
     creatorId: string,
@@ -1483,8 +1520,6 @@ export async function updateCreatorProfile(
 ): Promise<UpdateProfileResult> {
     try {
         const isPublic = payload.isPublic === true;
-        // 자동수락은 공개의 하위 — 공개 false면 자동수락도 강제 false
-        const autoAcceptActive = isPublic ? payload.autoAcceptActive === true : false;
 
         const visitRegions = payload.visitRegions || [];
         const wonjeongRegions = payload.wonjeongRegions || [];
@@ -1510,22 +1545,25 @@ export async function updateCreatorProfile(
             return { ok: false, code: 'INVALID_WONJEONG' };
         }
 
+        // ② 채널·콘텐츠 형식 정합 검증 (1a-v2 §6 규칙 1·2·4·5·6·7)
+        //    서버와 폼이 같은 함수를 쓴다 — 두 벌로 나뉘면 클라가 막은 걸 서버가 안 막게 된다.
+        const channelViolation = validateChannelPayload(payload);
+        if (channelViolation) {
+            return { ok: false, code: 'INVALID_OPTION', detail: channelViolation };
+        }
+
+        // CHANGED: 1a-v2 — 재검토 판정에 이전 값이 필요해 레코드를 항상 먼저 읽는다
+        //          (기존에는 isPublic일 때만 읽었다)
+        const record = await creatorTable().find(creatorId);
+        const images = record.get('프로필 이미지') as unknown[] | undefined;
+        const hasImage = Array.isArray(images) && images.length > 0;
+        const premiumLinks = record.get('프리미엄 협찬 신청 인플루언서') as string[] | undefined;
+        const hasPremium = Array.isArray(premiumLinks) && premiumLinks.length > 0;
+        const currentReviewStatus = ((record.get('프로필 심사 상태') as string) || '') as ReviewStatus;
+
         // ③ 공개 게이팅 서버 재검증 (이미지·premiumId는 payload에 없으므로 레코드에서 확인)
         if (isPublic) {
-            const record = await creatorTable().find(creatorId);
-            const images = record.get('프로필 이미지') as unknown[] | undefined;
-            const hasImage = Array.isArray(images) && images.length > 0;
-            const premiumLinks = record.get('프리미엄 협찬 신청 인플루언서') as string[] | undefined;
-            const hasPremium = Array.isArray(premiumLinks) && premiumLinks.length > 0;
-
-            const missing: string[] = [];
-            if (!hasImage) missing.push('프로필 이미지');
-            if (!payload.representativeLink) missing.push('대표 콘텐츠 링크');
-            if (visitRegions.length === 0) missing.push('방문 가능 지역');
-            if ((payload.visitDays || []).length === 0) missing.push('방문 가능 요일');
-            if ((payload.acceptSiteTypes || []).length === 0) missing.push('수용 사이트 종류');
-            if (!(payload.minSponsorAmount > 0)) missing.push('최소 협찬 단가');
-            if (!hasPremium) missing.push('정산 정보');
+            const missing = collectMissingForPublish(payload, hasImage, hasPremium);
             if (missing.length > 0) return { ok: false, code: 'INCOMPLETE', missing };
         }
 
@@ -1537,10 +1575,52 @@ export async function updateCreatorProfile(
             '수용 사이트 종류': payload.acceptSiteTypes || [],
             '원정 가능 지역': wonjeongRegions,
             '프로필 공개': isPublic,
-            '자동수락 활성': autoAcceptActive,
             // singleSelect: 빈 값이면 '' 대신 null로 클리어
             '기준 지역': payload.baseRegion || null,
+            // CHANGED: 1a-v2 — 채널 포트폴리오·콘텐츠 필드
+            '채널 종류': payload.channelTypes || [],
+            '대표 채널': payload.representativeChannel || null,
+            '대표 콘텐츠 링크 2': payload.representativeLink2 || '',
+            '대표 콘텐츠 링크 3': payload.representativeLink3 || '',
+            '제작 콘텐츠 형식': payload.contentFormats || [],
+            '콘텐츠 제작 기준': payload.contentStandard || '',
+            '크리에이터 이메일': payload.creatorEmail || '',
         };
+
+        // CHANGED: 1a-v2 — 채널별 자기신고 필드.
+        // 미보유 채널은 값을 비운다. 안 그러면 채널을 껐는데 예전 숫자가 캠지기 카드에 그대로 뜬다.
+        for (const channel of CHANNEL_TYPES) {
+            const map = CHANNEL_FIELD_MAP[channel];
+            const owned = (payload.channelTypes || []).includes(channel);
+            const detail = payload.channels?.[channel];
+            updateFields[map.url] = owned ? (detail?.url || '') : '';
+            updateFields[map.follower] = owned && detail?.follower ? detail.follower : null;
+            if (map.engagement) {
+                updateFields[map.engagement] = owned && detail?.engagement ? detail.engagement : null;
+            }
+            if (map.blogIndex) {
+                updateFields[map.blogIndex] = owned && detail?.blogIndex ? detail.blogIndex : null;
+            }
+            updateFields[map.strength] = owned ? (detail?.strength || '') : '';
+        }
+
+        // CHANGED: 1a-v2 §4 — 심사 상태 전이. payload엔 심사 필드가 없어 크리에이터는 못 바꾼다.
+        if (isPublic && (currentReviewStatus === '' || currentReviewStatus === '반려')) {
+            // 최초 공개 신청 또는 반려 후 재신청 → 심사대기
+            updateFields['프로필 심사 상태'] = '심사대기';
+            updateFields['심사 반려 사유'] = '';
+        } else if (currentReviewStatus === '승인') {
+            // 승인 이후 수정 — 노출은 끊지 않고 재검토 큐로만 보낸다(§4.2 불변식 2)
+            const changed = needsReReview({
+                channelTypes: (record.get('채널 종류') as string[]) || [],
+                representativeChannel: (record.get('대표 채널') as string) || '',
+                channels: readChannelDetails(record),
+                representativeLink: (record.get('대표 콘텐츠 링크') as string) || '',
+                representativeLink2: (record.get('대표 콘텐츠 링크 2') as string) || '',
+                representativeLink3: (record.get('대표 콘텐츠 링크 3') as string) || '',
+            }, payload);
+            if (changed) updateFields['지표 재검토 필요'] = true;
+        }
 
         await creatorTable().update(creatorId, updateFields as unknown as Partial<FieldSet>);
         return { ok: true };

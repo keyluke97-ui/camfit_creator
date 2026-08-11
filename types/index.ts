@@ -409,6 +409,25 @@ export interface SettlementSummary {
   baseRegionPrefill: string;
 }
 
+/** 운영 채널 키 — lib/constants.ts CHANNEL_TYPES와 대응 */
+export type ChannelKey = '유튜브' | '인스타' | '블로그';
+
+/** 프로필 심사 상태. ''는 아직 공개 신청을 안 한 상태 (1a-v2 §4) */
+export type ReviewStatus = '' | '심사대기' | '승인' | '반려';
+
+/**
+ * 채널 하나의 자기신고 정보.
+ * follower/engagement는 0이면 미입력, blogIndex는 ''이면 미입력.
+ * blogIndex는 블로그에만, engagement는 유튜브·인스타에만 쓴다(CHANNEL_FIELD_MAP 참조).
+ */
+export interface ChannelDetail {
+  url: string;
+  follower: number;
+  engagement: number;
+  blogIndex: string;
+  strength: string;
+}
+
 /** 편집 화면이 읽어오는 크리에이터 프로필 전체 상태 (getCreatorProfile 반환) */
 export interface CreatorProfile {
   // 포트폴리오
@@ -423,9 +442,20 @@ export interface CreatorProfile {
   // 원정 인센티브 (§6.4)
   baseRegion: string;         // 기준 지역 (거주). 미설정 ''
   wonjeongRegions: string[];  // 원정 가능 지역 (+유류비 10만)
-  // 옵트인 2플래그
+  // 공개 (CHANGED: 1a-v2 D1 — autoAcceptActive 제거. 무응답 자동확정이 이미 전원 기본값이라 토글이 불필요)
   isPublic: boolean;          // 프로필 공개 (가시성)
-  autoAcceptActive: boolean;  // 자동수락 활성 (인스턴트북)
+  // CHANGED: 1a-v2 — 채널 포트폴리오
+  channelTypes: string[];                   // 운영 채널 (크리에이터 편집 가능으로 승격)
+  representativeChannel: string;            // 대표 채널. 미설정 ''
+  channels: Record<string, ChannelDetail>;  // 키 = ChannelKey. 3채널 모두 채워서 반환
+  representativeLink2: string;
+  representativeLink3: string;
+  contentFormats: string[];                 // 제작 콘텐츠 형식
+  contentStandard: string;                  // 콘텐츠 제작 기준 (자유 서술)
+  creatorEmail: string;
+  // CHANGED: 1a-v2 §4 — 심사 (서버 전용. 크리에이터 payload로 바꿀 수 없다)
+  reviewStatus: ReviewStatus;
+  reviewRejectReason: string;
   // 표시 전용 (운영자 관리, 편집 불가)
   channelName: string;
   tier: TierLevel;            // 등급화 1~3
@@ -434,7 +464,11 @@ export interface CreatorProfile {
   settlement: SettlementSummary;
 }
 
-/** 저장 페이로드 (편집 가능 필드만 — PATCH body) */
+/**
+ * 저장 페이로드 (편집 가능 필드만 — PATCH body).
+ * ⚠️ 심사 필드(reviewStatus·reviewRejectReason)는 의도적으로 없다.
+ *    크리에이터가 자기 프로필을 스스로 '승인'으로 바꿀 수 없어야 한다(1a-v2 §6-9).
+ */
 export interface CreatorProfileUpdate {
   representativeLink: string;
   minSponsorAmount: number;
@@ -444,5 +478,13 @@ export interface CreatorProfileUpdate {
   baseRegion: string;
   wonjeongRegions: string[];
   isPublic: boolean;
-  autoAcceptActive: boolean;
+  // CHANGED: 1a-v2 — 채널 포트폴리오·콘텐츠
+  channelTypes: string[];
+  representativeChannel: string;
+  channels: Record<string, ChannelDetail>;
+  representativeLink2: string;
+  representativeLink3: string;
+  contentFormats: string[];
+  contentStandard: string;
+  creatorEmail: string;
 }

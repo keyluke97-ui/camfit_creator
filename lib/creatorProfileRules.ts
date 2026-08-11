@@ -1,0 +1,181 @@
+// creatorProfileRules.ts - 지명형 1a-v2 크리에이터 프로필 순수 판정 로직
+// 서버(lib/airtable.ts)와 편집 폼(components/PortfolioEditForm.tsx)이 같은 규칙을 쓰도록 한 곳에 모은다.
+// 두 벌로 나뉘면 반드시 어긋난다 — 클라가 막은 걸 서버가 안 막거나, 그 반대가 된다.
+// ⚠️ Airtable SDK·React에 의존하지 않는다 (node/tsx로 직접 돌려 검증할 수 있어야 한다).
+// 스펙: specs/2026-08-11-지명형협찬-1a-v2-포트폴리오-재설계.md §6
+
+import {
+    CHANNEL_TYPES,
+    REPRESENTATIVE_CHANNELS,
+    CONTENT_FORMATS,
+    CONTENT_FORMAT_CHANNEL,
+} from './constants';
+import type { ChannelDetail, CreatorProfileUpdate } from '@/types';
+
+/** 채널 검증 위반 코드 — API가 400 응답의 detail로 실어 보낸다 */
+export type ChannelViolation =
+    | 'CHANNEL_REQUIRED'
+    | 'CHANNEL_UNKNOWN'
+    | 'REPRESENTATIVE_UNKNOWN'
+    | 'REPRESENTATIVE_NOT_OWNED'
+    | 'FORMAT_UNKNOWN'
+    | 'FORMAT_CHANNEL_MISMATCH'
+    | 'EMAIL_INVALID'
+    | 'METRIC_INVALID';
+
+/** 이메일 형식 — RFC 완전 준수가 아니라 오타 차단 목적 */
+export function isValidEmail(value: string): boolean {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+/**
+ * 채널·콘텐츠 형식 화이트리스트 + 상호 정합 검증 (스펙 §6 규칙 1·2·4·5·6·7).
+ * 위반 코드를 반환하고, 통과하면 null.
+ */
+export function validateChannelPayload(payload: CreatorProfileUpdate): ChannelViolation | null {
+    const channelTypes = payload.channelTypes || [];
+
+    // 규칙 1 — 채널 최소 1개
+    if (channelTypes.length === 0) return 'CHANNEL_REQUIRED';
+
+    // 규칙 6 — 화이트리스트. 잘못된 값이 Airtable 422 → 불투명한 500으로 새는 것을 클린 400으로 차단
+    if (channelTypes.some((channel) => !CHANNEL_TYPES.includes(channel))) return 'CHANNEL_UNKNOWN';
+    if (payload.representativeChannel && !REPRESENTATIVE_CHANNELS.includes(payload.representativeChannel)) {
+        return 'REPRESENTATIVE_UNKNOWN';
+    }
+    if ((payload.contentFormats || []).some((format) => !CONTENT_FORMATS.includes(format))) {
+        return 'FORMAT_UNKNOWN';
+    }
+
+    // 규칙 2 — 대표 채널 ∈ 채널 종류
+    if (payload.representativeChannel && !channelTypes.includes(payload.representativeChannel)) {
+        return 'REPRESENTATIVE_NOT_OWNED';
+    }
+
+    // 규칙 4 — 콘텐츠 형식은 보유 채널의 것만 (유튜브를 안 하는데 '유튜브 롱폼' 불가)
+    const badFormat = (payload.contentFormats || []).find(
+        (format) => !channelTypes.includes(CONTENT_FORMAT_CHANNEL[format])
+    );
+    if (badFormat) return 'FORMAT_CHANNEL_MISMATCH';
+
+    // 규칙 5 — 이메일 형식 (입력됐을 때만. 필수 여부는 공개 게이트가 본다)
+    if (payload.creatorEmail && !isValidEmail(payload.creatorEmail)) return 'EMAIL_INVALID';
+
+    // 규칙 7 — 자기신고 지표는 0 이상 정수
+    for (const detail of Object.values(payload.channels || {})) {
+        if (!Number.isInteger(detail.follower) || detail.follower < 0) return 'METRIC_INVALID';
+        if (!Number.isInteger(detail.engagement) || detail.engagement < 0) return 'METRIC_INVALID';
+    }
+
+    return null;
+}
+
+/**
+ * 공개 신청에 빠진 필수 항목 목록 (스펙 §6 공개 게이트).
+ * hasImage·hasPremium은 payload에 없으므로 호출자가 레코드에서 읽어 넘긴다.
+ */
+export function collectMissingForPublish(
+    payload: CreatorProfileUpdate,
+    hasImage: boolean,
+    hasPremium: boolean
+): string[] {
+    const missing: string[] = [];
+
+    // 기존 7종 (1a에서 그대로 유지)
+    if (!hasImage) missing.push('프로필 이미지');
+    if (!payload.representativeLink) missing.push('대표 콘텐츠 링크');
+    if ((payload.visitRegions || []).length === 0) missing.push('방문 가능 지역');
+    if ((payload.visitDays || []).length === 0) missing.push('방문 가능 요일');
+    if ((payload.acceptSiteTypes || []).length === 0) missing.push('수용 사이트 종류');
+    if (!(payload.minSponsorAmount > 0)) missing.push('최소 협찬 단가');
+    if (!hasPremium) missing.push('정산 정보');
+
+    // 1a-v2 신규 3종
+    if (!payload.representativeChannel) missing.push('대표 채널');
+    if ((payload.contentFormats || []).length === 0) missing.push('제작 콘텐츠 형식');
+    if (!payload.creatorEmail) missing.push('크리에이터 이메일');
+
+    // 조건부 — 선택한 채널마다 URL (규칙 3)
+    for (const channel of payload.channelTypes || []) {
+        if (!payload.channels?.[channel]?.url) missing.push(`${channel} 채널 URL`);
+    }
+
+    // 자기신고 지표는 필수가 아니다 (D7 — 등록 마찰보다 리스트 밀도가 우선)
+    return missing;
+}
+
+/** needsReReview가 비교하는 승인 시점 값 */
+export interface ReReviewBaseline {
+    channelTypes: string[];
+    representativeChannel: string;
+    channels: Record<string, ChannelDetail>;
+    representativeLink: string;
+    representativeLink2: string;
+    representativeLink3: string;
+}
+
+/**
+ * 승인된 프로필에서 재검토가 필요한 변경이 있었는지 판정 (스펙 §4.2).
+ * 지표·표시물이 바뀌면 true. 조건(지역·요일·금액·콘텐츠 형식 등)만 바뀌면 false.
+ * → 조건은 크리에이터 본인의 선택이라 거짓말할 대상이 아니다. 검증 대상은 "남에게 보이는 숫자·링크"다.
+ */
+export function needsReReview(before: ReReviewBaseline, after: CreatorProfileUpdate): boolean {
+    const sameList = (a: string[], b: string[]) =>
+        a.length === b.length && [...a].sort().join('|') === [...b].sort().join('|');
+
+    if (!sameList(before.channelTypes, after.channelTypes || [])) return true;
+    if (before.representativeChannel !== after.representativeChannel) return true;
+    if (before.representativeLink !== after.representativeLink) return true;
+    if (before.representativeLink2 !== after.representativeLink2) return true;
+    if (before.representativeLink3 !== after.representativeLink3) return true;
+
+    for (const channel of CHANNEL_TYPES) {
+        const previous = before.channels?.[channel];
+        const next = after.channels?.[channel];
+        if (!previous && !next) continue;
+        if (!previous || !next) return true;
+        if (previous.url !== next.url) return true;
+        if (previous.follower !== next.follower) return true;
+        if (previous.engagement !== next.engagement) return true;
+        if (previous.blogIndex !== next.blogIndex) return true;
+        if (previous.strength !== next.strength) return true;
+    }
+    return false;
+}
+
+/**
+ * 완성도 계산 (스펙 §3.0). 필수·선택을 합쳐 채워진 비율과, 다음에 채울 항목 하나를 돌려준다.
+ * 선택 항목을 막지 않고 유인으로만 쓴다 (D7).
+ */
+export function computeCompletion(
+    payload: CreatorProfileUpdate,
+    hasImage: boolean,
+    hasPremium: boolean
+): { percent: number; nextHint: string } {
+    const items: Array<{ label: string; filled: boolean }> = [
+        { label: '프로필 이미지', filled: hasImage },
+        { label: '이메일', filled: !!payload.creatorEmail },
+        { label: '대표 콘텐츠 링크', filled: !!payload.representativeLink },
+        { label: '대표 채널', filled: !!payload.representativeChannel },
+        { label: '제작 콘텐츠 형식', filled: (payload.contentFormats || []).length > 0 },
+        { label: '방문 가능 지역', filled: (payload.visitRegions || []).length > 0 },
+        { label: '방문 가능 요일', filled: (payload.visitDays || []).length > 0 },
+        { label: '수용 사이트 종류', filled: (payload.acceptSiteTypes || []).length > 0 },
+        { label: '협찬 금액', filled: payload.minSponsorAmount > 0 },
+        { label: '정산 정보', filled: hasPremium },
+        { label: '대표 콘텐츠 링크 2', filled: !!payload.representativeLink2 },
+        { label: '콘텐츠 제작 기준', filled: !!payload.contentStandard },
+    ];
+
+    for (const channel of payload.channelTypes || []) {
+        const detail = payload.channels?.[channel];
+        items.push({ label: `${channel} 채널 주소`, filled: !!detail?.url });
+        items.push({ label: `${channel} 규모`, filled: !!(detail?.follower || detail?.blogIndex) });
+        items.push({ label: `${channel} 채널 강점`, filled: !!detail?.strength });
+    }
+
+    const filledCount = items.filter((item) => item.filled).length;
+    const percent = items.length === 0 ? 0 : Math.round((filledCount / items.length) * 100);
+    const next = items.find((item) => !item.filled);
+    return { percent, nextHint: next ? next.label : '' };
+}

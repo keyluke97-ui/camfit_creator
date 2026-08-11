@@ -128,3 +128,82 @@ export const WONJEONG_MAP: Record<string, string[]> = {
 export function getWonjeongCandidates(baseRegion: string): string[] {
     return WONJEONG_MAP[baseRegion] ?? [];
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// 지명형 1a-v2 — 채널 포트폴리오 (Airtable 크리에이터 명단 옵션값과 정확히 일치)
+// ⚠️ 아래 문자열은 Airtable 실제 옵션값(2026-08-11 describe_table 실측). 손상 금지.
+//    camfit-premium/netlify/functions/shared-constants.js와 동일값 유지.
+// ─────────────────────────────────────────────────────────────────────────
+
+/** 운영 채널 3종 — `채널 종류`(fldDrvExL8699ZDgC) multipleSelects 옵션값 */
+export const CHANNEL_TYPES: string[] = ['인스타', '블로그', '유튜브'];
+
+/** 대표 채널 — `대표 채널`(fldP4wdhm0OuU2wyG) singleSelect 옵션값 */
+export const REPRESENTATIVE_CHANNELS: string[] = ['유튜브', '인스타', '블로그'];
+
+/** 제작 콘텐츠 형식 6종 — `제작 콘텐츠 형식`(fldoLgT6uGuHZftfb) multipleSelects 옵션값 */
+export const CONTENT_FORMATS: string[] = [
+    '유튜브 롱폼', '유튜브 쇼츠',
+    '인스타 릴스', '인스타 피드', '인스타 스토리',
+    '블로그 포스팅',
+];
+
+/**
+ * 블로그 지수 7종 — `블로그 지수(자기신고)`(fldEUuwbmY80IL5pH) singleSelect 옵션값.
+ * ⚠️ 캠지기 요청서 §2의 "최적1~4"는 축약 표기다. 실제 옵션은 아래 7개 개별 문자열.
+ */
+export const BLOG_INDEX_LEVELS: string[] = [
+    '최적1', '최적2', '최적3', '최적4', '준최5', '준최6', '저품질',
+];
+
+/** 콘텐츠 형식 → 그 형식을 만들려면 보유해야 하는 채널 (서버 검증: 미보유 채널 형식 선택 차단) */
+export const CONTENT_FORMAT_CHANNEL: Record<string, string> = {
+    '유튜브 롱폼': '유튜브',
+    '유튜브 쇼츠': '유튜브',
+    '인스타 릴스': '인스타',
+    '인스타 피드': '인스타',
+    '인스타 스토리': '인스타',
+    '블로그 포스팅': '블로그',
+};
+
+/**
+ * 채널별 Airtable 필드명 매핑 — 읽기/쓰기 공통 단일 출처.
+ * ⚠️ 블로그의 두 번째 지표는 숫자가 아니라 singleSelect(`블로그 지수(자기신고)`)다.
+ *    그래서 engagement(number)와 blogIndex(select)를 분리하고, 없는 쪽은 null로 둔다.
+ */
+export const CHANNEL_FIELD_MAP: Record<string, {
+    url: string;
+    follower: string;
+    engagement: string | null;
+    blogIndex: string | null;
+    strength: string;
+}> = {
+    '유튜브': {
+        url: '유튜브 채널 URL',
+        follower: '유튜브 구독자(자기신고)',
+        engagement: '유튜브 평균 조회수(자기신고)',
+        blogIndex: null,
+        strength: '유튜브 채널 강점',
+    },
+    '인스타': {
+        url: '인스타 채널 URL',
+        follower: '인스타 팔로워(자기신고)',
+        engagement: '인스타 평균 좋아요(자기신고)',
+        blogIndex: null,
+        strength: '인스타 채널 강점',
+    },
+    '블로그': {
+        url: '블로그 채널 URL',
+        follower: '블로그 일 평균 방문자(자기신고)',
+        engagement: null,
+        blogIndex: '블로그 지수(자기신고)',
+        strength: '블로그 채널 강점',
+    },
+};
+
+/** 채널별 지표 입력란 라벨 (UI 표시용) */
+export const CHANNEL_METRIC_LABELS: Record<string, { follower: string; secondary: string }> = {
+    '유튜브': { follower: '구독자 수', secondary: '평균 조회수' },
+    '인스타': { follower: '팔로워 수', secondary: '평균 좋아요' },
+    '블로그': { follower: '일 평균 방문자', secondary: '블로그 지수' },
+};
