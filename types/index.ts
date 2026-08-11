@@ -393,3 +393,56 @@ export interface AirtablePartnerApplicationRecord {
     '총 팔로워 쿠폰 수 (from 캠페인)'?: number[];
   };
 }
+
+// ──────────────────────────────────────────────
+// 지명형 협찬 1a — 크리에이터 포트폴리오 / 수락 조건 / 원정 / 정산 (SDD v4 A′)
+// 스펙: specs/2026-07-16-지명형협찬-1a-*.md
+// ──────────────────────────────────────────────
+
+/** 정산정보 요약(마스킹 — 유저 테이블 READ only) */
+export interface SettlementSummary {
+  registered: boolean;      // premiumId 존재 여부
+  bank: string;             // 은행 (없으면 '')
+  accountLast4: string;     // 계좌번호 뒤 4자리
+  accountHolder: string;    // 예금주
+  // CHANGED: 원정 §6.4 — 정산 주소에서 파싱한 기준 지역 후보. baseRegion 미설정 시 프리필용. 못 뽑으면 ''
+  baseRegionPrefill: string;
+}
+
+/** 편집 화면이 읽어오는 크리에이터 프로필 전체 상태 (getCreatorProfile 반환) */
+export interface CreatorProfile {
+  // 포트폴리오
+  profileImageUrl: string;   // 첫 첨부의 (만료성) URL. 없으면 ''
+  hasProfileImage: boolean;
+  representativeLink: string; // 대표 콘텐츠 링크
+  // 협찬 수락 조건
+  minSponsorAmount: number;   // 협찬 희망 금액 (= 최소 단가/기본가). 미설정 0
+  visitRegions: string[];     // 방문 가능 지역 (기본가)
+  visitDays: string[];        // 방문 가능 요일
+  acceptSiteTypes: string[];  // 수용 사이트 종류
+  // 원정 인센티브 (§6.4)
+  baseRegion: string;         // 기준 지역 (거주). 미설정 ''
+  wonjeongRegions: string[];  // 원정 가능 지역 (+유류비 10만)
+  // 옵트인 2플래그
+  isPublic: boolean;          // 프로필 공개 (가시성)
+  autoAcceptActive: boolean;  // 자동수락 활성 (인스턴트북)
+  // 표시 전용 (운영자 관리, 편집 불가)
+  channelName: string;
+  tier: TierLevel;            // 등급화 1~3
+  followerRange: string;      // 팔로워 구간
+  // 정산 요약 (마스킹)
+  settlement: SettlementSummary;
+}
+
+/** 저장 페이로드 (편집 가능 필드만 — PATCH body) */
+export interface CreatorProfileUpdate {
+  representativeLink: string;
+  minSponsorAmount: number;
+  visitRegions: string[];
+  visitDays: string[];
+  acceptSiteTypes: string[];
+  baseRegion: string;
+  wonjeongRegions: string[];
+  isPublic: boolean;
+  autoAcceptActive: boolean;
+}
