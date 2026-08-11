@@ -1,7 +1,8 @@
 // ContentFormatFields.tsx - 제작 콘텐츠 형식(보유 채널로 필터) + 제작 기준 (지명형 1a-v2 §3.3)
 'use client';
 
-import { CONTENT_FORMATS, CONTENT_FORMAT_CHANNEL } from '@/lib/constants';
+import { CONTENT_FORMATS } from '@/lib/constants';
+import { isFormatAvailable } from '@/lib/creatorProfileRules';
 
 interface ContentFormatFieldsProps {
     channelTypes: string[];
@@ -13,8 +14,9 @@ interface ContentFormatFieldsProps {
 export default function ContentFormatFields({
     channelTypes, contentFormats, contentStandard, onChange,
 }: ContentFormatFieldsProps) {
-    // 보유 채널의 형식만 노출 — 유튜브를 안 하면 유튜브 항목이 뜨지 않는다
-    const available = CONTENT_FORMATS.filter((format) => channelTypes.includes(CONTENT_FORMAT_CHANNEL[format]));
+    // 보유 채널의 형식만 노출 — 유튜브를 안 하면 유튜브 항목이 뜨지 않는다.
+    // 서버 검증(규칙 4)과 같은 술어를 쓴다 — 두 벌이면 클라가 고르게 둔 걸 서버가 400으로 막는다.
+    const available = CONTENT_FORMATS.filter((format) => isFormatAvailable(format, channelTypes));
 
     function toggleFormat(format: string) {
         const next = contentFormats.includes(format)

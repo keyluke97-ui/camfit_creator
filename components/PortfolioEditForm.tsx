@@ -6,8 +6,7 @@
 
 import { useState, useEffect } from 'react';
 import type { CreatorProfile, SettlementSummary, CreatorProfileUpdate } from '@/types';
-import { CONTENT_FORMAT_CHANNEL } from '@/lib/constants';
-import { collectMissingForPublish, computeCompletion } from '@/lib/creatorProfileRules';
+import { collectMissingForPublish, computeCompletion, pruneContentFormats } from '@/lib/creatorProfileRules';
 import ProfileImageUploader from './ProfileImageUploader';
 import ChannelSelector from './ChannelSelector';
 import ChannelDetailTabs from './ChannelDetailTabs';
@@ -82,11 +81,7 @@ export default function PortfolioEditForm() {
         setMessage('');
     }
 
-    /**
-     * 채널 선택 변경. 해제된 채널의 콘텐츠 형식을 함께 걷어낸다.
-     * 안 걷어내면 유튜브를 끈 채 '유튜브 롱폼'이 payload에 남아 서버가 400(FORMAT_CHANNEL_MISMATCH)을
-     * 던지고, 사용자는 자기가 건드린 적 없는 항목 때문에 저장이 막힌다.
-     */
+    /** 채널 선택 변경. 해제된 채널의 콘텐츠 형식을 함께 걷어낸다(규칙은 creatorProfileRules 공유). */
     function handleChannelChange(patch: { channelTypes?: string[]; representativeChannel?: string }) {
         if (!patch.channelTypes) {
             patchProfile(patch);
@@ -95,13 +90,7 @@ export default function PortfolioEditForm() {
         const nextTypes = patch.channelTypes;
         setProfile((prev) =>
             prev
-                ? {
-                      ...prev,
-                      ...patch,
-                      contentFormats: prev.contentFormats.filter((format) =>
-                          nextTypes.includes(CONTENT_FORMAT_CHANNEL[format])
-                      ),
-                  }
+                ? { ...prev, ...patch, contentFormats: pruneContentFormats(nextTypes, prev.contentFormats) }
                 : prev
         );
         setMessage('');

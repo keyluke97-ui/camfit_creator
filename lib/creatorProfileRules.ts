@@ -104,6 +104,23 @@ export function collectMissingForPublish(
     return missing;
 }
 
+/**
+ * 이 콘텐츠 형식을 만들 수 있는 채널을 보유했는지 (규칙 4의 단건 판정).
+ * 폼의 형식 목록 필터와 서버 검증이 같은 술어를 쓰도록 여기에 둔다.
+ */
+export function isFormatAvailable(format: string, channelTypes: string[]): boolean {
+    return channelTypes.includes(CONTENT_FORMAT_CHANNEL[format]);
+}
+
+/**
+ * 보유하지 않게 된 채널의 콘텐츠 형식을 걷어낸다.
+ * 채널을 해제할 때 폼이 호출한다 — 안 걷어내면 유튜브를 끈 채 '유튜브 롱폼'이 payload에 남아
+ * 서버가 400(FORMAT_CHANNEL_MISMATCH)을 던지고, 사용자는 자기가 건드린 적 없는 항목 때문에 막힌다.
+ */
+export function pruneContentFormats(channelTypes: string[], contentFormats: string[]): string[] {
+    return contentFormats.filter((format) => isFormatAvailable(format, channelTypes));
+}
+
 /** needsReReview가 비교하는 승인 시점 값 */
 export interface ReReviewBaseline {
     channelTypes: string[];

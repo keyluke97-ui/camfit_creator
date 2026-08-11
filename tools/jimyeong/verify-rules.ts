@@ -5,6 +5,7 @@
 
 import {
     validateChannelPayload, collectMissingForPublish, needsReReview, isValidEmail,
+    isFormatAvailable, pruneContentFormats,
 } from '../../lib/creatorProfileRules';
 import type { CreatorProfileUpdate } from '../../types';
 
@@ -82,6 +83,30 @@ check('대표 콘텐츠 링크 변경 → 재검토', needsReReview(before, { ..
 check('채널 강점 변경 → 재검토', needsReReview(before, {
     ...base, channels: { '유튜브': { ...base.channels['유튜브'], strength: '가족 캠핑 위주' } },
 }), true);
+
+// ── isFormatAvailable / pruneContentFormats (폼 필터 = 서버 규칙 4) ──
+check('형식 노출 — 보유 채널', isFormatAvailable('유튜브 롱폼', ['유튜브']), true);
+check('형식 미노출 — 미보유 채널', isFormatAvailable('블로그 포스팅', ['유튜브', '인스타']), false);
+check('형식 미노출 — 채널 0개', isFormatAvailable('인스타 릴스', []), false);
+check(
+    '채널 해제 → 해당 형식만 정리',
+    pruneContentFormats(['인스타'], ['유튜브 롱폼', '인스타 릴스', '블로그 포스팅']),
+    ['인스타 릴스']
+);
+check('채널 유지 → 형식 그대로', pruneContentFormats(['유튜브', '인스타'], ['유튜브 쇼츠', '인스타 피드']), ['유튜브 쇼츠', '인스타 피드']);
+check('채널 전부 해제 → 형식 전부 정리', pruneContentFormats([], ['유튜브 롱폼']), []);
+// 정리 결과는 서버 검증을 반드시 통과해야 한다 — 이게 어긋나면 폼이 400을 유발한다
+check(
+    '정리 후 payload는 서버 검증 통과',
+    validateChannelPayload({
+        ...base,
+        channelTypes: ['인스타'],
+        representativeChannel: '인스타',
+        channels: { '인스타': { url: 'https://i', follower: 10, engagement: 1, blogIndex: '', strength: '' } },
+        contentFormats: pruneContentFormats(['인스타'], ['유튜브 롱폼', '인스타 릴스']),
+    }),
+    null
+);
 
 // ── isValidEmail ──
 check('이메일 유효', isValidEmail('a@b.co.kr'), true);
