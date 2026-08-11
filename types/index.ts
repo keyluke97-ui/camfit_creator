@@ -60,6 +60,8 @@ export interface Campaign {
   accommodationName: string;
   location: string;
   deadline: string;
+  // CHANGED: D-day 계산용 date 필드. deadline(문자열)은 표시 전용이라 비교가 불가능하다.
+  deadlineDate?: string;
   createdTime: string; // CHANGED: Airtable 'Created' 필드 — 최신등록순 정렬용 (ISO 문자열)
   detailUrl: string;
   applicationUrl: string;
@@ -89,6 +91,8 @@ export interface AirtableCampaignRecord {
     '숙소 이름을 적어주세요.': string;
     '숙소 위치': string;
     '⏰ 콘텐츠 제작 기한': string;
+    // CHANGED: 같은 수식의 date 타입 쌍둥이 필드(fldMp3ZWeMq9Xnnpv). 문자열 필드는 날짜 비교가 안 된다.
+    '콘텐츠 제작 기한 (날짜)'?: string;
     'Created'?: string; // CHANGED: 레코드 생성 시각(ISO) — 최신등록순 정렬용
     '숙소 링크 (캠핏 내 상세페이지만 삽입 가능)': string;
     '신청 링크': string;
@@ -168,6 +172,7 @@ export interface Application {
   detailUrl?: string; // CHANGED: 협찬 조건 복사용 숙소 링크
   highlights?: string; // CHANGED: 협찬 조건 복사용 캠지기 포인트
   deadline?: string; // CHANGED: 제작 기한
+  deadlineDate?: string; // CHANGED: D-day 계산용 date 필드
   followerCouponCode?: string; // CHANGED: 통합 — 신청 시 분배된 본인 팔로워 쿠폰 코드 (couponEvent 캠페인만)
   couponEvent?: CouponEvent; // CHANGED: 통합 — 신청 내역 화면에서 쿠폰 조건 재확인용 (enrich 단계에서 캠페인 조인)
 }

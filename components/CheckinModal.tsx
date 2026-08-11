@@ -5,7 +5,7 @@ import type { Application } from '@/types';
 // CHANGED: 협찬 조건 복사 텍스트는 통합 빌더(couponText)로 일원화 — 기존 쿠폰 헬퍼 import 제거
 import { buildSponsorshipSummary } from '@/lib/couponText';
 // CHANGED: 통합 — 쿠폰 박스 + 완료 목록 추출 (파일 크기 컨벤션 준수)
-import { CheckinCouponBox, CompletedAppsList, MyCouponBox, ReservationCouponDone } from './CheckinSections';
+import { CheckinCouponBox, CompletedAppsList, DeadlineBadge, MyCouponBox, ReservationCouponDone } from './CheckinSections';
 // CHANGED: 캠냥이 마스코트 + 오브젝트 아이콘
 import Mascot from './Mascot';
 import BrandIcon from './BrandIcon';
@@ -345,6 +345,10 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
                                                 </span>
                                             )}
                                         </div>
+
+                                        {/* CHANGED: 제작 기한 D-day — 현장·편집 시점에 이 화면을 열기 때문에
+                                                    여기가 기한을 상기시키기 가장 좋은 자리다. */}
+                                        <DeadlineBadge app={app} />
 
                                         {/* CHANGED: 미등록 건은 남은 2단계를 명시. 놓치는 건 ②가 아니라 ①(쿠폰 등록·예약)이었다. */}
                                         {!isRegistered(app) && (
