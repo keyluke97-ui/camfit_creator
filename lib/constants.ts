@@ -207,3 +207,31 @@ export const CHANNEL_METRIC_LABELS: Record<string, { follower: string; secondary
     '인스타': { follower: '팔로워 수', secondary: '평균 좋아요' },
     '블로그': { follower: '일 평균 방문자', secondary: '블로그 지수' },
 };
+
+// ─────────────────────────────────────────────────────────────────────────
+// 협찬 조건 표준 (2026-08-12) — 스펙 §3
+// ⚠️ 표준값은 Airtable에 저장하지 않는다. 빈 값이 곧 "표준 적용 중"이다.
+// ─────────────────────────────────────────────────────────────────────────
+
+/**
+ * 업로드 기한 표준 — 체크아웃(입실 + 1박) 후 14일.
+ * ⚠️ tools/content-followup/overdue.cjs의 GRACE_DAYS와 반드시 같은 값이어야 한다.
+ *    두 곳이 어긋나면 독촉 도구가 뽑는 대상과 화면 안내가 달라진다.
+ */
+export const UPLOAD_DEADLINE_DEFAULT_DAYS = 14;
+
+/** 예외로 고를 수 있는 기한. "더 길게"만 둔다 — 짧게 걸었다 못 지키면 그게 곧 분쟁(스펙 E4) */
+export const UPLOAD_DEADLINE_OPTIONS: number[] = [21, 30];
+
+/** 동반 인원 허용 범위. 상한 10은 캠핑 사이트 정원 현실 — 없으면 오타(999)가 캠지기 카드에 뜬다 */
+export const COMPANION_MIN = 1;
+export const COMPANION_MAX = 10;
+
+/**
+ * 채널콘셉트 12종 — 기존 `채널콘셉트`(운영자 관리) 필드 옵션과 문자열이 동일해야 한다.
+ * 자기신고 값과 운영자 값을 같은 자리에 렌더하므로 어긋나면 안 된다.
+ */
+export const CHANNEL_CONCEPTS: string[] = [
+    '캠핑', '등산', '여행', '가족', '커플', '솔로',
+    '반려동물', '차박', '백패킹', '장비리뷰', '캠핑요리', '낚시',
+];

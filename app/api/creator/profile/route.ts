@@ -104,6 +104,12 @@ export async function PATCH(request: NextRequest) {
             contentFormats: Array.isArray(body.contentFormats) ? body.contentFormats : [],
             contentStandard: typeof body.contentStandard === 'string' ? body.contentStandard : '',
             creatorEmail: typeof body.creatorEmail === 'string' ? body.creatorEmail : '',
+            // CHANGED: 2026-08-12 협찬 조건 표준화. 검증은 updateCreatorProfile이 한다
+            uploadDeadlineDays: typeof body.uploadDeadlineDays === 'number' ? body.uploadDeadlineDays : null,
+            companions: typeof body.companions === 'number' ? body.companions : 0,
+            petAllowed: body.petAllowed === true,
+            droneUsed: body.droneUsed === true,
+            channelConcepts: Array.isArray(body.channelConcepts) ? body.channelConcepts : [],
         };
 
         const result = await updateCreatorProfile(creatorId, payload);

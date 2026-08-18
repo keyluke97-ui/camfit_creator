@@ -5,8 +5,9 @@
 
 import {
     validateChannelPayload, collectMissingForPublish, needsReReview, isValidEmail,
-    isFormatAvailable, pruneContentFormats,
+    isFormatAvailable, pruneContentFormats, normalizeUploadDeadline,
 } from '../../lib/creatorProfileRules';
+import { buildDeliverableSummary, buildVisitConditionSummary } from '../../lib/sponsorshipTerms';
 import type { CreatorProfileUpdate } from '../../types';
 
 let pass = 0;
@@ -39,6 +40,11 @@ const base: CreatorProfileUpdate = {
     contentFormats: ['유튜브 롱폼'],
     contentStandard: '',
     creatorEmail: 'a@b.com',
+    uploadDeadlineDays: null,
+    companions: 2,
+    petAllowed: false,
+    droneUsed: false,
+    channelConcepts: ['캠핑'],
 };
 
 // ── validateChannelPayload ──
@@ -84,6 +90,38 @@ check('채널 강점 변경 → 재검토', needsReReview(before, {
     ...base, channels: { '유튜브': { ...base.channels['유튜브'], strength: '가족 캠핑 위주' } },
 }), true);
 
+// ── 공개 게이트에 동반 인원 (스펙 E3) ──
+check(
+    '인원 미입력 → 공개 못 함',
+    collectMissingForPublish({ ...base, companions: 0 }, true, true),
+    ['동반 인원']
+);
+check('인원 입력 → 누락 없음', collectMissingForPublish({ ...base, companions: 2 }, true, true), []);
+// 업로드 기한·반려동물·드론은 표준이 있으므로 게이트에 없어야 한다
+check(
+    '기한 미입력은 공개를 막지 않는다',
+    collectMissingForPublish({ ...base, uploadDeadlineDays: null }, true, true),
+    []
+);
+
+// ── 신규 5필드는 재검토 트리거가 아니다 (스펙 E7) ──
+// 콘셉트 변경으로 재검토 큐를 채우면 진짜 지표 변경이 그 안에 묻힌다.
+check(
+    '콘셉트만 변경 → 재검토 없음',
+    needsReReview(before, { ...base, channelConcepts: ['낚시', '백패킹'] }),
+    false
+);
+check(
+    '현장 조건만 변경 → 재검토 없음',
+    needsReReview(before, { ...base, companions: 6, petAllowed: true, droneUsed: true }),
+    false
+);
+check(
+    '업로드 기한만 변경 → 재검토 없음',
+    needsReReview(before, { ...base, uploadDeadlineDays: 30 }),
+    false
+);
+
 // ── isFormatAvailable / pruneContentFormats (폼 필터 = 서버 규칙 4) ──
 check('형식 노출 — 보유 채널', isFormatAvailable('유튜브 롱폼', ['유튜브']), true);
 check('형식 미노출 — 미보유 채널', isFormatAvailable('블로그 포스팅', ['유튜브', '인스타']), false);
@@ -107,6 +145,59 @@ check(
     }),
     null
 );
+
+// ── buildDeliverableSummary (표준 문구 단일 출처) ──
+check(
+    '형식 2개 + 표준 기한',
+    buildDeliverableSummary(['유튜브 롱폼', '인스타 릴스'], null),
+    '유튜브 롱폼 1편 · 인스타 릴스 1편 — 체크아웃 후 14일 안에 업로드'
+);
+check(
+    '형식 1개 + 예외 기한',
+    buildDeliverableSummary(['블로그 포스팅'], 21),
+    '블로그 포스팅 1편 — 체크아웃 후 21일 안에 업로드'
+);
+check(
+    '형식 미선택 → 기한만',
+    buildDeliverableSummary([], null),
+    '체크아웃 후 14일 안에 업로드'
+);
+check('형식 미선택 + 예외 기한', buildDeliverableSummary([], 30), '체크아웃 후 30일 안에 업로드');
+// 표준과 같은 값(14)이 실수로 들어와도 표준 문구가 나와야 한다
+check('기한 14가 들어와도 표준 문구', buildDeliverableSummary([], 14), '체크아웃 후 14일 안에 업로드');
+
+// ── buildVisitConditionSummary (표준과 같은 항목은 생략) ──
+check('표준 그대로', buildVisitConditionSummary(2, false, false), '2인 방문');
+check('전부 예외', buildVisitConditionSummary(4, true, true), '4인 방문 · 반려동물 동반 · 드론 촬영');
+check('반려동물만', buildVisitConditionSummary(1, true, false), '1인 방문 · 반려동물 동반');
+check('드론만', buildVisitConditionSummary(3, false, true), '3인 방문 · 드론 촬영');
+check('인원 미입력', buildVisitConditionSummary(0, false, false), '');
+// 인원이 없어도 예외 항목은 알려야 한다 — 현장에서 알면 늦는 정보다
+check('인원 미입력 + 반려동물', buildVisitConditionSummary(0, true, false), '반려동물 동반');
+
+// ── normalizeUploadDeadline (표준과 같은 값은 null로 — 스펙 §9) ──
+check('표준값 14 → null', normalizeUploadDeadline(14), null);
+check('null → null', normalizeUploadDeadline(null), null);
+check('0 → null', normalizeUploadDeadline(0), null);
+check('예외 21 유지', normalizeUploadDeadline(21), 21);
+check('예외 30 유지', normalizeUploadDeadline(30), 30);
+check('허용 밖 7은 그대로 (검증이 잡는다)', normalizeUploadDeadline(7), 7);
+
+// ── validateChannelPayload 신규 위반 3종 ──
+check('기한 21 통과', validateChannelPayload({ ...base, uploadDeadlineDays: 21 }), null);
+check('기한 null 통과', validateChannelPayload({ ...base, uploadDeadlineDays: null }), null);
+check('기한 7 → 위반', validateChannelPayload({ ...base, uploadDeadlineDays: 7 }), 'UPLOAD_DEADLINE_INVALID');
+check('기한 14 → 위반(정규화 전이면 안 들어와야 한다)', validateChannelPayload({ ...base, uploadDeadlineDays: 14 }), 'UPLOAD_DEADLINE_INVALID');
+
+check('인원 0(미입력) 통과', validateChannelPayload({ ...base, companions: 0 }), null);
+check('인원 10 통과', validateChannelPayload({ ...base, companions: 10 }), null);
+check('인원 11 → 위반', validateChannelPayload({ ...base, companions: 11 }), 'COMPANION_INVALID');
+check('인원 -1 → 위반', validateChannelPayload({ ...base, companions: -1 }), 'COMPANION_INVALID');
+check('인원 소수 → 위반', validateChannelPayload({ ...base, companions: 2.5 }), 'COMPANION_INVALID');
+
+check('콘셉트 빈 배열 통과', validateChannelPayload({ ...base, channelConcepts: [] }), null);
+check('콘셉트 2개 통과', validateChannelPayload({ ...base, channelConcepts: ['캠핑', '차박'] }), null);
+check('콘셉트 화이트리스트 밖 → 위반', validateChannelPayload({ ...base, channelConcepts: ['등산', '서핑'] }), 'CONCEPT_UNKNOWN');
 
 // ── isValidEmail ──
 check('이메일 유효', isValidEmail('a@b.co.kr'), true);

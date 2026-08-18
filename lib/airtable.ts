@@ -1489,6 +1489,16 @@ export async function getCreatorProfile(creatorId: string): Promise<CreatorProfi
             contentFormats: (record.get('제작 콘텐츠 형식') as string[]) || [],
             contentStandard: (record.get('콘텐츠 제작 기준') as string) || '',
             creatorEmail: (record.get('크리에이터 이메일') as string) || '',
+            // CHANGED: 2026-08-12 협찬 조건 표준화 — 빈 값은 그대로 빈 값으로 둔다.
+            // 표준값을 여기서 채워 넣으면 "빈 값 = 표준 적용 중" 불변식이 깨지고,
+            // 저장 시 그 값이 Airtable에 박혀 표준을 바꿔도 이 사람만 옛 값으로 남는다.
+            uploadDeadlineDays: (record.get('업로드 기한(일)') as number) || null,
+            companions: (record.get('동반 인원') as number) || 0,
+            petAllowed: record.get('반려동물 동반') === true,
+            droneUsed: record.get('드론 촬영') === true,
+            channelConcepts: (record.get('채널콘셉트(자기신고)') as string[]) || [],
+            // 운영자 관리 필드. 353명 중 170명(48%)에 값이 있다 — 자기신고가 비면 이걸 보여준다
+            channelConceptsFallback: (record.get('채널콘셉트') as string[]) || [],
             reviewStatus: ((record.get('프로필 심사 상태') as string) || '') as ReviewStatus,
             reviewRejectReason: (record.get('심사 반려 사유') as string) || '',
             channelName: (record.get('크리에이터 채널명') as string) || '',

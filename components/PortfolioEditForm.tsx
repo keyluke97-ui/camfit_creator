@@ -46,6 +46,12 @@ function buildPayload(profile: CreatorProfile, isPublicOverride?: boolean): Crea
         contentFormats: profile.contentFormats,
         contentStandard: profile.contentStandard,
         creatorEmail: profile.creatorEmail,
+        // CHANGED: 2026-08-12 협찬 조건 표준화 — 입력 UI는 Task 10~13에서 붙인다
+        uploadDeadlineDays: profile.uploadDeadlineDays,
+        companions: profile.companions,
+        petAllowed: profile.petAllowed,
+        droneUsed: profile.droneUsed,
+        channelConcepts: profile.channelConcepts,
     };
 }
 

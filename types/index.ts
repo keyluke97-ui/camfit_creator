@@ -453,6 +453,13 @@ export interface CreatorProfile {
   contentFormats: string[];                 // 제작 콘텐츠 형식
   contentStandard: string;                  // 콘텐츠 제작 기준 (자유 서술)
   creatorEmail: string;
+  // CHANGED: 2026-08-12 협찬 조건 표준화 — 빈 값 = 표준 적용 중(스펙 E1/E2)
+  uploadDeadlineDays: number | null;   // null이면 표준 14일
+  companions: number;                  // 동반 인원. 0이면 미입력
+  petAllowed: boolean;                 // 반려동물 동반. false가 표준
+  droneUsed: boolean;                  // 드론 촬영. false가 표준
+  channelConcepts: string[];           // 자기신고. 크리에이터가 고른 것
+  channelConceptsFallback: string[];   // 운영자 `채널콘셉트`. 읽기 전용 — 자기신고가 비었을 때만 표시
   // CHANGED: 1a-v2 §4 — 심사 (서버 전용. 크리에이터 payload로 바꿀 수 없다)
   reviewStatus: ReviewStatus;
   reviewRejectReason: string;
@@ -487,4 +494,10 @@ export interface CreatorProfileUpdate {
   contentFormats: string[];
   contentStandard: string;
   creatorEmail: string;
+  // CHANGED: 2026-08-12 협찬 조건 표준화
+  uploadDeadlineDays: number | null;
+  companions: number;
+  petAllowed: boolean;
+  droneUsed: boolean;
+  channelConcepts: string[];           // 자기신고만. 운영자 `채널콘셉트`에는 절대 쓰지 않는다
 }

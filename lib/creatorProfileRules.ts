@@ -9,6 +9,11 @@ import {
     REPRESENTATIVE_CHANNELS,
     CONTENT_FORMATS,
     CONTENT_FORMAT_CHANNEL,
+    UPLOAD_DEADLINE_DEFAULT_DAYS,
+    UPLOAD_DEADLINE_OPTIONS,
+    COMPANION_MIN,
+    COMPANION_MAX,
+    CHANNEL_CONCEPTS,
 } from './constants';
 import type { ChannelDetail, CreatorProfileUpdate } from '@/types';
 
@@ -21,11 +26,27 @@ export type ChannelViolation =
     | 'FORMAT_UNKNOWN'
     | 'FORMAT_CHANNEL_MISMATCH'
     | 'EMAIL_INVALID'
-    | 'METRIC_INVALID';
+    | 'METRIC_INVALID'
+    // CHANGED: 2026-08-12 협찬 조건 표준화
+    | 'UPLOAD_DEADLINE_INVALID'
+    | 'COMPANION_INVALID'
+    | 'CONCEPT_UNKNOWN';
 
 /** 이메일 형식 — RFC 완전 준수가 아니라 오타 차단 목적 */
 export function isValidEmail(value: string): boolean {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+/**
+ * 업로드 기한을 저장 가능한 형태로 정규화한다.
+ * 표준과 같은 값(14)이나 0/null은 전부 null로 눕힌다 — 빈 값이 곧 "표준 적용 중"이라는
+ * 불변식을 지켜야, 나중에 표준을 15로 바꿔도 14가 박힌 사람만 남는 일이 안 생긴다(스펙 §9).
+ * 허용 밖 값(예: 7)은 고치지 않고 그대로 돌려준다 — 판정은 validateChannelPayload가 한다.
+ * ⚠️ 호출 순서: 정규화 → 검증. 뒤집으면 표준값 14가 UPLOAD_DEADLINE_INVALID로 막힌다.
+ */
+export function normalizeUploadDeadline(value: number | null): number | null {
+    if (!value || value === UPLOAD_DEADLINE_DEFAULT_DAYS) return null;
+    return value;
 }
 
 /**
@@ -67,6 +88,24 @@ export function validateChannelPayload(payload: CreatorProfileUpdate): ChannelVi
         if (!Number.isInteger(detail.engagement) || detail.engagement < 0) return 'METRIC_INVALID';
     }
 
+    // 규칙 8 — 업로드 기한은 표준(null) 또는 허용 예외뿐 (스펙 E4)
+    const deadline = payload.uploadDeadlineDays;
+    if (deadline !== null && !UPLOAD_DEADLINE_OPTIONS.includes(deadline)) {
+        return 'UPLOAD_DEADLINE_INVALID';
+    }
+
+    // 규칙 9 — 동반 인원. 0은 미입력이라 허용한다(저장은 되고 공개만 막힌다)
+    const companions = payload.companions;
+    if (!Number.isInteger(companions) || companions < 0) return 'COMPANION_INVALID';
+    if (companions > 0 && (companions < COMPANION_MIN || companions > COMPANION_MAX)) {
+        return 'COMPANION_INVALID';
+    }
+
+    // 규칙 10 — 채널콘셉트 화이트리스트
+    if ((payload.channelConcepts || []).some((concept) => !CHANNEL_CONCEPTS.includes(concept))) {
+        return 'CONCEPT_UNKNOWN';
+    }
+
     return null;
 }
 
@@ -94,6 +133,10 @@ export function collectMissingForPublish(
     if (!payload.representativeChannel) missing.push('대표 채널');
     if ((payload.contentFormats || []).length === 0) missing.push('제작 콘텐츠 형식');
     if (!payload.creatorEmail) missing.push('크리에이터 이메일');
+
+    // CHANGED: 2026-08-12 — 표준으로 못 덮는 유일한 항목(스펙 E3).
+    // 사이트 정원은 물리적 제약이라, 표준값을 두면 책임 소재만 확정되고 그날 현장은 그대로 터진다.
+    if (!(payload.companions > 0)) missing.push('동반 인원');
 
     // 조건부 — 선택한 채널마다 URL (규칙 3)
     for (const channel of payload.channelTypes || []) {
@@ -167,7 +210,9 @@ export function needsReReview(before: ReReviewBaseline, after: CreatorProfileUpd
 export function computeCompletion(
     payload: CreatorProfileUpdate,
     hasImage: boolean,
-    hasPremium: boolean
+    hasPremium: boolean,
+    // CHANGED: 2026-08-12 — 운영자 `채널콘셉트` 보유 여부. 기본값 false는 기존 호출부 호환용(Task 13에서 실값 전달)
+    hasConceptFallback: boolean = false
 ): { percent: number; nextHint: string } {
     const items: Array<{ label: string; filled: boolean }> = [
         { label: '프로필 이미지', filled: hasImage },
@@ -180,6 +225,11 @@ export function computeCompletion(
         { label: '수용 사이트 종류', filled: (payload.acceptSiteTypes || []).length > 0 },
         { label: '협찬 금액', filled: payload.minSponsorAmount > 0 },
         { label: '정산 정보', filled: hasPremium },
+        // CHANGED: 2026-08-12 — 업로드 기한·반려동물·드론은 넣지 않는다.
+        // 표준을 쓰는 게 정상인데 미입력을 미완성으로 세면 완성도 바가 "표준을 벗어나라"고 압박한다.
+        { label: '동반 인원', filled: payload.companions > 0 },
+        // 자기신고가 없어도 운영자 값이 있으면 캠지기 카드가 채워지므로 채운 것으로 센다.
+        { label: '채널콘셉트', filled: (payload.channelConcepts || []).length > 0 || hasConceptFallback },
         { label: '대표 콘텐츠 링크 2', filled: !!payload.representativeLink2 },
         { label: '콘텐츠 제작 기준', filled: !!payload.contentStandard },
     ];
