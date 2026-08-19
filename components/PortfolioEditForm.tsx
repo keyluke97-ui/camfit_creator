@@ -10,6 +10,7 @@ import { collectMissingForPublish, computeCompletion, pruneContentFormats } from
 import ProfileImageUploader from './ProfileImageUploader';
 import ChannelSelector from './ChannelSelector';
 import ChannelDetailTabs from './ChannelDetailTabs';
+import ChannelConceptField from './ChannelConceptField';
 import ContentFormatFields from './ContentFormatFields';
 import AcceptanceConditionFields from './AcceptanceConditionFields';
 import SettlementConfirmCard from './SettlementConfirmCard';
@@ -147,7 +148,13 @@ export default function PortfolioEditForm() {
     const payloadForCheck = buildPayload(profile);
     const hasPremium = !!settlement?.registered;
     const missing = collectMissingForPublish(payloadForCheck, profile.hasProfileImage, hasPremium);
-    const { percent, nextHint } = computeCompletion(payloadForCheck, profile.hasProfileImage, hasPremium);
+    // CHANGED: 2026-08-12 — 운영자 `채널콘셉트`가 있으면 캠지기 카드가 이미 채워지므로 완성으로 센다
+    const { percent, nextHint } = computeCompletion(
+        payloadForCheck,
+        profile.hasProfileImage,
+        hasPremium,
+        profile.channelConceptsFallback.length > 0
+    );
 
     return (
         <div className="space-y-6">
@@ -240,12 +247,19 @@ export default function PortfolioEditForm() {
                 onChange={(channels) => patchProfile({ channels })}
             />
 
+            <ChannelConceptField
+                concepts={profile.channelConcepts}
+                fallbackConcepts={profile.channelConceptsFallback}
+                onChange={(channelConcepts) => patchProfile({ channelConcepts })}
+            />
+
             {/* ③ 만들어 드리는 콘텐츠 */}
             <SectionTitle title="만들어 드리는 콘텐츠" desc="캠지기가 받게 되는 것" />
             <ContentFormatFields
                 channelTypes={profile.channelTypes}
                 contentFormats={profile.contentFormats}
                 contentStandard={profile.contentStandard}
+                uploadDeadlineDays={profile.uploadDeadlineDays}
                 onChange={patchProfile}
             />
 
@@ -259,6 +273,9 @@ export default function PortfolioEditForm() {
                 visitDays={profile.visitDays}
                 acceptSiteTypes={profile.acceptSiteTypes}
                 minSponsorAmount={profile.minSponsorAmount}
+                companions={profile.companions}
+                petAllowed={profile.petAllowed}
+                droneUsed={profile.droneUsed}
                 onChange={patchProfile}
             />
 

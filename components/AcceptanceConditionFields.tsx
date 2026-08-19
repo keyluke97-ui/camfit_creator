@@ -9,8 +9,11 @@ import {
     VISIT_DAYS,
     SPONSOR_SITE_TYPES,
     WONJEONG_SURCHARGE,
+    COMPANION_MIN,
+    COMPANION_MAX,
     getWonjeongCandidates,
 } from '@/lib/constants';
+import { buildVisitConditionSummary } from '@/lib/sponsorshipTerms';
 
 type ConditionPatch = Partial<{
     baseRegion: string;
@@ -19,6 +22,10 @@ type ConditionPatch = Partial<{
     visitDays: string[];
     acceptSiteTypes: string[];
     minSponsorAmount: number;
+    // CHANGED: 2026-08-12 현장 조건
+    companions: number;
+    petAllowed: boolean;
+    droneUsed: boolean;
 }>;
 
 interface AcceptanceConditionFieldsProps {
@@ -29,6 +36,9 @@ interface AcceptanceConditionFieldsProps {
     visitDays: string[];
     acceptSiteTypes: string[];
     minSponsorAmount: number;
+    companions: number;
+    petAllowed: boolean;
+    droneUsed: boolean;
     onChange: (patch: ConditionPatch) => void;
 }
 
@@ -40,6 +50,9 @@ export default function AcceptanceConditionFields({
     visitDays,
     acceptSiteTypes,
     minSponsorAmount,
+    companions,
+    petAllowed,
+    droneUsed,
     onChange,
 }: AcceptanceConditionFieldsProps) {
     // 주소 파싱 기준 지역을 최초 1회 프리필(사용자가 아직 미설정일 때만).
@@ -81,6 +94,7 @@ export default function AcceptanceConditionFields({
         (region) => !visitRegions.includes(region)
     );
     const surcharge = WONJEONG_SURCHARGE.toLocaleString();
+    const visitConditionSummary = buildVisitConditionSummary(companions, petAllowed, droneUsed);
 
     return (
         <div className="space-y-5">
@@ -188,6 +202,70 @@ export default function AcceptanceConditionFields({
                     onChange={(next) => onChange({ acceptSiteTypes: next })}
                 />
             </div>
+
+            {/* CHANGED: 2026-08-12 — 현장 조건(스펙 §3).
+                반려동물·드론은 표준이 "없음"이라 켰을 때만 캠지기가 사전 확인하면 된다.
+                동반 인원만 표준으로 못 덮는다 — 사이트 정원은 물리적 제약이다(스펙 E3). */}
+            <div>
+                <label className="block text-sm font-medium text-ink mb-1">
+                    동반 인원 <span className="text-red-500">*</span>
+                </label>
+                <p className="text-xs text-ink3 mb-2">
+                    본인 포함 몇 분이 방문하시나요? 캠지기가 사이트를 이 인원에 맞춰 잡아둡니다.
+                </p>
+                <div className="relative">
+                    <input
+                        type="number"
+                        inputMode="numeric"
+                        min={COMPANION_MIN}
+                        max={COMPANION_MAX}
+                        value={companions || ''}
+                        onChange={(event) => onChange({ companions: Number(event.target.value) || 0 })}
+                        placeholder="예: 2"
+                        className="w-full h-12 px-4 pr-10 bg-card border border-line rounded-lg text-ink text-sm focus:border-brand focus:outline-none transition-colors placeholder:text-ink3"
+                    />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-ink3 text-sm">명</span>
+                </div>
+            </div>
+
+            <div className="flex flex-col gap-2">
+                <button
+                    type="button"
+                    onClick={() => onChange({ petAllowed: !petAllowed })}
+                    aria-pressed={petAllowed}
+                    className={`w-full h-12 px-4 rounded-lg border text-sm text-left transition-colors ${
+                        petAllowed
+                            ? 'bg-brand-bg text-brand-strong border-brand/30 font-medium'
+                            : 'bg-card text-ink2 border-line hover:border-strong'
+                    }`}
+                >
+                    {petAllowed ? '\u2713 ' : ''}반려동물과 함께 방문해요
+                </button>
+                <button
+                    type="button"
+                    onClick={() => onChange({ droneUsed: !droneUsed })}
+                    aria-pressed={droneUsed}
+                    className={`w-full h-12 px-4 rounded-lg border text-sm text-left transition-colors ${
+                        droneUsed
+                            ? 'bg-brand-bg text-brand-strong border-brand/30 font-medium'
+                            : 'bg-card text-ink2 border-line hover:border-strong'
+                    }`}
+                >
+                    {droneUsed ? '\u2713 ' : ''}드론으로 촬영해요
+                </button>
+                <p className="text-xs text-ink3">
+                    두 가지는 캠핑장마다 가능 여부가 달라요. 체크하시면 캠지기가 미리 확인합니다.
+                </p>
+            </div>
+
+            {/* CHANGED: 2026-08-12 — 캠지기에게 어떻게 보이는지 그 자리에서 확인시킨다.
+                문구는 buildVisitConditionSummary 한 곳에서만 만든다(캠지기 카드·제안서와 동일 문장). */}
+            {visitConditionSummary && (
+                <div className="bg-subtle border border-line rounded-lg p-3">
+                    <p className="text-xs text-ink3 mb-1">캠지기에게 이렇게 보여요</p>
+                    <p className="text-sm text-ink font-medium">{visitConditionSummary}</p>
+                </div>
+            )}
 
             {/* 6. 협찬 금액 */}
             {/* CHANGED: 1a-v2 D5 — '이 금액 이상'은 협상 여지가 있다는 오해를 준다.
