@@ -4,6 +4,7 @@
 'use client';
 
 import { CHANNEL_CONCEPTS } from '@/lib/constants';
+import { withRo } from '@/lib/sponsorshipTerms';
 
 interface ChannelConceptFieldProps {
     concepts: string[];          // 자기신고 — 크리에이터가 고른 것
@@ -32,7 +33,9 @@ export default function ChannelConceptField({ concepts, fallbackConcepts, onChan
             {usingFallback && (
                 <div className="bg-subtle border border-line rounded-lg p-3">
                     <p className="text-xs text-ink2 leading-relaxed">
-                        지금은 캠핏 운영팀이 분류한 <strong className="text-ink">{fallbackConcepts.join(' · ')}</strong>로
+                        {/* CHANGED: 2026-08-25 — 조사를 받침에 맞춘다. `로` 고정이면 12종 중 6종이 "여행로"가 된다 */}
+                        지금은 캠핏 운영팀이 분류한{' '}
+                        <strong className="text-ink">{withRo(fallbackConcepts.join(' · '))}</strong>{' '}
                         보이고 있어요. 직접 고르시면 그 값으로 바뀝니다.
                     </p>
                 </div>

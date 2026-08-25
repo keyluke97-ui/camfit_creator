@@ -7,7 +7,7 @@ import {
     validateChannelPayload, collectMissingForPublish, needsReReview, isValidEmail,
     isFormatAvailable, pruneContentFormats, normalizeUploadDeadline,
 } from '../../lib/creatorProfileRules';
-import { buildDeliverableSummary, buildVisitConditionSummary } from '../../lib/sponsorshipTerms';
+import { buildDeliverableSummary, buildVisitConditionSummary, withRo } from '../../lib/sponsorshipTerms';
 import type { CreatorProfileUpdate } from '../../types';
 
 let pass = 0;
@@ -198,6 +198,16 @@ check('인원 소수 → 위반', validateChannelPayload({ ...base, companions: 
 check('콘셉트 빈 배열 통과', validateChannelPayload({ ...base, channelConcepts: [] }), null);
 check('콘셉트 2개 통과', validateChannelPayload({ ...base, channelConcepts: ['캠핑', '차박'] }), null);
 check('콘셉트 화이트리스트 밖 → 위반', validateChannelPayload({ ...base, channelConcepts: ['등산', '서핑'] }), 'CONCEPT_UNKNOWN');
+
+// ── withRo (조사 로/으로) ──
+check('받침 ㅇ → 으로', withRo('캠핑'), '캠핑으로');
+check('받침 ㅇ → 으로 (여행)', withRo('여행'), '여행으로');
+check('받침 ㄱ → 으로', withRo('가족'), '가족으로');
+check('받침 ㄹ → 로', withRo('반려동물'), '반려동물로');
+check('받침 없음 → 로', withRo('솔로'), '솔로로');
+check('받침 없음 → 로 (낚시)', withRo('낚시'), '낚시로');
+// 여러 개를 이어붙일 땐 마지막 단어가 조사를 결정한다
+check('나열 마지막 기준', withRo(['캠핑', '낚시'].join(' · ')), '캠핑 · 낚시로');
 
 // ── isValidEmail ──
 check('이메일 유효', isValidEmail('a@b.co.kr'), true);

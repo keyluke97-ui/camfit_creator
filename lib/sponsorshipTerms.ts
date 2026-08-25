@@ -40,3 +40,16 @@ export function buildVisitConditionSummary(
     if (droneUsed) parts.push('드론 촬영');
     return parts.join(' · ');
 }
+
+/**
+ * 앞말의 받침에 맞는 조사 `로`/`으로`를 붙인다.
+ * 한글 받침(종성)이 없거나 ㄹ이면 `로`, 그 밖에는 `으로`.
+ * ⚠️ 콘셉트 12종 중 6종(캠핑·등산·여행·가족·차박·백패킹)이 받침이 있어,
+ *    `로`를 하드코딩하면 절반이 "여행로"처럼 틀린 문장이 된다.
+ */
+export function withRo(word: string): string {
+    const last = word.charCodeAt(word.length - 1) - 0xac00;
+    const hasJongseong = last >= 0 && last <= 11171 && last % 28 !== 0;
+    const isRieul = last >= 0 && last <= 11171 && last % 28 === 8;
+    return `${word}${hasJongseong && !isRieul ? '으로' : '로'}`;
+}
