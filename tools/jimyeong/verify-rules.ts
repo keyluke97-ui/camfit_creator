@@ -150,21 +150,21 @@ check(
 check(
     '형식 2개 + 표준 기한',
     buildDeliverableSummary(['유튜브 롱폼', '인스타 릴스'], null),
-    '유튜브 롱폼 1편 · 인스타 릴스 1편 — 체크아웃 후 14일 안에 업로드'
+    '유튜브 롱폼 1편 · 인스타 릴스 1편 — 퇴실 후 14일 안에 업로드'
 );
 check(
     '형식 1개 + 예외 기한',
     buildDeliverableSummary(['블로그 포스팅'], 21),
-    '블로그 포스팅 1편 — 체크아웃 후 21일 안에 업로드'
+    '블로그 포스팅 1편 — 퇴실 후 21일 안에 업로드'
 );
 check(
     '형식 미선택 → 기한만',
     buildDeliverableSummary([], null),
-    '체크아웃 후 14일 안에 업로드'
+    '퇴실 후 14일 안에 업로드'
 );
-check('형식 미선택 + 예외 기한', buildDeliverableSummary([], 30), '체크아웃 후 30일 안에 업로드');
+check('형식 미선택 + 예외 기한', buildDeliverableSummary([], 30), '퇴실 후 30일 안에 업로드');
 // 표준과 같은 값(14)이 실수로 들어와도 표준 문구가 나와야 한다
-check('기한 14가 들어와도 표준 문구', buildDeliverableSummary([], 14), '체크아웃 후 14일 안에 업로드');
+check('기한 14가 들어와도 표준 문구', buildDeliverableSummary([], 14), '퇴실 후 14일 안에 업로드');
 
 // ── buildVisitConditionSummary (표준과 같은 항목은 생략) ──
 check('표준 그대로', buildVisitConditionSummary(2, false, false), '2인 방문');

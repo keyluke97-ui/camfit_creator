@@ -1,7 +1,7 @@
 import Airtable, { FieldSet } from 'airtable';
 import { hasPartnerEligibleChannel, VISIT_REGIONS, VISIT_DAYS, SPONSOR_SITE_TYPES, getWonjeongCandidates } from '@/lib/constants'; // CHANGED: 통합 블로거 차단 / 지명형 옵션·원정 헬퍼
 import { CHANNEL_TYPES, CHANNEL_FIELD_MAP } from '@/lib/constants'; // CHANGED: 1a-v2 채널 포트폴리오 필드 매핑
-import { validateChannelPayload, collectMissingForPublish, needsReReview } from '@/lib/creatorProfileRules'; // CHANGED: 1a-v2 서버·폼 공유 판정 로직
+import { validateChannelPayload, collectMissingForPublish, needsReReview, normalizeUploadDeadline } from '@/lib/creatorProfileRules'; // CHANGED: 1a-v2 서버·폼 공유 판정 로직 / 2026-08-12 기한 정규화
 import type {
     TierLevel,
     ChannelType,
@@ -1531,6 +1531,12 @@ export async function updateCreatorProfile(
     try {
         const isPublic = payload.isPublic === true;
 
+        // CHANGED: 2026-08-12 — 정규화를 검증보다 먼저 한다.
+        // 표준과 같은 값(14)이 들어왔을 때 400을 던지면, 사용자는 "표준을 골랐는데 저장이 안 된다"를 겪는다.
+        // 형태만 눕히고(14→null) 판정은 그 뒤에 하면 표준 선택이 항상 통과한다.
+        const uploadDeadlineDays = normalizeUploadDeadline(payload.uploadDeadlineDays);
+        const normalized: CreatorProfileUpdate = { ...payload, uploadDeadlineDays };
+
         const visitRegions = payload.visitRegions || [];
         const wonjeongRegions = payload.wonjeongRegions || [];
 
@@ -1557,7 +1563,7 @@ export async function updateCreatorProfile(
 
         // ② 채널·콘텐츠 형식 정합 검증 (1a-v2 §6 규칙 1·2·4·5·6·7)
         //    서버와 폼이 같은 함수를 쓴다 — 두 벌로 나뉘면 클라가 막은 걸 서버가 안 막게 된다.
-        const channelViolation = validateChannelPayload(payload);
+        const channelViolation = validateChannelPayload(normalized);
         if (channelViolation) {
             return { ok: false, code: 'INVALID_OPTION', detail: channelViolation };
         }
@@ -1573,7 +1579,7 @@ export async function updateCreatorProfile(
 
         // ③ 공개 게이팅 서버 재검증 (이미지·premiumId는 payload에 없으므로 레코드에서 확인)
         if (isPublic) {
-            const missing = collectMissingForPublish(payload, hasImage, hasPremium);
+            const missing = collectMissingForPublish(normalized, hasImage, hasPremium);
             if (missing.length > 0) return { ok: false, code: 'INCOMPLETE', missing };
         }
 
@@ -1595,6 +1601,14 @@ export async function updateCreatorProfile(
             '제작 콘텐츠 형식': payload.contentFormats || [],
             '콘텐츠 제작 기준': payload.contentStandard || '',
             '크리에이터 이메일': payload.creatorEmail || '',
+            // CHANGED: 2026-08-12 협찬 조건 표준화
+            // 빈 값이 곧 "표준 적용 중"(스펙 §9) — 14를 저장하면 나중에 표준을 15로 바꿔도 이 사람만 14로 남는다
+            '업로드 기한(일)': uploadDeadlineDays,
+            '동반 인원': payload.companions > 0 ? payload.companions : null,
+            '반려동물 동반': payload.petAllowed === true,
+            '드론 촬영': payload.droneUsed === true,
+            // ⚠️ 운영자 관리 필드 `채널콘셉트`에는 절대 쓰지 않는다 — 170명 영업 분류가 지워진다
+            '채널콘셉트(자기신고)': payload.channelConcepts || [],
         };
 
         // CHANGED: 1a-v2 — 채널별 자기신고 필드.

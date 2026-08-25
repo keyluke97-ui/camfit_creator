@@ -214,7 +214,7 @@ export const CHANNEL_METRIC_LABELS: Record<string, { follower: string; secondary
 // ─────────────────────────────────────────────────────────────────────────
 
 /**
- * 업로드 기한 표준 — 체크아웃(입실 + 1박) 후 14일.
+ * 업로드 기한 표준 — 퇴실(입실 + 1박) 후 14일.
  * ⚠️ tools/content-followup/overdue.cjs의 GRACE_DAYS와 반드시 같은 값이어야 한다.
  *    두 곳이 어긋나면 독촉 도구가 뽑는 대상과 화면 안내가 달라진다.
  */

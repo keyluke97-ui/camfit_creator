@@ -16,7 +16,7 @@ export function buildDeliverableSummary(
     const days = uploadDeadlineDays && uploadDeadlineDays !== UPLOAD_DEADLINE_DEFAULT_DAYS
         ? uploadDeadlineDays
         : UPLOAD_DEADLINE_DEFAULT_DAYS;
-    const deadline = `체크아웃 후 ${days}일 안에 업로드`;
+    const deadline = `퇴실 후 ${days}일 안에 업로드`;
 
     if (contentFormats.length === 0) return deadline;
 
