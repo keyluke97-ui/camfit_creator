@@ -1,7 +1,7 @@
 import Airtable, { FieldSet } from 'airtable';
 import { hasPartnerEligibleChannel, VISIT_REGIONS, VISIT_DAYS, SPONSOR_SITE_TYPES, getWonjeongCandidates } from '@/lib/constants'; // CHANGED: 통합 블로거 차단 / 지명형 옵션·원정 헬퍼
 import { CHANNEL_TYPES, CHANNEL_FIELD_MAP } from '@/lib/constants'; // CHANGED: 1a-v2 채널 포트폴리오 필드 매핑
-import { validateChannelPayload, collectMissingForPublish, needsReReview, normalizeUploadDeadline } from '@/lib/creatorProfileRules'; // CHANGED: 1a-v2 서버·폼 공유 판정 로직 / 2026-08-12 기한 정규화
+import { validateChannelPayload, collectMissingForPublish, needsReReview, normalizeUploadDeadline, isAllowedUploadDeadline } from '@/lib/creatorProfileRules'; // CHANGED: 1a-v2 서버·폼 공유 판정 로직 / 2026-08-12 기한 정규화
 import type {
     TierLevel,
     ChannelType,
@@ -1492,7 +1492,11 @@ export async function getCreatorProfile(creatorId: string): Promise<CreatorProfi
             // CHANGED: 2026-08-12 협찬 조건 표준화 — 빈 값은 그대로 빈 값으로 둔다.
             // 표준값을 여기서 채워 넣으면 "빈 값 = 표준 적용 중" 불변식이 깨지고,
             // 저장 시 그 값이 Airtable에 박혀 표준을 바꿔도 이 사람만 옛 값으로 남는다.
-            uploadDeadlineDays: (record.get('업로드 기한(일)') as number) || null,
+            // CHANGED: 2026-08-25 — 허용 밖 값(운영자 수기 입력)은 읽을 때 표준으로 눕힌다.
+            // 그대로 실으면 배너·칩·저장이 서로 다른 말을 하는 막다른 길이 된다.
+            uploadDeadlineDays: isAllowedUploadDeadline((record.get('업로드 기한(일)') as number) || null)
+                ? ((record.get('업로드 기한(일)') as number) || null)
+                : null,
             companions: (record.get('동반 인원') as number) || 0,
             petAllowed: record.get('반려동물 동반') === true,
             droneUsed: record.get('드론 촬영') === true,

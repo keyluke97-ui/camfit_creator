@@ -5,7 +5,8 @@
 
 import {
     validateChannelPayload, collectMissingForPublish, needsReReview, isValidEmail,
-    isFormatAvailable, pruneContentFormats, normalizeUploadDeadline,
+    isFormatAvailable, pruneContentFormats, normalizeUploadDeadline, isAllowedUploadDeadline,
+    VIOLATION_MESSAGES, violationMessage,
 } from '../../lib/creatorProfileRules';
 import { buildDeliverableSummary, buildVisitConditionSummary, withRo } from '../../lib/sponsorshipTerms';
 import type { CreatorProfileUpdate } from '../../types';
@@ -165,6 +166,10 @@ check(
 check('형식 미선택 + 예외 기한', buildDeliverableSummary([], 30), '퇴실 후 30일 안에 업로드');
 // 표준과 같은 값(14)이 실수로 들어와도 표준 문구가 나와야 한다
 check('기한 14가 들어와도 표준 문구', buildDeliverableSummary([], 14), '퇴실 후 14일 안에 업로드');
+// 허용 밖 값은 표준으로 렌더한다 — 포털·캠지기가 같은 기한을 말해야 한다(2026-08-25 캠지기측 지적)
+check('허용 밖 7 → 표준 렌더', buildDeliverableSummary([], 7), '퇴실 후 14일 안에 업로드');
+check('허용 밖 999 → 표준 렌더', buildDeliverableSummary([], 999), '퇴실 후 14일 안에 업로드');
+check('음수 → 표준 렌더', buildDeliverableSummary([], -5), '퇴실 후 14일 안에 업로드');
 
 // ── buildVisitConditionSummary (표준과 같은 항목은 생략) ──
 check('표준 그대로', buildVisitConditionSummary(2, false, false), '2인 방문');
@@ -182,6 +187,14 @@ check('0 → null', normalizeUploadDeadline(0), null);
 check('예외 21 유지', normalizeUploadDeadline(21), 21);
 check('예외 30 유지', normalizeUploadDeadline(30), 30);
 check('허용 밖 7은 그대로 (검증이 잡는다)', normalizeUploadDeadline(7), 7);
+
+// ── isAllowedUploadDeadline (읽기 경계) ──
+check('null 허용', isAllowedUploadDeadline(null), true);
+check('21 허용', isAllowedUploadDeadline(21), true);
+check('30 허용', isAllowedUploadDeadline(30), true);
+// 14는 "빈 값 = 표준"이라 저장돼 있으면 안 되는 값 → 읽기에서 눕힌다
+check('표준 14는 저장값으로 불허', isAllowedUploadDeadline(14), false);
+check('허용 밖 7 불허', isAllowedUploadDeadline(7), false);
 
 // ── validateChannelPayload 신규 위반 3종 ──
 check('기한 21 통과', validateChannelPayload({ ...base, uploadDeadlineDays: 21 }), null);
@@ -208,6 +221,15 @@ check('받침 없음 → 로', withRo('솔로'), '솔로로');
 check('받침 없음 → 로 (낚시)', withRo('낚시'), '낚시로');
 // 여러 개를 이어붙일 땐 마지막 단어가 조사를 결정한다
 check('나열 마지막 기준', withRo(['캠핑', '낚시'].join(' · ')), '캠핑 · 낚시로');
+
+// ── violationMessage (위반 코드 → 크리에이터가 읽을 문장) ──
+// 11종 전부에 문장이 있어야 한다. 하나라도 비면 그 경우에 일반 문구로 떨어진다.
+check('11종 전부 매핑', Object.keys(VIOLATION_MESSAGES).length, 11);
+check('빈 문장 없음', Object.values(VIOLATION_MESSAGES).filter((m) => !m.trim()).length, 0);
+check('동반 인원 범위를 문장에 노출', violationMessage('COMPANION_INVALID').includes('1~10명'), true);
+check('기한 선택지를 문장에 노출', violationMessage('UPLOAD_DEADLINE_INVALID').includes('21·30'), true);
+check('모르는 코드 → 일반 문구', violationMessage('WAT'), '입력 조건을 확인해주세요.');
+check('undefined → 일반 문구', violationMessage(undefined), '입력 조건을 확인해주세요.');
 
 // ── isValidEmail ──
 check('이메일 유효', isValidEmail('a@b.co.kr'), true);

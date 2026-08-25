@@ -1,0 +1,628 @@
+{
+  "generatedAt": "2026-07-01",
+  "windowStart": "2026-07-01",
+  "windowEnd": "2026-08-01",
+  "kpi": {
+    "total": 62,
+    "creator": 42,
+    "premium": 20,
+    "cancelled": 14,
+    "promiseOnly": 0
+  },
+  "days": {
+    "2026-07-03": [
+      {
+        "type": "creator",
+        "date": "2026-07-03",
+        "name": "방정애",
+        "handle": "엄마랑딸이랑",
+        "campName": "엉클킴스 캠핑장",
+        "siteName": "1",
+        "status": "paid"
+      },
+      {
+        "type": "creator",
+        "date": "2026-07-03",
+        "name": "서영준",
+        "handle": "캠퍼데브",
+        "campName": "신두리오렌지캠핑장",
+        "siteName": "D-4",
+        "status": "paid"
+      },
+      {
+        "type": "creator",
+        "date": "2026-07-03",
+        "name": "서은민",
+        "handle": "seoeunmin3",
+        "campName": "청산캠핑장",
+        "siteName": "07",
+        "status": "paid"
+      },
+      {
+        "type": "creator",
+        "date": "2026-07-03",
+        "name": "신종혁",
+        "handle": "슬기로운차박생활",
+        "campName": "가평포시즌캠핑장",
+        "siteName": "2TEAM",
+        "status": "paid"
+      },
+      {
+        "type": "creator",
+        "date": "2026-07-03",
+        "name": "정미나",
+        "handle": "미뽕",
+        "campName": "신두57캠핑장",
+        "siteName": "C-15",
+        "status": "paid"
+      },
+      {
+        "type": "creator",
+        "date": "2026-07-03",
+        "name": "정은혜",
+        "handle": "hi.minimi",
+        "campName": "더빌리지",
+        "siteName": "A - 10",
+        "status": "paid"
+      },
+      {
+        "type": "premium",
+        "matchState": "actualOnly",
+        "date": "2026-07-03",
+        "channel": "",
+        "name": "김수인",
+        "campName": "자연이랑캠프&펜션",
+        "siteName": "하09",
+        "status": "paid"
+      },
+      {
+        "type": "premium",
+        "matchState": "actualOnly",
+        "date": "2026-07-03",
+        "channel": "",
+        "name": "박재우",
+        "campName": "공주 해월카라반앤캠핑",
+        "siteName": "F03",
+        "status": "paid"
+      }
+    ],
+    "2026-07-05": [
+      {
+        "type": "creator",
+        "date": "2026-07-05",
+        "name": "신종혁",
+        "handle": "슬기로운차박생활",
+        "campName": "에코밸리캠핑장",
+        "siteName": "01",
+        "status": "paid"
+      },
+      {
+        "type": "creator",
+        "date": "2026-07-05",
+        "name": "정선미",
+        "handle": "ssundan_camp",
+        "campName": "스테이네이처",
+        "siteName": "D-05",
+        "status": "paid"
+      }
+    ],
+    "2026-07-04": [
+      {
+        "type": "creator",
+        "date": "2026-07-04",
+        "name": "박효선",
+        "handle": "써니캠핑",
+        "campName": "다솔농원캠핑장",
+        "siteName": "다4",
+        "status": "paid"
+      },
+      {
+        "type": "creator",
+        "date": "2026-07-04",
+        "name": "양이슬",
+        "handle": "e__seule",
+        "campName": "숲속도마치계곡캠핑(백패킹)",
+        "siteName": "선착순_02",
+        "status": "paid"
+      },
+      {
+        "type": "premium",
+        "matchState": "actualOnly",
+        "date": "2026-07-04",
+        "channel": "",
+        "name": "장유경",
+        "campName": "판타스틱캠프닉",
+        "siteName": "02 ",
+        "status": "paid"
+      },
+      {
+        "type": "premium",
+        "matchState": "actualOnly",
+        "date": "2026-07-04",
+        "channel": "",
+        "name": "주슬기",
+        "campName": "산머루농원캠핑장",
+        "siteName": "고라니 A1",
+        "status": "paid"
+      }
+    ],
+    "2026-07-01": [
+      {
+        "type": "creator",
+        "date": "2026-07-01",
+        "name": "김미선",
+        "handle": "큰별의 소소한 일상",
+        "campName": "달빛강림",
+        "siteName": "H-3",
+        "status": "paid"
+      }
+    ],
+    "2026-07-10": [
+      {
+        "type": "creator",
+        "date": "2026-07-10",
+        "name": "박효선",
+        "handle": "써니캠핑",
+        "campName": "오페라비앙 ",
+        "siteName": "새집캠핑6블럭",
+        "status": "cancelled"
+      },
+      {
+        "type": "creator",
+        "date": "2026-07-10",
+        "name": "박효선",
+        "handle": "써니캠핑",
+        "campName": "캠프고토일",
+        "siteName": "GO 4",
+        "status": "paid"
+      },
+      {
+        "type": "creator",
+        "date": "2026-07-10",
+        "name": "서고은",
+        "handle": "꼰캠핑",
+        "campName": "오도치캠핑장",
+        "siteName": "B-06",
+        "status": "cancelled"
+      },
+      {
+        "type": "creator",
+        "date": "2026-07-10",
+        "name": "조철민",
+        "handle": "닥터캠퍼",
+        "campName": "비발디캠핑파크 미루나무점",
+        "siteName": "02",
+        "status": "cancelled"
+      },
+      {
+        "type": "premium",
+        "matchState": "actualOnly",
+        "date": "2026-07-10",
+        "channel": "",
+        "name": "서영준",
+        "campName": "정선 라만차의 돈키호테 캠핑장",
+        "siteName": "A1",
+        "status": "paid"
+      },
+      {
+        "type": "premium",
+        "matchState": "actualOnly",
+        "date": "2026-07-10",
+        "channel": "",
+        "name": "육설희",
+        "campName": "서종힐링캠핑장",
+        "siteName": "D05",
+        "status": "paid"
+      },
+      {
+        "type": "premium",
+        "matchState": "actualOnly",
+        "date": "2026-07-10",
+        "channel": "",
+        "name": "장유경",
+        "campName": "캠프다온",
+        "siteName": "A02",
+        "status": "cancelled"
+      },
+      {
+        "type": "premium",
+        "matchState": "actualOnly",
+        "date": "2026-07-10",
+        "channel": "",
+        "name": "주슬기",
+        "campName": "그린델발트 캠핑그라운드",
+        "siteName": "01:POOL",
+        "status": "cancelled"
+      },
+      {
+        "type": "premium",
+        "matchState": "actualOnly",
+        "date": "2026-07-10",
+        "channel": "",
+        "name": "주슬기",
+        "campName": "태안 바다드림 캠핑장",
+        "siteName": "펜션+오토캠7",
+        "status": "paid"
+      }
+    ],
+    "2026-07-08": [
+      {
+        "type": "creator",
+        "date": "2026-07-08",
+        "name": "김미선",
+        "handle": "큰별의 소소한 일상",
+        "campName": "몽산포오토캠핑장 2구역",
+        "siteName": "선착순 01",
+        "status": "paid"
+      }
+    ],
+    "2026-07-11": [
+      {
+        "type": "creator",
+        "date": "2026-07-11",
+        "name": "곽상태",
+        "handle": "greattae1",
+        "campName": "영월 백년펜션&캠핑장",
+        "siteName": "백년계곡존14",
+        "status": "paid"
+      },
+      {
+        "type": "creator",
+        "date": "2026-07-11",
+        "name": "손영규",
+        "handle": "투유캠핑",
+        "campName": "다람쥐쉼터",
+        "siteName": "05",
+        "status": "paid"
+      },
+      {
+        "type": "creator",
+        "date": "2026-07-11",
+        "name": "정선미",
+        "handle": "ssundan_camp",
+        "campName": "스테이네이처",
+        "siteName": "D-05",
+        "status": "cancelled"
+      },
+      {
+        "type": "premium",
+        "matchState": "actualOnly",
+        "date": "2026-07-11",
+        "channel": "",
+        "name": "서고은",
+        "campName": "파주 자장캠핑장",
+        "siteName": "코쿤트레일러타",
+        "status": "paid"
+      },
+      {
+        "type": "premium",
+        "matchState": "actualOnly",
+        "date": "2026-07-11",
+        "channel": "",
+        "name": "유하림",
+        "campName": "정선 라만차의 돈키호테 캠핑장",
+        "siteName": "B3",
+        "status": "paid"
+      }
+    ],
+    "2026-07-17": [
+      {
+        "type": "creator",
+        "date": "2026-07-17",
+        "name": "곽동화",
+        "handle": "짹짹이야",
+        "campName": "라포레 경주",
+        "siteName": "18",
+        "status": "paid"
+      },
+      {
+        "type": "creator",
+        "date": "2026-07-17",
+        "name": "김미선",
+        "handle": "큰별의 소소한 일상",
+        "campName": "산청마실",
+        "siteName": "반려견 동반",
+        "status": "paid"
+      },
+      {
+        "type": "creator",
+        "date": "2026-07-17",
+        "name": "서고은",
+        "handle": "꼰캠핑",
+        "campName": "오페라비앙 ",
+        "siteName": "새집캠핑6블럭",
+        "status": "paid"
+      },
+      {
+        "type": "creator",
+        "date": "2026-07-17",
+        "name": "서영준",
+        "handle": "캠퍼데브",
+        "campName": "신두57캠핑장",
+        "siteName": "B-57/타프",
+        "status": "paid"
+      },
+      {
+        "type": "creator",
+        "date": "2026-07-17",
+        "name": "신종혁",
+        "handle": "슬기로운차박생활",
+        "campName": "캠프99",
+        "siteName": "F2 (1층)",
+        "status": "paid"
+      },
+      {
+        "type": "creator",
+        "date": "2026-07-17",
+        "name": "이안나",
+        "handle": "꿈꾸는 세하",
+        "campName": "캠핑플래닛",
+        "siteName": "73, 74",
+        "status": "paid"
+      },
+      {
+        "type": "creator",
+        "date": "2026-07-17",
+        "name": "정미나",
+        "handle": "미뽕",
+        "campName": "바다야놀자 캠핑장펜션",
+        "siteName": "11",
+        "status": "paid"
+      },
+      {
+        "type": "creator",
+        "date": "2026-07-17",
+        "name": "정은혜",
+        "handle": "hi.minimi",
+        "campName": "태안 바다드림 캠핑장",
+        "siteName": "B",
+        "status": "paid"
+      },
+      {
+        "type": "premium",
+        "matchState": "actualOnly",
+        "date": "2026-07-17",
+        "channel": "",
+        "name": "주슬기",
+        "campName": "수타사힐링캠프",
+        "siteName": "02",
+        "status": "paid"
+      }
+    ],
+    "2026-07-19": [
+      {
+        "type": "creator",
+        "date": "2026-07-19",
+        "name": "정선미",
+        "handle": "ssundan_camp",
+        "campName": "히어리캠핑장",
+        "siteName": "A03",
+        "status": "cancelled"
+      },
+      {
+        "type": "creator",
+        "date": "2026-07-19",
+        "name": "정선미",
+        "handle": "ssundan_camp",
+        "campName": "오페라비앙 ",
+        "siteName": "새집캠핑5블럭",
+        "status": "paid"
+      }
+    ],
+    "2026-07-24": [
+      {
+        "type": "creator",
+        "date": "2026-07-24",
+        "name": "서고은",
+        "handle": "꼰캠핑",
+        "campName": "엉클킴스 캠핑장",
+        "siteName": "1",
+        "status": "cancelled"
+      },
+      {
+        "type": "creator",
+        "date": "2026-07-24",
+        "name": "장유경",
+        "handle": "zzazang_",
+        "campName": "스테이네이처",
+        "siteName": "D-06",
+        "status": "cancelled"
+      },
+      {
+        "type": "creator",
+        "date": "2026-07-24",
+        "name": "주지은",
+        "handle": "chansung_cam",
+        "campName": "신두57캠핑장",
+        "siteName": "C-04",
+        "status": "paid"
+      },
+      {
+        "type": "premium",
+        "matchState": "actualOnly",
+        "date": "2026-07-24",
+        "channel": "",
+        "name": "김근영",
+        "campName": "태안 바다드림 캠핑장",
+        "siteName": "펜션+캠핑10",
+        "status": "paid"
+      },
+      {
+        "type": "premium",
+        "matchState": "actualOnly",
+        "date": "2026-07-24",
+        "channel": "",
+        "name": "서고은",
+        "campName": "온수풀장과 개별화장실이 있는 캠핑굄성",
+        "siteName": "프리미엄-02",
+        "status": "paid"
+      },
+      {
+        "type": "premium",
+        "matchState": "actualOnly",
+        "date": "2026-07-24",
+        "channel": "",
+        "name": "장유경",
+        "campName": "캠프다온",
+        "siteName": "D11",
+        "status": "paid"
+      }
+    ],
+    "2026-07-25": [
+      {
+        "type": "creator",
+        "date": "2026-07-25",
+        "name": "이백호",
+        "handle": "캠핑엘라",
+        "campName": "월악 포레스트캐빈&캠프",
+        "siteName": "F-1",
+        "status": "paid"
+      },
+      {
+        "type": "premium",
+        "matchState": "actualOnly",
+        "date": "2026-07-25",
+        "channel": "",
+        "name": "김근영",
+        "campName": "그린델발트 캠핑그라운드",
+        "siteName": "01:POOL",
+        "status": "cancelled"
+      },
+      {
+        "type": "premium",
+        "matchState": "actualOnly",
+        "date": "2026-07-25",
+        "channel": "",
+        "name": "서영준",
+        "campName": "문경또또캠핑장",
+        "siteName": "세미카라반01",
+        "status": "paid"
+      }
+    ],
+    "2026-07-21": [
+      {
+        "type": "creator",
+        "date": "2026-07-21",
+        "name": "손영규",
+        "handle": "투유캠핑",
+        "campName": "산청마실",
+        "siteName": "반려견 동반",
+        "status": "paid"
+      }
+    ],
+    "2026-07-23": [
+      {
+        "type": "creator",
+        "date": "2026-07-23",
+        "name": "김미선",
+        "handle": "큰별의 소소한 일상",
+        "campName": "남양주 포레스트 벨리 캠핑장 ",
+        "siteName": "02",
+        "status": "paid"
+      }
+    ],
+    "2026-07-30": [
+      {
+        "type": "creator",
+        "date": "2026-07-30",
+        "name": "박효선",
+        "handle": "써니캠핑",
+        "campName": "법흥계곡캠핑오늘",
+        "siteName": "10번",
+        "status": "paid"
+      },
+      {
+        "type": "creator",
+        "date": "2026-07-30",
+        "name": "서영준",
+        "handle": "캠퍼데브",
+        "campName": "반하면오토캠핑장",
+        "siteName": "04번",
+        "status": "cancelled"
+      },
+      {
+        "type": "premium",
+        "matchState": "actualOnly",
+        "date": "2026-07-30",
+        "channel": "",
+        "name": "정선미",
+        "campName": "레인보우 관광농원 캠핑장",
+        "siteName": "04",
+        "status": "paid"
+      }
+    ],
+    "2026-07-26": [
+      {
+        "type": "creator",
+        "date": "2026-07-26",
+        "name": "유하림",
+        "handle": "문핑",
+        "campName": "밤별생각 낮달이야기 캠핑장",
+        "siteName": "낮달 13",
+        "status": "paid"
+      }
+    ],
+    "2026-07-31": [
+      {
+        "type": "creator",
+        "date": "2026-07-31",
+        "name": "신종혁",
+        "handle": "슬기로운차박생활",
+        "campName": "가평삼화힐링캠핑장&타운",
+        "siteName": "01온수수영장",
+        "status": "cancelled"
+      },
+      {
+        "type": "creator",
+        "date": "2026-07-31",
+        "name": "신종혁",
+        "handle": "슬기로운차박생활",
+        "campName": "풀싸이드(POOLSIDE)",
+        "siteName": "데크+옥상",
+        "status": "paid"
+      },
+      {
+        "type": "creator",
+        "date": "2026-07-31",
+        "name": "육설희",
+        "handle": "서리캠핑",
+        "campName": "오페라비앙 ",
+        "siteName": "새집캠핑6블럭",
+        "status": "cancelled"
+      },
+      {
+        "type": "creator",
+        "date": "2026-07-31",
+        "name": "주지은",
+        "handle": "chansung_cam",
+        "campName": "영월 외룡캠핑장",
+        "siteName": "36.37가족",
+        "status": "paid"
+      }
+    ],
+    "2026-07-06": [
+      {
+        "type": "premium",
+        "matchState": "actualOnly",
+        "date": "2026-07-06",
+        "channel": "",
+        "name": "이로운",
+        "campName": "가델캠핑장",
+        "siteName": "C-04",
+        "status": "paid"
+      }
+    ],
+    "2026-07-18": [
+      {
+        "type": "premium",
+        "matchState": "actualOnly",
+        "date": "2026-07-18",
+        "channel": "",
+        "name": "정선미",
+        "campName": "그린델발트 캠핑그라운드",
+        "siteName": "14",
+        "status": "cancelled"
+      }
+    ]
+  }
+}

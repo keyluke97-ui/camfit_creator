@@ -5,6 +5,7 @@ import { cookies } from 'next/headers';
 import { jwtVerify } from 'jose';
 import { getCreatorProfile, updateCreatorProfile } from '@/lib/airtable';
 import { CHANNEL_TYPES } from '@/lib/constants';
+import { violationMessage } from '@/lib/creatorProfileRules';
 import type { CreatorProfileUpdate, ChannelDetail } from '@/types';
 
 if (!process.env.NEXTAUTH_SECRET) {
@@ -114,9 +115,19 @@ export async function PATCH(request: NextRequest) {
 
         const result = await updateCreatorProfile(creatorId, payload);
         if (!result.ok) {
-            // 게이팅/원정/채널 검증 실패 → 400 + code/missing (클라이언트가 안내 렌더)
+            // CHANGED: 2026-08-25 — 어느 항목이 문제인지 말해준다(캠지기측 협의 (c)).
+            // 전에는 전부 "입력 조건을 확인해주세요."라, 승인 이후 다른 항목만 고치려던 사람이
+            // 자기가 건드린 적 없는 항목 때문에 막힌 채 이유를 알 수 없었다.
+            let message: string;
+            if (result.code === 'INCOMPLETE' && result.missing?.length) {
+                message = `공개하려면 다음을 먼저 채워주세요 — ${result.missing.join(' · ')}`;
+            } else if (result.code === 'INVALID_WONJEONG') {
+                message = '원정 가능 지역은 기준 지역에서 갈 수 있는 곳 중에서 골라주세요. 방문 가능 지역과 겹칠 수 없어요.';
+            } else {
+                message = violationMessage(result.detail);
+            }
             return NextResponse.json(
-                { error: '입력 조건을 확인해주세요.', code: result.code, missing: result.missing, detail: result.detail },
+                { error: message, code: result.code, missing: result.missing, detail: result.detail },
                 { status: 400 }
             );
         }

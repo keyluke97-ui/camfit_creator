@@ -32,6 +32,32 @@ export type ChannelViolation =
     | 'COMPANION_INVALID'
     | 'CONCEPT_UNKNOWN';
 
+/**
+ * 위반 코드 → 크리에이터가 읽을 문장 (2026-08-25 캠지기측 협의 (c)).
+ * 전에는 어느 항목이 문제인지 알려주지 않고 "입력 조건을 확인해주세요."만 띄웠다.
+ * 특히 승인 이후 다른 항목만 고치려던 사람이 `동반 인원` 때문에 막히면,
+ * 자기가 건드린 적도 없는 항목 때문에 막힌 채 이유를 알 수 없었다.
+ */
+export const VIOLATION_MESSAGES: Record<ChannelViolation, string> = {
+    CHANNEL_REQUIRED: '운영 중인 채널을 최소 한 개 선택해주세요.',
+    CHANNEL_UNKNOWN: '선택하신 채널 종류를 알 수 없어요. 새로고침 후 다시 시도해주세요.',
+    REPRESENTATIVE_UNKNOWN: '대표 채널로 고르신 값을 알 수 없어요. 새로고침 후 다시 시도해주세요.',
+    REPRESENTATIVE_NOT_OWNED: '대표 채널은 운영 중인 채널 중에서 골라주세요.',
+    FORMAT_UNKNOWN: '선택하신 콘텐츠 형식을 알 수 없어요. 새로고침 후 다시 시도해주세요.',
+    FORMAT_CHANNEL_MISMATCH: '운영하지 않는 채널의 콘텐츠 형식이 선택돼 있어요. 채널을 추가하시거나 형식을 빼주세요.',
+    EMAIL_INVALID: '이메일 주소를 다시 확인해주세요.',
+    METRIC_INVALID: '채널 지표는 0 이상의 정수로 입력해주세요.',
+    UPLOAD_DEADLINE_INVALID: `업로드 기한은 ${UPLOAD_DEADLINE_DEFAULT_DAYS}일(표준) 또는 ${UPLOAD_DEADLINE_OPTIONS.join('·')}일 중에서 골라주세요.`,
+    COMPANION_INVALID: `동반 인원은 ${COMPANION_MIN}~${COMPANION_MAX}명 사이의 정수로 입력해주세요.`,
+    CONCEPT_UNKNOWN: '선택하신 채널 콘셉트를 알 수 없어요. 새로고침 후 다시 시도해주세요.',
+};
+
+/** 위반 코드에 맞는 문장. 모르는 코드면 일반 문구로 떨어진다(문자열은 서버 경계에서 온다). */
+export function violationMessage(code: string | undefined): string {
+    if (code && code in VIOLATION_MESSAGES) return VIOLATION_MESSAGES[code as ChannelViolation];
+    return '입력 조건을 확인해주세요.';
+}
+
 /** 이메일 형식 — RFC 완전 준수가 아니라 오타 차단 목적 */
 export function isValidEmail(value: string): boolean {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -44,6 +70,16 @@ export function isValidEmail(value: string): boolean {
  * 허용 밖 값(예: 7)은 고치지 않고 그대로 돌려준다 — 판정은 validateChannelPayload가 한다.
  * ⚠️ 호출 순서: 정규화 → 검증. 뒤집으면 표준값 14가 UPLOAD_DEADLINE_INVALID로 막힌다.
  */
+/**
+ * 저장돼 있는 업로드 기한이 이 시스템이 인정하는 값인지.
+ * 읽기 경계에서 쓴다 — 운영자가 Airtable에 손으로 넣은 허용 밖 값(7 등)을 폼에 그대로 실으면
+ * 배너는 표준(14)을 말하는데 칩은 아무것도 안 눌리고, 손대지 않고 저장하면 400이 나는
+ * 막다른 길이 된다. 읽을 때 눕혀두면 화면·저장·캠지기 표시가 전부 한 값으로 모인다.
+ */
+export function isAllowedUploadDeadline(value: number | null): boolean {
+    return value === null || UPLOAD_DEADLINE_OPTIONS.includes(value);
+}
+
 export function normalizeUploadDeadline(value: number | null): number | null {
     if (!value || value === UPLOAD_DEADLINE_DEFAULT_DAYS) return null;
     return value;

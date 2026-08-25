@@ -2,7 +2,7 @@
 // 포털 화면·캠지기 카드·제안서가 같은 문장을 써야 한다. 두 벌이면 "듣던 것과 다르다"가 그대로 분쟁이 된다.
 // ⚠️ Airtable·React에 의존하지 않는다 (tsx로 직접 돌려 검증할 수 있어야 한다).
 
-import { UPLOAD_DEADLINE_DEFAULT_DAYS } from './constants';
+import { UPLOAD_DEADLINE_DEFAULT_DAYS, UPLOAD_DEADLINE_OPTIONS } from './constants';
 
 /**
  * 산출물 + 업로드 기한을 한 줄로.
@@ -13,7 +13,11 @@ export function buildDeliverableSummary(
     contentFormats: string[],
     uploadDeadlineDays: number | null
 ): string {
-    const days = uploadDeadlineDays && uploadDeadlineDays !== UPLOAD_DEADLINE_DEFAULT_DAYS
+    // CHANGED: 2026-08-25 — "표준이 아닌 값"이 아니라 "허용된 예외"만 그대로 쓴다(캠지기측 지적).
+    // 이전 조건(!== 14)은 허용 밖 값 7·999를 그대로 렌더해, 같은 레코드를 포털은 7일 캠지기는 14일로
+    // 읽었다. 두 화면이 다른 기한을 말하는 것이 바로 이번 작업이 막으려는 분쟁이다.
+    // 덤으로 렌더러가 검증기보다 관대하던 비대칭(검증기는 7을 거부, 렌더러는 표시)도 닫힌다.
+    const days = uploadDeadlineDays && UPLOAD_DEADLINE_OPTIONS.includes(uploadDeadlineDays)
         ? uploadDeadlineDays
         : UPLOAD_DEADLINE_DEFAULT_DAYS;
     const deadline = `퇴실 후 ${days}일 안에 업로드`;
