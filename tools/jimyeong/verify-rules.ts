@@ -9,7 +9,7 @@ import {
     VIOLATION_MESSAGES, violationMessage,
 } from '../../lib/creatorProfileRules';
 import { buildDeliverableSummary, buildVisitConditionSummary, withRo } from '../../lib/sponsorshipTerms';
-import { remainingMs, canRespond, formatRemaining } from '../../lib/offerRules';
+import { deadlineMs, remainingMs, canRespond, formatRemaining } from '../../lib/offerRules';
 import type { CreatorProfileUpdate } from '../../types';
 
 let pass = 0;
@@ -242,22 +242,44 @@ const T0 = Date.parse('2026-08-25T12:00:00+09:00');
 const H = 3_600_000;
 const ago = (h: number) => new Date(T0 - h * H).toISOString();
 const PENDING = '크리에이터확인중';
-const W = 48; // OFFER_RESPONSE_WINDOW_HOURS
+// CHANGED: 절대시간(48h) → 2영업일 (2026-08-26 사장님 확답).
+//          마감은 **발송 다음 날부터 세어 2영업일째 되는 날의 KST 자정 직전**이다.
+//          기대값을 endOfKstDay('YYYY-MM-DD')로 적어 "어느 날 끝인가"가 눈에 보이게 둔다.
+const endOfKstDay = (isoDate: string) => Date.parse(`${isoDate}T00:00:00+09:00`) + 86_400_000 - 1;
 
-// remainingMs — 발송 시각 + 48h 기준
-check('방금 발송 → 48시간 남음', remainingMs(ago(0), T0), W * H);
-check('1시간 전 발송', remainingMs(ago(1), T0), (W - 1) * H);
-check('47시간 전 발송 → 1시간 남음', remainingMs(ago(47), T0), H);
-check('48시간 정각 → 0', remainingMs(ago(48), T0), 0);
-check('49시간 전 → 음수', remainingMs(ago(49), T0), -H);
+// deadlineMs — 평일 (2026-08-25 화 → 수(1)·목(2))
+check('화 낮 발송 → 목 자정 직전', deadlineMs('2026-08-25T12:00:00+09:00'), endOfKstDay('2026-08-27'));
+check('화 밤 발송도 같은 목', deadlineMs('2026-08-25T23:30:00+09:00'), endOfKstDay('2026-08-27'));
+check('UTC 표기도 KST 달력으로 (08-25T23:00Z = 08-26 08:00 KST → 목·금)',
+    deadlineMs('2026-08-25T23:00:00Z'), endOfKstDay('2026-08-28'));
+
+// deadlineMs — 주말 건너뛰기. 48h였다면 금요일 저녁 발송이 일요일 저녁에 잠겼다
+check('금 저녁 발송 → 월(1)·화(2)', deadlineMs('2026-08-28T18:00:00+09:00'), endOfKstDay('2026-09-01'));
+check('토 발송 → 월(1)·화(2)', deadlineMs('2026-08-29T10:00:00+09:00'), endOfKstDay('2026-09-01'));
+check('목 발송 → 금(1)·월(2)', deadlineMs('2026-08-27T09:00:00+09:00'), endOfKstDay('2026-08-31'));
+
+// deadlineMs — 공휴일. 추석(9/24~26) + 대체공휴일(9/28)을 전부 건너뛴다
+check('추석 직전 수 발송 → 화(1)·수(2)', deadlineMs('2026-09-23T10:00:00+09:00'), endOfKstDay('2026-09-30'));
+check('개천절 대체(10/5) 건너뛰기', deadlineMs('2026-10-02T10:00:00+09:00'), endOfKstDay('2026-10-07'));
+
+// deadlineMs — 공휴일 테이블 커버리지 밖은 주말만 제외로 폴백 (설 연휴를 모른다)
+check('커버리지 밖 → 주말만 제외', deadlineMs('2027-02-05T10:00:00+09:00'), endOfKstDay('2027-02-09'));
+
+check('발송 일시 빈 값 → 마감 없음', deadlineMs(''), Infinity);
+check('발송 일시 파싱 불가 → 마감 없음', deadlineMs('언젠가'), Infinity);
+
+// remainingMs = 마감 − 지금
+check('남은 시간 = 마감 − now', remainingMs('2026-08-25T12:00:00+09:00', T0), endOfKstDay('2026-08-27') - T0);
 check('발송 일시 빈 값 → 마감 없음', remainingMs('', T0), Infinity);
 check('발송 일시 파싱 불가 → 마감 없음', remainingMs('언젠가', T0), Infinity);
 
-// canRespond
+// canRespond — 경계는 KST 자정
+const SENT_TUE = '2026-08-25T12:00:00+09:00';
+check('마감 1분 전 → 가능', canRespond(PENDING, SENT_TUE, '', Date.parse('2026-08-27T23:59:00+09:00')), true);
+check('마감 당일 자정 → 불가', canRespond(PENDING, SENT_TUE, '', Date.parse('2026-08-28T00:00:00+09:00')), false);
 check('방금 발송 → 응답 가능', canRespond(PENDING, ago(0), '', T0), true);
-check('47시간 경과 → 가능', canRespond(PENDING, ago(47), '', T0), true);
-check('48시간 정각 → 불가', canRespond(PENDING, ago(48), '', T0), false);
-check('49시간 경과 → 불가', canRespond(PENDING, ago(49), '', T0), false);
+check('금 발송 + 일요일 저녁 → 여전히 가능(48h였다면 잠겼다)',
+    canRespond(PENDING, '2026-08-28T18:00:00+09:00', '', Date.parse('2026-08-30T20:00:00+09:00')), true);
 // 운영자가 자동화 없이 상태만 수기로 옮긴 경우 — 캠지기 돈은 들어와 있다. 잠그면 제안이 갇힌다
 check('발송 일시 빈 값 → 응답 가능', canRespond(PENDING, '', '', T0), true);
 // 중복 응답 가드 — 버전 낙관적 잠금 대신 응답 일시로 막는다

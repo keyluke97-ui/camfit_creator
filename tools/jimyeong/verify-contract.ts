@@ -146,8 +146,8 @@ async function main() {
             console.log(`ok    [지명제안] 거절 사유 3종`);
         }
 
-        // 쓰기 화이트리스트 — 캠지기측과 합의한 4개에서 벗어나면 실패시킨다.
-        // 코드가 조용히 늘어나는 것을 막는 자리다(계약 v2 §9 개정).
+        // 쓰기 화이트리스트 — 캠지기측과 합의하고 사장님이 승인한(2026-08-26) 4개에서
+        // 벗어나면 실패시킨다. 코드가 조용히 늘어나는 것을 막는 자리다(계약 v2 §9 개정).
         const AGREED = ['상태', '응답 일시', '거절 사유', '거절 상세 사유'];
         const extra = OFFER_WRITABLE_FIELDS.filter((f) => !AGREED.includes(f));
         const lost = AGREED.filter((f) => !OFFER_WRITABLE_FIELDS.includes(f));

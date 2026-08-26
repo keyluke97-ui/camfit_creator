@@ -3,7 +3,63 @@
 // ⚠️ Airtable SDK·React에 의존하지 않는다 (tsx로 직접 돌려 검증할 수 있어야 한다).
 // 계획: specs/2026-08-25-지명형협찬-제안수신함-구현계획.md
 
-import { OFFER_STATUS_PENDING, OFFER_RESPONSE_WINDOW_HOURS } from './constants';
+import {
+    OFFER_STATUS_PENDING, OFFER_RESPONSE_WINDOW_BUSINESS_DAYS,
+    KR_HOLIDAYS, KR_HOLIDAYS_COVERED_THROUGH,
+} from './constants';
+
+// CHANGED: 절대시간(48h) → 2영업일 (2026-08-26 사장님 확답).
+//          영업일 계산은 반드시 **KST 달력**으로 한다. 서버는 UTC(Vercel)라
+//          `new Date().getDay()` 같은 로컬 타임존 의존 코드를 쓰면 자정 근처에서 하루가 밀린다.
+const KST_OFFSET_MS = 9 * 3_600_000;
+const DAY_MS = 86_400_000;
+
+/** UTC ms → 그 시점이 속한 **KST 날짜의 00:00**에 해당하는 UTC ms */
+function kstDayStart(ms: number): number {
+    return Math.floor((ms + KST_OFFSET_MS) / DAY_MS) * DAY_MS - KST_OFFSET_MS;
+}
+
+/** KST 날짜 문자열 'YYYY-MM-DD' */
+function kstDateKey(dayStartMs: number): string {
+    return new Date(dayStartMs + KST_OFFSET_MS).toISOString().slice(0, 10);
+}
+
+/**
+ * 그날이 영업일인가 (KST 기준).
+ * 공휴일 테이블 커버리지를 넘어가면 **주말만** 본다 — 모르는 공휴일을 추측하지 않는다.
+ */
+function isBusinessDay(dayStartMs: number): boolean {
+    const dow = new Date(dayStartMs + KST_OFFSET_MS).getUTCDay(); // 0=일, 6=토
+    if (dow === 0 || dow === 6) return false;
+    const key = kstDateKey(dayStartMs);
+    if (key > KR_HOLIDAYS_COVERED_THROUGH) return true;
+    return !KR_HOLIDAYS.includes(key);
+}
+
+/**
+ * 확인 창 마감 시각(UTC ms).
+ *
+ * **발송 다음 날부터 세어 2영업일째 되는 날의 23:59:59.999 (KST).**
+ * 예) 화 10:00 발송 → 수(1) · 목(2) → **목 자정 직전**
+ *     금 18:00 발송 → 월(1) · 화(2) → **화 자정 직전**  (48h였다면 일요일 저녁에 잠겼다)
+ *
+ * "N영업일 내"의 통상 해석대로 **그날 끝**까지 준다. 시각을 맞춰 자르면
+ * (금 18:00 → 화 18:00) 마감이 근무시간 밖에 걸려 사람이 못 본 채로 지난다.
+ */
+export function deadlineMs(sentAt: string): number {
+    if (!sentAt) return Infinity;
+    const sent = Date.parse(sentAt);
+    if (Number.isNaN(sent)) return Infinity;
+
+    let day = kstDayStart(sent);
+    let counted = 0;
+    // 가드: 연휴가 아무리 길어도 60일을 넘지 않는다. 테이블 오입력으로 무한루프가 되는 것을 막는다.
+    for (let i = 0; counted < OFFER_RESPONSE_WINDOW_BUSINESS_DAYS && i < 60; i++) {
+        day += DAY_MS;
+        if (isBusinessDay(day)) counted++;
+    }
+    return day + DAY_MS - 1;
+}
 
 /**
  * 확인 창 마감까지 남은 밀리초.
@@ -16,10 +72,8 @@ import { OFFER_STATUS_PENDING, OFFER_RESPONSE_WINDOW_HOURS } from './constants';
  * `크리에이터 발송 일시`가 비어 있으면 Infinity(마감 없음)를 돌려준다 — canRespond 주석 참고.
  */
 export function remainingMs(sentAt: string, now: number): number {
-    if (!sentAt) return Infinity;
-    const sent = Date.parse(sentAt);
-    if (Number.isNaN(sent)) return Infinity;
-    return sent + OFFER_RESPONSE_WINDOW_HOURS * 3_600_000 - now;
+    const deadline = deadlineMs(sentAt);
+    return Number.isFinite(deadline) ? deadline - now : Infinity;
 }
 
 /**
