@@ -100,6 +100,22 @@ export default function PublishRequestCard({
                 </div>
             )}
 
+            {/* CHANGED: 2026-08-25 — 개인정보 수집·이용 고지.
+                공개 신청은 입력값이 캠지기에게 전달되기 시작하는 시점이라 동의 자리가 여기다.
+                ⚠️ 문안은 법무 확인 전 초안이다. */}
+            <div className="bg-subtle border border-line rounded-lg p-3">
+                <p className="text-xs font-medium text-ink mb-1">개인정보 수집·이용 안내</p>
+                <ul className="text-xs text-ink3 leading-relaxed list-disc pl-4 space-y-0.5">
+                    <li><span className="text-ink2">수집 항목</span> — 프로필 이미지, 이메일, 채널 주소·지표·강점, 콘텐츠 형식·제작 기준, 방문 조건(지역·요일·사이트 종류·동반 인원·반려동물·드론), 협찬 금액</li>
+                    <li><span className="text-ink2">이용 목적</span> — 캠지기의 협찬 제안 검토 및 제안서 발송</li>
+                    <li><span className="text-ink2">제공 대상</span> — 캠핏 심사 담당자, 그리고 승인 후에는 캠핏에 입점한 캠지기</li>
+                    <li><span className="text-ink2">보유 기간</span> — 공개를 중지하시면 캠지기에게 더 이상 보이지 않아요. 계정 삭제를 원하시면 카카오톡 채널로 알려주세요</li>
+                </ul>
+                <p className="text-xs text-ink3 mt-2">
+                    공개 신청하시면 위 내용에 동의하신 것으로 봅니다. 정산 계좌·주민등록번호는 이 화면에서 받지 않아요.
+                </p>
+            </div>
+
             <button
                 type="button"
                 onClick={() => onChangePublic(true)}
