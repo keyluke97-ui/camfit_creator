@@ -202,6 +202,43 @@ export default function AcceptanceConditionFields({
                     onChange={(next) => onChange({ acceptSiteTypes: next })}
                 />
             </div>
+            {/* 6. 협찬 금액 */}
+            {/* CHANGED: 1a-v2 D5 — '이 금액 이상'은 협상 여지가 있다는 오해를 준다.
+                캠지기는 금액을 바꿀 수 없고 이 값 그대로 제안한다. */}
+            <div>
+                <label className="block text-sm font-medium text-ink mb-2">
+                    협찬 금액 <span className="text-red-500">*</span>
+                </label>
+                <p className="text-xs text-ink2 mb-2 leading-relaxed">
+                    캠지기가 <strong className="text-brand-strong">이 금액으로</strong> 제안합니다.<br />
+                    등록하신 채널 <strong>전부</strong>에 콘텐츠를 올리는 조건의 금액이에요.
+                    채널을 추가하시면 금액도 함께 다시 봐주세요.
+                </p>
+                <div className="relative">
+                    <input
+                        type="number"
+                        inputMode="numeric"
+                        value={minSponsorAmount || ''}
+                        onChange={(event) => onChange({ minSponsorAmount: Number(event.target.value) || 0 })}
+                        placeholder="예: 300000"
+                        className="w-full h-12 px-4 pr-10 bg-card border border-line rounded-lg text-ink text-sm focus:border-brand focus:outline-none transition-colors placeholder:text-ink3"
+                    />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-ink3 text-sm">원</span>
+                </div>
+            </div>
+
+
+            {/* CHANGED: 2026-08-25 — 여기서부터는 매칭 조건이 아니라 참고 정보다.
+                섹션 제목이 "협찬 수락 조건"이고 설명이 "이 조건에 맞는 제안만 받아요"라,
+                구분을 안 두면 크리에이터가 인원·반려동물·드론도 필터로 쓰인다고 읽는다.
+                캠지기측도 같은 이유로 자기 화면 라벨을 "방문 조건" → "이렇게 방문해요"로 바꿨다. */}
+            <div className="pt-2">
+                <p className="text-sm font-medium text-ink">여기서부터는 참고 정보예요</p>
+                <p className="text-xs text-ink3 mt-0.5">
+                    제안을 거르는 데는 쓰이지 않아요. 캠지기가 미리 알아두면 좋은 것들이에요.
+                </p>
+                <div className="mt-2 h-px bg-subtle" />
+            </div>
 
             {/* CHANGED: 2026-08-25 — 스펙 E3 폐기. 동반 인원은 필수가 아니라 참고값이다.
                 E3는 "캠지기가 사이트를 그 인원에 맞춰 잡아둔다"를 전제로 했으나 사실이 아니다.
@@ -269,36 +306,13 @@ export default function AcceptanceConditionFields({
                 </div>
             )}
 
-            {/* 6. 협찬 금액 */}
-            {/* CHANGED: 1a-v2 D5 — '이 금액 이상'은 협상 여지가 있다는 오해를 준다.
-                캠지기는 금액을 바꿀 수 없고 이 값 그대로 제안한다. */}
-            <div>
-                <label className="block text-sm font-medium text-ink mb-2">
-                    협찬 금액 <span className="text-red-500">*</span>
-                </label>
-                <p className="text-xs text-ink2 mb-2 leading-relaxed">
-                    캠지기가 <strong className="text-brand-strong">이 금액으로</strong> 제안합니다.<br />
-                    등록하신 채널 <strong>전부</strong>에 콘텐츠를 올리는 조건의 금액이에요.
-                    채널을 추가하시면 금액도 함께 다시 봐주세요.
-                </p>
-                <div className="relative">
-                    <input
-                        type="number"
-                        inputMode="numeric"
-                        value={minSponsorAmount || ''}
-                        onChange={(event) => onChange({ minSponsorAmount: Number(event.target.value) || 0 })}
-                        placeholder="예: 300000"
-                        className="w-full h-12 px-4 pr-10 bg-card border border-line rounded-lg text-ink text-sm focus:border-brand focus:outline-none transition-colors placeholder:text-ink3"
-                    />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-ink3 text-sm">원</span>
-                </div>
-            </div>
-
             {/* CHANGED: 1a-v2 D1 — '개별 승인 없이 자동 확정'은 사실과 다르다.
-                실제 흐름은 제안서 이메일 → 24~48시간 확인 → 무응답 시 자동 확정이다.
-                전체 흐름 고지는 PublishRequestCard가 담당하므로 여기선 조건 매칭만 안내한다. */}
+                전체 흐름 고지는 PublishRequestCard가 담당하므로 여기선 조건 매칭만 안내한다.
+                ⚠️ 2026-08-25 — 이 주석이 전에 주장하던 "무응답 시 자동 확정"은 실재하지 않는다.
+                   캠지기 계약서 v2 §4.2가 "무응답 시 자동 확정을 쓰지 않는다"로 정했고
+                   해당 자동화도 없다. 화면 문구 정합은 제안수신함 계획 Q3에서 결론 낸다. */}
             <p className="text-xs text-ink3 leading-relaxed">
-                이 조건에 맞는 제안만 도착합니다. 제안이 오면 이메일로 알려드리고, 24~48시간 안에 확인해주시면 돼요.
+                지역·요일·사이트 종류·금액에 맞는 제안만 도착합니다. 제안이 오면 이메일로 알려드려요.
             </p>
         </div>
     );
