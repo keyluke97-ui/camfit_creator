@@ -235,38 +235,45 @@ check('모르는 코드 → 일반 문구', violationMessage('WAT'), '입력 조
 check('undefined → 일반 문구', violationMessage(undefined), '입력 조건을 확인해주세요.');
 
 // ── 제안 수신함 (offerRules) ──
+// ⚠️ 확인 창 기산점은 `크리에이터 발송 일시`다. `만료 예정 일시`가 아니다 —
+//    그건 캠지기 선입금 기한이고, 입금 대사가 수기라 크리에이터가 제안서를 받을 때쯤
+//    이미 지나 있는 게 정상이다. 그걸 기준으로 잡으면 거의 모든 제안이 즉시 잠긴다.
 const T0 = Date.parse('2026-08-25T12:00:00+09:00');
-const at = (ms: number) => new Date(T0 + ms).toISOString();
+const H = 3_600_000;
+const ago = (h: number) => new Date(T0 - h * H).toISOString();
 const PENDING = '크리에이터확인중';
+const W = 48; // OFFER_RESPONSE_WINDOW_HOURS
 
-// remainingMs — 기준은 항상 레코드 값. 72h 하드코딩 금지
-check('마감 1시간 뒤', remainingMs(at(3_600_000), T0), 3_600_000);
-check('마감 정각', remainingMs(at(0), T0), 0);
-check('마감 지남', remainingMs(at(-1000), T0), -1000);
-check('만료 일시 빈 값 → 마감 없음', remainingMs('', T0), Infinity);
-check('만료 일시 파싱 불가 → 마감 없음', remainingMs('언젠가', T0), Infinity);
+// remainingMs — 발송 시각 + 48h 기준
+check('방금 발송 → 48시간 남음', remainingMs(ago(0), T0), W * H);
+check('1시간 전 발송', remainingMs(ago(1), T0), (W - 1) * H);
+check('47시간 전 발송 → 1시간 남음', remainingMs(ago(47), T0), H);
+check('48시간 정각 → 0', remainingMs(ago(48), T0), 0);
+check('49시간 전 → 음수', remainingMs(ago(49), T0), -H);
+check('발송 일시 빈 값 → 마감 없음', remainingMs('', T0), Infinity);
+check('발송 일시 파싱 불가 → 마감 없음', remainingMs('언젠가', T0), Infinity);
 
-// canRespond — 상태 · 응답 일시 · 마감 3중
-check('정상 → 응답 가능', canRespond(PENDING, at(3_600_000), '', T0), true);
-check('마감 1초 전', canRespond(PENDING, at(1000), '', T0), true);
-check('마감 정각 → 불가', canRespond(PENDING, at(0), '', T0), false);
-check('마감 1초 후 → 불가', canRespond(PENDING, at(-1000), '', T0), false);
-// 운영자가 만료 일시를 안 채웠다고 크리에이터를 잠그면, 캠지기 돈은 들어와 있는데 제안이 갇힌다
-check('만료 일시 빈 값 → 응답 가능', canRespond(PENDING, '', '', T0), true);
+// canRespond
+check('방금 발송 → 응답 가능', canRespond(PENDING, ago(0), '', T0), true);
+check('47시간 경과 → 가능', canRespond(PENDING, ago(47), '', T0), true);
+check('48시간 정각 → 불가', canRespond(PENDING, ago(48), '', T0), false);
+check('49시간 경과 → 불가', canRespond(PENDING, ago(49), '', T0), false);
+// 운영자가 자동화 없이 상태만 수기로 옮긴 경우 — 캠지기 돈은 들어와 있다. 잠그면 제안이 갇힌다
+check('발송 일시 빈 값 → 응답 가능', canRespond(PENDING, '', '', T0), true);
 // 중복 응답 가드 — 버전 낙관적 잠금 대신 응답 일시로 막는다
-check('이미 응답함 → 불가', canRespond(PENDING, at(3_600_000), at(-60_000), T0), false);
+check('이미 응답함 → 불가', canRespond(PENDING, ago(1), ago(0.5), T0), false);
 // 상태 화이트리스트 — 크리에이터확인중 말고는 전부 불가
-check('확정 상태 → 불가', canRespond('확정', at(3_600_000), '', T0), false);
-check('거절 상태 → 불가', canRespond('거절', at(3_600_000), '', T0), false);
-check('선입금대기 → 불가', canRespond('선입금대기', at(3_600_000), '', T0), false);
-check('입금확인 → 불가(제안서 발송 전)', canRespond('입금확인', at(3_600_000), '', T0), false);
+check('확정 → 불가', canRespond('확정', ago(1), '', T0), false);
+check('거절 → 불가', canRespond('거절', ago(1), '', T0), false);
+check('선입금대기 → 불가', canRespond('선입금대기', ago(1), '', T0), false);
+check('입금확인 → 불가(제안서 발송 전)', canRespond('입금확인', ago(1), '', T0), false);
 
 // formatRemaining
 check('마감 없음 → 빈 문자열', formatRemaining(Infinity), '');
 check('마감됨', formatRemaining(0), '마감됨');
 check('30분', formatRemaining(30 * 60_000), '30분 남음');
-check('5시간', formatRemaining(5 * 3_600_000), '5시간 남음');
-check('2일 3시간', formatRemaining((51 * 3_600_000)), '2일 3시간 남음');
+check('5시간', formatRemaining(5 * H), '5시간 남음');
+check('2일 3시간', formatRemaining(51 * H), '2일 3시간 남음');
 
 // ── isValidEmail ──
 check('이메일 유효', isValidEmail('a@b.co.kr'), true);
