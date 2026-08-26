@@ -223,7 +223,10 @@ export const UPLOAD_DEADLINE_DEFAULT_DAYS = 14;
 /** 예외로 고를 수 있는 기한. "더 길게"만 둔다 — 짧게 걸었다 못 지키면 그게 곧 분쟁(스펙 E4) */
 export const UPLOAD_DEADLINE_OPTIONS: number[] = [21, 30];
 
-/** 동반 인원 허용 범위. 상한 10은 캠핑 사이트 정원 현실 — 없으면 오타(999)가 캠지기 카드에 뜬다 */
+/**
+ * 동반 인원 허용 범위. **참고값이다** — 필수가 아니고 방문마다 달라진다(2026-08-25).
+ * 상한 10은 오타(999)가 캠지기 카드에 뜨는 것만 막는 용도.
+ */
 export const COMPANION_MIN = 1;
 export const COMPANION_MAX = 10;
 

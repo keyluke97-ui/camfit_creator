@@ -91,13 +91,15 @@ check('채널 강점 변경 → 재검토', needsReReview(before, {
     ...base, channels: { '유튜브': { ...base.channels['유튜브'], strength: '가족 캠핑 위주' } },
 }), true);
 
-// ── 공개 게이트에 동반 인원 (스펙 E3) ──
+// ── 동반 인원은 공개 게이트가 아니다 (2026-08-25 E3 폐기) ──
+// 크리에이터가 쿠폰으로 직접 예약하므로 캠지기가 인원에 맞춰 잡아둘 일이 없고,
+// 방문마다 인원이 달라진다. 못박아 받으면 틀린 숫자가 캠지기 카드에 사실처럼 뜬다.
 check(
-    '인원 미입력 → 공개 못 함',
+    '인원 미입력이어도 공개 가능',
     collectMissingForPublish({ ...base, companions: 0 }, true, true),
-    ['동반 인원']
+    []
 );
-check('인원 입력 → 누락 없음', collectMissingForPublish({ ...base, companions: 2 }, true, true), []);
+check('인원 입력해도 누락 없음', collectMissingForPublish({ ...base, companions: 2 }, true, true), []);
 // 업로드 기한·반려동물·드론은 표준이 있으므로 게이트에 없어야 한다
 check(
     '기한 미입력은 공개를 막지 않는다',

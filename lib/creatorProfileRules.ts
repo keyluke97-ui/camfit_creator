@@ -35,8 +35,8 @@ export type ChannelViolation =
 /**
  * 위반 코드 → 크리에이터가 읽을 문장 (2026-08-25 캠지기측 협의 (c)).
  * 전에는 어느 항목이 문제인지 알려주지 않고 "입력 조건을 확인해주세요."만 띄웠다.
- * 특히 승인 이후 다른 항목만 고치려던 사람이 `동반 인원` 때문에 막히면,
- * 자기가 건드린 적도 없는 항목 때문에 막힌 채 이유를 알 수 없었다.
+ * 어느 항목이 문제인지 알려주지 않으면, 사용자는 자기가 건드린 적도 없는 항목 때문에
+ * 막힌 채 이유를 알 수 없다.
  */
 export const VIOLATION_MESSAGES: Record<ChannelViolation, string> = {
     CHANNEL_REQUIRED: '운영 중인 채널을 최소 한 개 선택해주세요.',
@@ -130,7 +130,7 @@ export function validateChannelPayload(payload: CreatorProfileUpdate): ChannelVi
         return 'UPLOAD_DEADLINE_INVALID';
     }
 
-    // 규칙 9 — 동반 인원. 0은 미입력이라 허용한다(저장은 되고 공개만 막힌다)
+    // 규칙 9 — 동반 인원. 참고값이라 미입력(0)이 정상이다. 범위 검증만 남긴다(오타 999 차단)
     const companions = payload.companions;
     if (!Number.isInteger(companions) || companions < 0) return 'COMPANION_INVALID';
     if (companions > 0 && (companions < COMPANION_MIN || companions > COMPANION_MAX)) {
@@ -170,9 +170,11 @@ export function collectMissingForPublish(
     if ((payload.contentFormats || []).length === 0) missing.push('제작 콘텐츠 형식');
     if (!payload.creatorEmail) missing.push('크리에이터 이메일');
 
-    // CHANGED: 2026-08-12 — 표준으로 못 덮는 유일한 항목(스펙 E3).
-    // 사이트 정원은 물리적 제약이라, 표준값을 두면 책임 소재만 확정되고 그날 현장은 그대로 터진다.
-    if (!(payload.companions > 0)) missing.push('동반 인원');
+    // CHANGED: 2026-08-25 — `동반 인원`을 공개 게이트에서 뺀다. 스펙 E3 폐기.
+    // E3는 "캠지기가 사이트를 그 인원에 맞춰 잡아둔다"를 전제로 했는데 사실이 아니다.
+    // 실제 구조는 크리에이터가 쿠폰을 받아 직접 예약한다(프리미엄 협찬과 동일).
+    // 인원은 예약 시점에 크리에이터가 정하고, 방문마다 다르다(가족 동반 / 혼자).
+    // 못박아 받으면 틀린 숫자를 받게 되고, 그 숫자가 캠지기 카드에 사실처럼 뜬다.
 
     // 조건부 — 선택한 채널마다 URL (규칙 3)
     for (const channel of payload.channelTypes || []) {
@@ -263,7 +265,6 @@ export function computeCompletion(
         { label: '정산 정보', filled: hasPremium },
         // CHANGED: 2026-08-12 — 업로드 기한·반려동물·드론은 넣지 않는다.
         // 표준을 쓰는 게 정상인데 미입력을 미완성으로 세면 완성도 바가 "표준을 벗어나라"고 압박한다.
-        { label: '동반 인원', filled: payload.companions > 0 },
         // 자기신고가 없어도 운영자 값이 있으면 캠지기 카드가 채워지므로 채운 것으로 센다.
         { label: '채널콘셉트', filled: (payload.channelConcepts || []).length > 0 || hasConceptFallback },
         { label: '대표 콘텐츠 링크 2', filled: !!payload.representativeLink2 },

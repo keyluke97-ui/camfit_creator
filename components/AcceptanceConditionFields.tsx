@@ -203,15 +203,17 @@ export default function AcceptanceConditionFields({
                 />
             </div>
 
-            {/* CHANGED: 2026-08-12 — 현장 조건(스펙 §3).
-                반려동물·드론은 표준이 "없음"이라 켰을 때만 캠지기가 사전 확인하면 된다.
-                동반 인원만 표준으로 못 덮는다 — 사이트 정원은 물리적 제약이다(스펙 E3). */}
+            {/* CHANGED: 2026-08-25 — 스펙 E3 폐기. 동반 인원은 필수가 아니라 참고값이다.
+                E3는 "캠지기가 사이트를 그 인원에 맞춰 잡아둔다"를 전제로 했으나 사실이 아니다.
+                실제로는 크리에이터가 쿠폰을 받아 직접 예약하고(프리미엄 협찬과 동일),
+                인원은 방문마다 달라진다(가족 동반 / 혼자). 못박아 받으면 틀린 숫자를 받는다. */}
             <div>
                 <label className="block text-sm font-medium text-ink mb-1">
-                    동반 인원 <span className="text-red-500">*</span>
+                    동반 인원 <span className="text-ink3 font-normal">(선택)</span>
                 </label>
                 <p className="text-xs text-ink3 mb-2">
-                    본인 포함 몇 분이 방문하시나요? 캠지기가 사이트를 이 인원에 맞춰 잡아둡니다.
+                    보통 몇 분이 함께 가시나요? 캠지기가 참고만 하는 정보라 방문마다 달라져도 괜찮아요.
+                    예약은 받으신 쿠폰으로 직접 하시게 됩니다.
                 </p>
                 <div className="relative">
                     <input
@@ -254,7 +256,7 @@ export default function AcceptanceConditionFields({
                     {droneUsed ? '\u2713 ' : ''}드론으로 촬영해요
                 </button>
                 <p className="text-xs text-ink3">
-                    두 가지는 캠핑장마다 가능 여부가 달라요. 체크하시면 캠지기가 미리 확인합니다.
+                    두 가지는 캠핑장마다 가능 여부가 달라요. 체크하시면 캠지기가 미리 확인해줍니다.
                 </p>
             </div>
 
