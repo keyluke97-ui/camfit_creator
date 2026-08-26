@@ -9,6 +9,7 @@ import {
     VIOLATION_MESSAGES, violationMessage,
 } from '../../lib/creatorProfileRules';
 import { buildDeliverableSummary, buildVisitConditionSummary, withRo } from '../../lib/sponsorshipTerms';
+import { remainingMs, canRespond, formatRemaining } from '../../lib/offerRules';
 import type { CreatorProfileUpdate } from '../../types';
 
 let pass = 0;
@@ -232,6 +233,40 @@ check('동반 인원 범위를 문장에 노출', violationMessage('COMPANION_IN
 check('기한 선택지를 문장에 노출', violationMessage('UPLOAD_DEADLINE_INVALID').includes('21·30'), true);
 check('모르는 코드 → 일반 문구', violationMessage('WAT'), '입력 조건을 확인해주세요.');
 check('undefined → 일반 문구', violationMessage(undefined), '입력 조건을 확인해주세요.');
+
+// ── 제안 수신함 (offerRules) ──
+const T0 = Date.parse('2026-08-25T12:00:00+09:00');
+const at = (ms: number) => new Date(T0 + ms).toISOString();
+const PENDING = '크리에이터확인중';
+
+// remainingMs — 기준은 항상 레코드 값. 72h 하드코딩 금지
+check('마감 1시간 뒤', remainingMs(at(3_600_000), T0), 3_600_000);
+check('마감 정각', remainingMs(at(0), T0), 0);
+check('마감 지남', remainingMs(at(-1000), T0), -1000);
+check('만료 일시 빈 값 → 마감 없음', remainingMs('', T0), Infinity);
+check('만료 일시 파싱 불가 → 마감 없음', remainingMs('언젠가', T0), Infinity);
+
+// canRespond — 상태 · 응답 일시 · 마감 3중
+check('정상 → 응답 가능', canRespond(PENDING, at(3_600_000), '', T0), true);
+check('마감 1초 전', canRespond(PENDING, at(1000), '', T0), true);
+check('마감 정각 → 불가', canRespond(PENDING, at(0), '', T0), false);
+check('마감 1초 후 → 불가', canRespond(PENDING, at(-1000), '', T0), false);
+// 운영자가 만료 일시를 안 채웠다고 크리에이터를 잠그면, 캠지기 돈은 들어와 있는데 제안이 갇힌다
+check('만료 일시 빈 값 → 응답 가능', canRespond(PENDING, '', '', T0), true);
+// 중복 응답 가드 — 버전 낙관적 잠금 대신 응답 일시로 막는다
+check('이미 응답함 → 불가', canRespond(PENDING, at(3_600_000), at(-60_000), T0), false);
+// 상태 화이트리스트 — 크리에이터확인중 말고는 전부 불가
+check('확정 상태 → 불가', canRespond('확정', at(3_600_000), '', T0), false);
+check('거절 상태 → 불가', canRespond('거절', at(3_600_000), '', T0), false);
+check('선입금대기 → 불가', canRespond('선입금대기', at(3_600_000), '', T0), false);
+check('입금확인 → 불가(제안서 발송 전)', canRespond('입금확인', at(3_600_000), '', T0), false);
+
+// formatRemaining
+check('마감 없음 → 빈 문자열', formatRemaining(Infinity), '');
+check('마감됨', formatRemaining(0), '마감됨');
+check('30분', formatRemaining(30 * 60_000), '30분 남음');
+check('5시간', formatRemaining(5 * 3_600_000), '5시간 남음');
+check('2일 3시간', formatRemaining((51 * 3_600_000)), '2일 3시간 남음');
 
 // ── isValidEmail ──
 check('이메일 유효', isValidEmail('a@b.co.kr'), true);
