@@ -501,3 +501,48 @@ export interface CreatorProfileUpdate {
   droneUsed: boolean;
   channelConcepts: string[];           // 자기신고만. 운영자 `채널콘셉트`에는 절대 쓰지 않는다
 }
+
+// ─────────────────────────────────────────────────────────────
+// 지명 제안 (제안 수신함 1b) — Phase B1, 읽기 전용
+// 계약: tools/jimyeong/verify-contract.ts의 OFFER_EXPECTED 11필드와 1:1로 맞춘다.
+// ⚠️ `노출 금액(캠핑장)`·`조건 스냅샷`·`버전`·`멱등키`는 **여기 담지 않는다.**
+//    도메인 객체에 담는 순간 API 응답으로 새어 나간다(파트너 `followerCouponCode` 사고와 같은 경로).
+// ─────────────────────────────────────────────────────────────
+
+export interface AirtableOfferRecord {
+    id: string;
+    fields: {
+        '크리에이터'?: string[];               // Link → 레코드 ID 배열. 소유권 판정의 유일한 근거
+        '상태'?: string;
+        '제안 금액(크리에이터)'?: number;      // 크리에이터가 받는 금액. 캠핑장 노출 금액이 아니다
+        '크리에이터 발송 일시'?: string;       // 확인 창 기산점 — `만료 예정 일시`가 아니다
+        '응답 일시'?: string;                  // 중복 응답 가드
+        '거절 사유'?: string;
+        '거절 상세 사유'?: string;
+        '캠핑장 이름'?: string;
+        '캠핑장 링크'?: string;
+        '제안서 전문'?: string;
+        '메시지'?: string;
+    };
+}
+
+export interface Offer {
+    id: string;
+    status: string;
+    amount: number;
+    sentAt: string;
+    respondedAt: string;
+    rejectReason: string;
+    rejectDetail: string;
+    accommodationName: string;
+    accommodationUrl: string;
+    proposalText: string;                  // 그대로 보여준다. 다시 쓰지 않는다(계약서 §4.3)
+    message: string;
+    /**
+     * 확인 창 마감(epoch ms). **마감 없음이면 null** —
+     * `Infinity`는 JSON.stringify에서 null이 되므로 애초에 null로 통일한다.
+     */
+    deadline: number | null;
+    /** 서버가 판정한다. 화면이 자기 시계로 다시 계산하면 둘이 어긋난다 */
+    canRespond: boolean;
+}

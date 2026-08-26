@@ -2,6 +2,8 @@ import Airtable, { FieldSet } from 'airtable';
 import { hasPartnerEligibleChannel, VISIT_REGIONS, VISIT_DAYS, SPONSOR_SITE_TYPES, getWonjeongCandidates } from '@/lib/constants'; // CHANGED: 통합 블로거 차단 / 지명형 옵션·원정 헬퍼
 import { CHANNEL_TYPES, CHANNEL_FIELD_MAP } from '@/lib/constants'; // CHANGED: 1a-v2 채널 포트폴리오 필드 매핑
 import { validateChannelPayload, collectMissingForPublish, needsReReview, normalizeUploadDeadline, isAllowedUploadDeadline } from '@/lib/creatorProfileRules'; // CHANGED: 1a-v2 서버·폼 공유 판정 로직 / 2026-08-12 기한 정규화
+import { OFFER_STATUS_PENDING } from '@/lib/constants'; // CHANGED: 1b 제안 수신함 — 목록 필터 상태
+import { deadlineMs, canRespond } from '@/lib/offerRules'; // CHANGED: 1b — 마감·응답가능 판정은 화면과 같은 함수를 쓴다
 import type {
     TierLevel,
     ChannelType,
@@ -23,6 +25,7 @@ import type {
     ContentUpload,
     CreatorProfile,
     SettlementSummary,
+    Offer,
     CreatorProfileUpdate,
     ChannelDetail,
     ReviewStatus
@@ -82,6 +85,8 @@ let _partnerApplicationTable: ReturnType<typeof getTable> | null = null;
 // CHANGED: 콘텐츠 업로드 + 캠핑장목록 테이블 추가
 let _contentUploadTable: ReturnType<typeof getTable> | null = null;
 let _accommodationTable: ReturnType<typeof getTable> | null = null;
+// CHANGED: 1b 제안 수신함 — 지명 제안 테이블 추가
+let _offerTable: ReturnType<typeof getTable> | null = null;
 
 const userTable = () => (_userTable ??= getTable('AIRTABLE_USER_TABLE_ID'));
 const campaignTable = () => (_campaignTable ??= getTable('AIRTABLE_CAMPAIGN_TABLE_ID'));
@@ -92,6 +97,7 @@ const partnerApplicationTable = () => (_partnerApplicationTable ??= getTable('AI
 // CHANGED: 콘텐츠 업로드 + 캠핑장목록 테이블 getter
 const contentUploadTable = () => (_contentUploadTable ??= getTable('AIRTABLE_CONTENT_UPLOAD_TABLE_ID'));
 const accommodationTable = () => (_accommodationTable ??= getTable('AIRTABLE_ACCOMMODATION_TABLE_ID'));
+const offerTable = () => (_offerTable ??= getTable('AIRTABLE_OFFER_TABLE_ID'));
 
 /**
  * 등급별 필드명 매핑
@@ -1980,5 +1986,79 @@ export async function getCreatorContentUploads(channelName: string): Promise<Con
         // 조회 함수 = 빈 배열 반환 컨벤션의 예외: 본 함수는 사용자에게 "내 콘텐츠"를 보여주는 핵심 경로라 정적/동적 구분이 중요.
         console.error('Get creator content uploads error:', error);
         throw error;
+    }
+}
+
+/**
+ * 내 지명 제안 목록 (제안 수신함 1b — Phase B1, 읽기 전용).
+ * JWT creatorId로만 조회한다(IDOR 방어). 실패 시 빈 배열.
+ *
+ * ⚠️ **소유권을 `filterByFormula`로 거르지 않는다 — 실측(2026-08-26) 결과 못 거른다.**
+ *    `크리에이터`는 Link 필드인데, Airtable 수식에서 Link 필드는 **레코드 ID가 아니라 표시값**으로
+ *    평가된다. 실제 베이스에 대고 확인했다:
+ *
+ *      {크리에이터} = 'recXXX'                  → 0건
+ *      FIND('recXXX', ARRAYJOIN({크리에이터}))  → 0건
+ *      FIND('<채널명>', ARRAYJOIN({크리에이터})) → 1건   ← 표시값으로만 걸린다
+ *
+ *    계획서 초안이 첫 번째 형태였다. 그대로 짰으면 **수신함이 항상 비어 보였을 것**이고,
+ *    에러도 안 나므로 "제안이 아직 없나 보다"로 넘어갔을 것이다.
+ *
+ *    그렇다고 채널명으로 거를 수도 없다 — `FIND`는 부분일치라 다른 사람 제안이 섞이고,
+ *    같은 사람이 계정을 둘 가진 사례(아이콘 복제 계정)와 채널명 공백 변형 이슈가 이미 있다.
+ *    소유권 판정을 문자열 비교에 맡기면 그게 곧 IDOR이다.
+ *
+ * → **수식은 상태만 거르고, 소유권은 `fields`가 돌려주는 레코드 ID 배열로 판정한다.**
+ *    현재 볼륨(오픈 전, 확인중 0건)에선 문제없다. 제안이 많아지면 캠지기측에
+ *    `크리에이터 레코드 ID`(크리에이터 명단의 `RECORD_ID()` formula를 lookup) 필드를 요청해
+ *    수식 단계에서 거르도록 바꾼다.
+ */
+export async function getCreatorOffers(creatorId: string): Promise<Offer[]> {
+    if (!creatorId) return [];
+
+    try {
+        const records = await offerTable()
+            .select({ filterByFormula: `{상태} = '${OFFER_STATUS_PENDING}'` })
+            .all();
+
+        const now = Date.now();
+
+        const mine = records.filter((record) => {
+            const links = record.get('크리에이터') as string[] | undefined;
+            return Array.isArray(links) && links.includes(creatorId);
+        });
+
+        const offers: Offer[] = mine.map((record) => {
+            const status = (record.get('상태') as string) || '';
+            const sentAt = (record.get('크리에이터 발송 일시') as string) || '';
+            const respondedAt = (record.get('응답 일시') as string) || '';
+            const deadline = deadlineMs(sentAt);
+
+            return {
+                id: record.id,
+                status,
+                // 크리에이터가 받는 금액. `노출 금액(캠핑장)`은 읽지도 담지도 않는다
+                amount: (record.get('제안 금액(크리에이터)') as number) || 0,
+                sentAt,
+                respondedAt,
+                rejectReason: (record.get('거절 사유') as string) || '',
+                rejectDetail: (record.get('거절 상세 사유') as string) || '',
+                accommodationName: (record.get('캠핑장 이름') as string) || '',
+                accommodationUrl: (record.get('캠핑장 링크') as string) || '',
+                proposalText: (record.get('제안서 전문') as string) || '',
+                message: (record.get('메시지') as string) || '',
+                // Infinity(마감 없음)는 JSON에서 null이 된다 — 여기서 미리 null로 통일한다
+                deadline: Number.isFinite(deadline) ? deadline : null,
+                canRespond: canRespond(status, sentAt, respondedAt, now),
+            };
+        });
+
+        // 마감 임박 순. 마감 없는 건(운영자가 상태만 수기로 옮긴 경우)은 뒤로 보낸다.
+        // cellFormat:'string'을 쓰지 않으므로 Airtable sort를 써도 되지만,
+        // 정렬 기준이 계산값(마감)이라 JS에서 정렬한다.
+        return offers.sort((a, b) => (a.deadline ?? Infinity) - (b.deadline ?? Infinity));
+    } catch (error) {
+        console.error('Get creator offers error:', error);
+        return [];
     }
 }
