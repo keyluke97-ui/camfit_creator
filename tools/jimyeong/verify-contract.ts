@@ -23,9 +23,28 @@ const OFFER_EXPECTED: Array<{ name: string; type: string }> = [
     { name: '거절 상세 사유', type: 'multilineText' },
     { name: '캠핑장 이름', type: 'singleLineText' },
     { name: '캠핑장 링크', type: 'url' },
+    { name: '캠핑장 지역', type: 'singleSelect' },
     { name: '제안서 전문', type: 'multilineText' },     // 읽기 전용 — 그대로 보여준다
     { name: '메시지', type: 'multilineText' },
+    // 협찬 조건 요약 (Phase C 상세 화면)
+    { name: '협찬 사이트 종류', type: 'multipleSelects' },
+    { name: '방문 가능 기간(일수)', type: 'number' },
+    { name: '크리에이터 방문 가능 시작일', type: 'date' },
+    { name: '크리에이터 방문 가능 종료일', type: 'date' },
+    { name: '할인 금액', type: 'number' },
+    { name: '인당 장수', type: 'number' },
+    { name: '적용 요일', type: 'singleSelect' },
+    { name: '사용가능 최소 예약 박수', type: 'number' },
+    { name: '사용가능 최대 예약 박수', type: 'number' },
+    // 수락(확정) 후에만 도메인 객체에 싣는다 — 확인 창 단계에서는 API 응답에도 담지 않는다
+    { name: '크리에이터 쿠폰 코드', type: 'multilineText' },
 ];
+
+/**
+ * 포털이 **일부러 읽지 않는** 필드. 매칭 확정 전 비공개 원칙(계약서 §4.3)이라
+ * 도메인 객체에 담기는 순간 API 응답으로 새어 나간다. 목록에 있으면 실패시킨다.
+ */
+const OFFER_MUST_NOT_READ: string[] = ['담당자 연락처', '담당자 이메일', '노출 금액(캠핑장)', '사업자번호'];
 
 /**
  * 포털이 절대 쓰면 안 되는 필드. 분쟁 시 증거이거나(금액·전문·스냅샷),
@@ -144,6 +163,18 @@ async function main() {
             failed++;
         } else {
             console.log(`ok    [지명제안] 거절 사유 3종`);
+        }
+
+        // 읽지 않기로 한 필드가 도메인 매핑에 들어갔는지 — lib/airtable.ts를 직접 훑는다.
+        // 담당자 연락처·노출 금액은 화면에서 가리는 것으로 부족하다. 매핑에 없어야 한다.
+        const airtableSource = readFileSync('lib/airtable.ts', 'utf8');
+        const offerScope = airtableSource.slice(airtableSource.indexOf('export async function getCreatorOffers'));
+        const leaked = OFFER_MUST_NOT_READ.filter((f) => offerScope.includes(`record.get('${f}')`));
+        if (leaked.length) {
+            console.log(`FAIL  [지명제안] 비공개 필드를 도메인 객체에 매핑 — ${JSON.stringify(leaked)}`);
+            failed++;
+        } else {
+            console.log(`ok    [지명제안] 비공개 필드 미매핑 (${OFFER_MUST_NOT_READ.join(' · ')})`);
         }
 
         // 쓰기 화이트리스트 — 캠지기측과 합의하고 사장님이 승인한(2026-08-26) 4개에서

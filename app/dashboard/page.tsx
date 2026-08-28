@@ -58,6 +58,10 @@ function DashboardContent() {
     const [campaigns, setCampaigns] = useState<Campaign[]>([]);
     const [loading, setLoading] = useState(true);
     const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
+    // CHANGED (지명형 1b): 받은 제안 수. 0이면 진입 배너를 아예 그리지 않는다 —
+    // 제안이 없는 사람에게 빈 수신함으로 들어가는 문을 만들 이유가 없고,
+    // 이 배너가 곧 기능 오픈이라 제안이 실제로 생기기 전까지는 아무에게도 보이지 않아야 한다.
+    const [offerCount, setOfferCount] = useState(0);
     // CHANGED: userRecordId 상태 제거 — API에서 JWT로 사용자 식별
     const [isCheckinModalOpen, setIsCheckinModalOpen] = useState(false);
     // CHANGED: 입실일 미등록 건수 — CTA 뱃지용. 모달을 열어야만 알 수 있던 '남은 할 일'을
@@ -207,6 +211,25 @@ function DashboardContent() {
         }
     }, [userInfo]);
 
+    // CHANGED (지명형 1b): 받은 제안 수 — 배너 노출 판단용.
+    // 실패해도 조용히 0으로 둔다. 수신함은 부가 기능이라, 여기서 에러를 띄우면
+    // 프리미엄 협찬을 쓰러 온 사람에게 상관없는 경고가 뜬다.
+    useEffect(() => {
+        if (!userInfo) return;
+        let alive = true;
+        (async () => {
+            try {
+                const response = await fetch('/api/offers');
+                if (!response.ok) return;
+                const data = await response.json();
+                if (alive) setOfferCount((data.offers || []).length);
+            } catch {
+                // 무시 — 배너만 안 뜬다
+            }
+        })();
+        return () => { alive = false; };
+    }, [userInfo]);
+
     // CHANGED: 콘텐츠 뷰 진입 시 데이터 패칭
     useEffect(() => {
         if (showContentView && userInfo) {
@@ -316,6 +339,24 @@ function DashboardContent() {
                 {!showContentView && userInfo && (
                     <div className="mb-4">
                         <ContentEntryBanner onClick={handleOpenContentView} />
+                    </div>
+                )}
+
+                {/* CHANGED (지명형 1b): 받은 제안 배너 — 제안이 1건 이상일 때만 나타난다 */}
+                {!showContentView && userInfo && offerCount > 0 && (
+                    <div className="mb-4">
+                        <button
+                            onClick={() => router.push('/dashboard/offers')}
+                            className="w-full flex items-center justify-between bg-brand-bg border border-brand/30 rounded-xl p-4 hover:border-brand transition-colors text-left"
+                        >
+                            <div>
+                                <p className="text-sm font-bold text-ink">받은 제안 {offerCount}건</p>
+                                <p className="text-xs text-ink2 mt-0.5">기한 안에 수락 또는 거절로 회신해주세요</p>
+                            </div>
+                            <svg className="w-5 h-5 text-brand-strong" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                        </button>
                     </div>
                 )}
 

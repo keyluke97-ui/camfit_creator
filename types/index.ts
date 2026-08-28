@@ -521,8 +521,23 @@ export interface AirtableOfferRecord {
         '거절 상세 사유'?: string;
         '캠핑장 이름'?: string;
         '캠핑장 링크'?: string;
+        '캠핑장 지역'?: string;
         '제안서 전문'?: string;
         '메시지'?: string;
+        // 협찬 조건 — 제안서 전문과 별개로 구조화돼 있어 화면이 요약 카드로 보여준다
+        '협찬 사이트 종류'?: string[];
+        '방문 가능 기간(일수)'?: number;
+        '크리에이터 방문 가능 시작일'?: string;
+        '크리에이터 방문 가능 종료일'?: string;
+        // 팔로워 쿠폰 조건
+        '할인 금액'?: number;
+        '인당 장수'?: number;
+        '적용 요일'?: string;
+        '사용가능 최소 예약 박수'?: number;
+        '사용가능 최대 예약 박수'?: number;
+        // ⚠️ 수락 후에만 매핑한다. 확인 창 단계에서 담으면 거절자도 코드를 갖게 된다
+        '크리에이터 쿠폰 코드'?: string;
+        // ⚠️ `담당자 연락처`·`담당자 이메일`은 **읽지 않는다** — 매칭 확정 전 비공개 원칙
     };
 }
 
@@ -536,8 +551,21 @@ export interface Offer {
     rejectDetail: string;
     accommodationName: string;
     accommodationUrl: string;
+    region: string;
     proposalText: string;                  // 그대로 보여준다. 다시 쓰지 않는다(계약서 §4.3)
     message: string;
+    /** 협찬 조건 — 제안서 전문을 대체하지 않는다. 훑어보기용 요약이다 */
+    siteTypes: string[];
+    visitDays: number;
+    visitStartDate: string;
+    visitEndDate: string;
+    couponDiscount: number;
+    couponPerPerson: number;
+    couponApplyDays: string;
+    minNights: number;
+    maxNights: number;
+    /** **`확정` 상태에서만 채워진다.** 확인 창 단계에서는 빈 문자열이다(Q2 — 노출은 수락 후) */
+    creatorCouponCode: string;
     /**
      * 확인 창 마감(epoch ms). **마감 없음이면 null** —
      * `Infinity`는 JSON.stringify에서 null이 되므로 애초에 null로 통일한다.

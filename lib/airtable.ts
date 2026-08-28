@@ -2020,8 +2020,13 @@ export async function getCreatorOffers(creatorId: string): Promise<Offer[]> {
     if (!creatorId) return [];
 
     try {
+        // CHANGED: 1b Phase C — `확정`도 함께 읽는다. 수락한 제안의 쿠폰 코드를 보여줘야 하고
+        //          (Q2 — 노출은 수락 후), 크리에이터가 "내가 뭘 수락했더라"를 확인할 곳이 여기뿐이다.
+        //          `거절`은 넣지 않는다 — 할 일이 없는 카드가 목록을 채운다.
         const records = await offerTable()
-            .select({ filterByFormula: `{상태} = '${OFFER_STATUS_PENDING}'` })
+            .select({
+                filterByFormula: `OR({상태} = '${OFFER_STATUS_PENDING}', {상태} = '${OFFER_STATUS_ACCEPTED}')`,
+            })
             .all();
 
         const now = Date.now();
@@ -2048,8 +2053,24 @@ export async function getCreatorOffers(creatorId: string): Promise<Offer[]> {
                 rejectDetail: (record.get('거절 상세 사유') as string) || '',
                 accommodationName: (record.get('캠핑장 이름') as string) || '',
                 accommodationUrl: (record.get('캠핑장 링크') as string) || '',
+                region: (record.get('캠핑장 지역') as string) || '',
                 proposalText: (record.get('제안서 전문') as string) || '',
                 message: (record.get('메시지') as string) || '',
+                siteTypes: (record.get('협찬 사이트 종류') as string[]) || [],
+                visitDays: (record.get('방문 가능 기간(일수)') as number) || 0,
+                visitStartDate: (record.get('크리에이터 방문 가능 시작일') as string) || '',
+                visitEndDate: (record.get('크리에이터 방문 가능 종료일') as string) || '',
+                couponDiscount: (record.get('할인 금액') as number) || 0,
+                couponPerPerson: (record.get('인당 장수') as number) || 0,
+                couponApplyDays: (record.get('적용 요일') as string) || '',
+                minNights: (record.get('사용가능 최소 예약 박수') as number) || 0,
+                maxNights: (record.get('사용가능 최대 예약 박수') as number) || 0,
+                // ⚠️ 수락(확정) 후에만 싣는다. 확인 창 단계에서 담으면 거절한 사람도 코드를 갖게 되고,
+                //    그 코드는 다음 제안에 재배포되므로 오염된다. 화면에서 가리는 것으로는 부족하다 —
+                //    API 응답에 있으면 개발자도구로 보인다(파트너 `followerCouponCode` 사고와 같은 경로).
+                creatorCouponCode: status === OFFER_STATUS_ACCEPTED
+                    ? (record.get('크리에이터 쿠폰 코드') as string) || ''
+                    : '',
                 // Infinity(마감 없음)는 JSON에서 null이 된다 — 여기서 미리 null로 통일한다
                 deadline: Number.isFinite(deadline) ? deadline : null,
                 canRespond: canRespond(status, sentAt, respondedAt, now),
