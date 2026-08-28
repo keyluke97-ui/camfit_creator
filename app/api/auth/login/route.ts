@@ -37,7 +37,8 @@ export async function POST(request: NextRequest) {
 
         if (!creator) {
             return NextResponse.json(
-                { error: '채널명 또는 연락처가 일치하지 않습니다.' },
+                // CHANGED: 2026-08-27 — 3요소가 됐으니 문구도 맞춘다. 어느 항목이 틀렸는지는 알려주지 않는다.
+                { error: '입력하신 정보가 일치하지 않습니다.' },
                 { status: 401 }
             );
         }

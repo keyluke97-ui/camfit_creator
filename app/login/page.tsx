@@ -296,7 +296,7 @@ export default function LoginPage() {
                 {/* 하단 안내 메시지 */}
                 <div className="mt-6 p-4 bg-card border border-line rounded-lg">
                     <p className="text-sm text-ink2 text-center">
-                        채널명과 등록된 연락처 뒤 4자리로 로그인합니다.<br />
+                        채널명 · 연락처 뒤 4자리 · 이메일 앞 3자리로 로그인합니다.<br />
                         로그인이 안 되시나요?{' '}
                         <a
                             href={KAKAO_CHANNEL_URL}
