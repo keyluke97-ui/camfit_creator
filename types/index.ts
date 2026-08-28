@@ -546,3 +546,66 @@ export interface Offer {
     /** 서버가 판정한다. 화면이 자기 시계로 다시 계산하면 둘이 어긋난다 */
     canRespond: boolean;
 }
+
+// ============ 내부 관리자 어드민 (조회 전용) ============
+// SOP-프리미엄협찬-죽은캠페인-소생 / tools/campaign-revival·content-followup 로직의 화면판.
+// 쓰기 액션 없음 — 연장·재발급은 SOP 절차(도구/세션)로만 수행한다.
+
+/** 노출 중 + 잔여 있는 캠페인의 기한 건강 상태 */
+export interface AdminCampaignHealth {
+    id: string;
+    name: string;
+    deadline: string;             // YYYY-MM-DD (콘텐츠 제작 기한 (날짜))
+    daysLeft: number;             // 음수 = 기한 지남
+    status: 'dead' | 'dying' | 'healthy';
+    totalAvailable: number;       // 3등급 신청 가능 인원 합
+    totalRecruit: number;         // 3등급 모집 인원 합
+    applications: number;         // 유효 신청 수 (취소 제외, 레코드 ID 조인)
+    baseMonths: number;           // 기본 제작 개월수
+    extensionMonths: number;      // 추가 기간 연장
+    couponEvent: boolean;
+    visitEndDate: string;         // 크리에이터 방문 가능 종료일 (없으면 '')
+    refundRequested: boolean;     // 환불 요청일/금액 존재
+    airtableUrl: string;
+}
+
+/** 퇴실(입실+1박) + 유예일 경과인데 콘텐츠 업로드가 없는 신청 건 */
+export interface AdminOverdueUpload {
+    channel: string;
+    camp: string;
+    checkin: string;
+    daysOver: number;
+    deadline: string;             // 캠페인 제작 기한 (없으면 '')
+    deadlinePassed: boolean;
+    phone: string;
+    noCreatorLink: boolean;       // 크리에이터 명단 링크 없음 → 수동 확인 필요
+}
+
+/** 쿠폰이벤트 캠페인의 정합성 문제 */
+export interface AdminCouponIssue {
+    campaignId: string;
+    name: string;
+    poolCount: number;            // 미배포 팔로워 쿠폰 코드 줄 수
+    totalAvailable: number;
+    issue: string;                // 사람이 읽는 문제 설명
+    airtableUrl: string;
+}
+
+export interface AdminOverview {
+    generatedAt: string;          // ISO
+    leadDays: number;             // 임박 판정 기준 (크리에이터 일정 선점 가정)
+    graceDays: number;            // 퇴실 후 업로드 유예일
+    summary: {
+        exposed: number;          // 입금확인 = 노출 중
+        closed: number;           // 전 등급 마감
+        open: number;             // 잔여 있음
+        dead: number;
+        dying: number;
+        healthy: number;
+        overdueUploads: number;
+        couponIssues: number;
+    };
+    campaigns: AdminCampaignHealth[];   // open만, dead → dying → healthy 순
+    overdue: AdminOverdueUpload[];
+    couponIssues: AdminCouponIssue[];
+}
