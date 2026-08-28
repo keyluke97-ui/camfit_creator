@@ -623,6 +623,16 @@ export interface AdminCouponIssue {
     airtableUrl: string;
 }
 
+/** 최근 신청 유입 (통합 현황) */
+export interface AdminRecentApplication {
+    id: string;
+    channel: string;
+    camp: string;
+    appliedAt: string;            // ISO (레코드 생성 시각)
+    checkin: string;              // 입실일 (없으면 '')
+    status: string;               // 예약 취소/변경 값 (없으면 '')
+}
+
 export interface AdminOverview {
     generatedAt: string;          // ISO
     leadDays: number;             // 임박 판정 기준 (크리에이터 일정 선점 가정)
@@ -636,8 +646,37 @@ export interface AdminOverview {
         healthy: number;
         overdueUploads: number;
         couponIssues: number;
+        applicationsLast7Days: number;   // 최근 7일 신청 유입
+        applicationsLast30Days: number;  // 최근 30일 신청 유입
     };
     campaigns: AdminCampaignHealth[];   // open만, dead → dying → healthy 순
     overdue: AdminOverdueUpload[];
     couponIssues: AdminCouponIssue[];
+    recentApplications: AdminRecentApplication[];  // 최근 30일, 최신순 최대 20건
+}
+
+/**
+ * 기한 연장 미리보기/실행 결과 — SOP-죽은캠페인-소생 Step 3~4의 웹 액션판.
+ * guards가 하나라도 있으면 적용 불가. 실물 쿠폰 재발급(Step 5)은 웹에서 하지 않는다.
+ */
+export interface AdminExtendResult {
+    campaignId: string;
+    name: string;
+    targetDate: string;           // 목표 기한 (이 날짜 이상이 되는 최소 개월 적용)
+    currentDeadline: string;
+    newDeadline: string;
+    baseMonths: number;
+    currentExtension: number;
+    newExtension: number;
+    couponEvent: boolean;
+    /** 쿠폰이벤트 캠페인이면 함께 갱신되는 날짜 4개 (방문 시작/종료, 쿠폰 유효 시작/종료) */
+    couponDates?: {
+        visitStart: string;
+        visitEnd: string;
+        couponStart: string;
+        couponEnd: string;
+    };
+    guards: string[];             // 비어 있으면 적용 가능
+    applied: boolean;
+    verified: boolean;            // 적용 후 재조회 검증 통과 여부 (applied=true일 때만 의미)
 }

@@ -35,7 +35,9 @@ import type {
     AdminOverview,
     AdminCampaignHealth,
     AdminOverdueUpload,
-    AdminCouponIssue
+    AdminCouponIssue,
+    AdminRecentApplication,
+    AdminExtendResult
 } from '@/types';
 
 /**
@@ -2404,6 +2406,35 @@ export async function getAdminOverview(leadDays = 30, graceDays = 14): Promise<A
     const dead = campaigns.filter((c) => c.status === 'dead').length;
     const dying = campaigns.filter((c) => c.status === 'dying').length;
 
+    // ---- 3. 최근 신청 유입 (통합 현황) ----
+    // 레코드 생성 시각은 SDK가 필드로 노출하지 않아 _rawJson.createdTime을 읽는다.
+    // (Airtable REST는 모든 레코드에 createdTime을 항상 내려준다 — 필드 아님)
+    const recentApplications: AdminRecentApplication[] = [];
+    let last7 = 0;
+    let last30 = 0;
+    const now = Date.now();
+    for (const a of applicationRecords) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- SDK 미노출 createdTime 접근 (위 주석)
+        const createdTime = (a as any)._rawJson?.createdTime as string | undefined;
+        if (!createdTime) continue;
+        const ageMs = now - new Date(createdTime).getTime();
+        if (ageMs > 30 * KST_DAY_MS) continue;
+        last30++;
+        if (ageMs <= 7 * KST_DAY_MS) last7++;
+        const campLinks = a.get('숙소 이름 (유료 오퍼)');
+        const campId = Array.isArray(campLinks) ? (campLinks[0] as string) : undefined;
+        const camp = campId ? campaignById.get(campId) : undefined;
+        recentApplications.push({
+            id: a.id,
+            channel: (a.get('크리에이터 채널명') as string) || '(이름 없음)',
+            camp: camp ? ((camp.get('숙소 이름을 적어주세요.') as string) || campId || '') : (campId || '(캠페인 없음)'),
+            appliedAt: createdTime,
+            checkin: a.get('입실일') ? String(a.get('입실일')).slice(0, 10) : '',
+            status: (a.get('예약 취소/변경') as string) || '',
+        });
+    }
+    recentApplications.sort((a, b) => b.appliedAt.localeCompare(a.appliedAt));
+
     return {
         generatedAt: new Date().toISOString(),
         leadDays,
@@ -2417,9 +2448,139 @@ export async function getAdminOverview(leadDays = 30, graceDays = 14): Promise<A
             healthy: campaigns.length - dead - dying,
             overdueUploads: overdue.length,
             couponIssues: couponIssues.length,
+            applicationsLast7Days: last7,
+            applicationsLast30Days: last30,
         },
         campaigns,
         overdue,
         couponIssues,
+        recentApplications: recentApplications.slice(0, 20),
     };
+}
+
+/** Airtable DATEADD(Created, n, 'months')와 같은 결과를 내는 KST 기준 월 더하기 (월말 클램프) */
+function addMonthsKst(createdIso: string, months: number): string {
+    const kst = new Date(new Date(createdIso).getTime() + 9 * 3600000);
+    let year = kst.getUTCFullYear();
+    let monthIndex = kst.getUTCMonth() + months;
+    const day = kst.getUTCDate();
+    year += Math.floor(monthIndex / 12);
+    monthIndex = ((monthIndex % 12) + 12) % 12;
+    const lastDay = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
+    const clamped = Math.min(day, lastDay);
+    return `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(clamped).padStart(2, '0')}`;
+}
+
+/**
+ * 기한 연장 미리보기/실행 — SOP-죽은캠페인-소생 Step 3~4 (tools/campaign-revival/extend.cjs의 웹판).
+ * `추가 기간 연장`(개월)만 올려 수식이 기한을 갱신하게 하고, 쿠폰이벤트 캠페인은
+ * 방문/쿠폰 유효 날짜 4개를 함께 민다 (방문종료 = min(오늘+방문일수, 새기한-14일)).
+ *
+ * apply=false면 계산·가드 검사만, apply=true면 가드 통과 시 쓰기 + 재조회 검증까지.
+ * 🔴 실물 캠핏 쿠폰은 만료일 수정이 불가능하므로 여기서 건드리지 않는다 — 재발급(Step 5)은 별도 트랙.
+ */
+export async function extendCampaignDeadline(
+    campaignId: string,
+    targetDate: string,
+    apply: boolean
+): Promise<AdminExtendResult> {
+    const record = await campaignTable().find(campaignId);
+    const name = (record.get('숙소 이름을 적어주세요.') as string) || campaignId;
+
+    const created = String(record.get('Created') || (record as unknown as { _rawJson?: { createdTime?: string } })._rawJson?.createdTime || '');
+    const baseMonths = (record.get('기본 제작 개월수') as number) || 0;
+    const currentExtension = (record.get('추가 기간 연장') as number) || 0;
+    const currentDeadline = String(record.get('콘텐츠 제작 기한 (날짜)') || '').slice(0, 10);
+    const couponEvent = !!record.get('쿠폰이벤트희망');
+
+    const today = kstDayEpoch(new Date(Date.now() + 9 * 3600000).toISOString());
+    const todayStr = new Date(today + 12 * 3600000 + 9 * 3600000).toISOString().slice(0, 10);
+
+    // 목표일 이상이 되는 최소 총 개월수 (기한은 Created+개월 수식이라 정확한 날짜로 못 맞춘다)
+    let newTotal = baseMonths + currentExtension;
+    let safety = 0;
+    while (kstDayEpoch(addMonthsKst(created, newTotal)) < kstDayEpoch(targetDate) && safety < 36) {
+        newTotal++;
+        safety++;
+    }
+    const newExtension = newTotal - baseMonths;
+    const newDeadline = addMonthsKst(created, newTotal);
+
+    // ---- 가드 (SOP Step 2·6) ----
+    const guards: string[] = [];
+    const predicted = addMonthsKst(created, baseMonths + currentExtension);
+    if (predicted !== currentDeadline) {
+        guards.push(`수식 예측 불일치 (예측 ${predicted} ≠ 실제 ${currentDeadline}) — 수동 확인 필요`);
+    }
+    if (record.get('Select') === '미운영') guards.push('미운영 캠페인');
+    if (!record.get('입금내역 확인')) guards.push('입금 미확인 캠페인');
+    if (kstDayEpoch(targetDate) < today) guards.push('목표일이 과거');
+    if (newExtension === currentExtension) guards.push('이미 목표일 이상 — 연장 불필요');
+    if (safety >= 36) guards.push('목표일이 비정상적으로 멀어 계산 중단 (36개월 초과)');
+    if (couponEvent) {
+        if (record.get('🎟️ 쿠폰 자동 발행')) guards.push('쿠폰 자동 발행 ON — OFF로 끄고 진행 (오발사 방지)');
+        const poolCount = String((record.get('팔로워 쿠폰 코드') as string) || '').split('\n').filter(Boolean).length;
+        const available =
+            ((record.get('⭐️ 신청 가능 인원') as number) || 0) +
+            ((record.get('✔️ 신청 가능 인원') as number) || 0) +
+            ((record.get('🔥 신청 가능 인원') as number) || 0);
+        if (poolCount < available) guards.push(`쿠폰 풀(${poolCount}) < 잔여(${available}) — 풀 정합성부터 해결`);
+        if (!record.get('쿠폰코드')) guards.push('대표 쿠폰코드 없음');
+    }
+
+    // 쿠폰이벤트면 날짜 4개도 함께 (방문종료는 새 기한 - 14일 클램프: 방문 + 제작 14일이 기한 안에)
+    let couponDates: AdminExtendResult['couponDates'];
+    if (couponEvent) {
+        const visitDays = (record.get('방문 가능 기간(일수)') as number) || 60;
+        const couponDays = (record.get('쿠폰 유효 기간(일수)') as number) || 104;
+        const visitEndEpoch = Math.min(today + visitDays * KST_DAY_MS, kstDayEpoch(newDeadline) - 14 * KST_DAY_MS);
+        const epochToYmd = (epoch: number) => new Date(epoch + 12 * 3600000 + 9 * 3600000).toISOString().slice(0, 10);
+        couponDates = {
+            visitStart: todayStr,
+            visitEnd: epochToYmd(visitEndEpoch),
+            couponStart: todayStr,
+            couponEnd: epochToYmd(today + couponDays * KST_DAY_MS),
+        };
+    }
+
+    const result: AdminExtendResult = {
+        campaignId,
+        name,
+        targetDate,
+        currentDeadline,
+        newDeadline,
+        baseMonths,
+        currentExtension,
+        newExtension,
+        couponEvent,
+        couponDates,
+        guards,
+        applied: false,
+        verified: false,
+    };
+
+    if (!apply || guards.length > 0) return result;
+
+    // ---- 쓰기 + 재조회 검증 ----
+    const fields: Record<string, unknown> = { '추가 기간 연장': newExtension };
+    if (couponDates) {
+        fields['크리에이터 방문 가능 시작일'] = couponDates.visitStart;
+        fields['크리에이터 방문 가능 종료일'] = couponDates.visitEnd;
+        fields['쿠폰 유효 시작일'] = couponDates.couponStart;
+        fields['쿠폰 유효 종료일'] = couponDates.couponEnd;
+    }
+    await campaignTable().update([{ id: campaignId, fields: fields as Partial<FieldSet> }]);
+
+    const after = await campaignTable().find(campaignId);
+    const gotExtension = (after.get('추가 기간 연장') as number) || 0;
+    const gotDeadline = String(after.get('콘텐츠 제작 기한 (날짜)') || '').slice(0, 10);
+    let verified = gotExtension === newExtension && gotDeadline === newDeadline;
+    if (couponDates) {
+        // hasAllCouponFields 재현 — 날짜 4개 중 하나라도 비면 카드가 조용히 일반 캠페인으로 렌더된다
+        verified = verified
+            && !!after.get('크리에이터 방문 가능 시작일') && !!after.get('크리에이터 방문 가능 종료일')
+            && !!after.get('쿠폰 유효 시작일') && !!after.get('쿠폰 유효 종료일');
+    }
+
+    return { ...result, applied: true, verified };
 }
