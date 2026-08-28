@@ -37,7 +37,12 @@ import type {
     AdminOverdueUpload,
     AdminCouponIssue,
     AdminRecentApplication,
-    AdminExtendResult
+    AdminExtendResult,
+    AdminRefundReview,
+    AdminOfferRow,
+    AdminSettlement,
+    AdminSettlementPerson,
+    AdminWeeklyInflow
 } from '@/types';
 
 /**
@@ -2245,7 +2250,7 @@ function campaignAirtableUrl(recordId: string): string {
  * 퇴실일은 1박 가정(입실일 + 1일) — 신청 테이블에 퇴실일/박수 필드가 없다.
  */
 export async function getAdminOverview(leadDays = 30, graceDays = 14): Promise<AdminOverview> {
-    const [campaignRecords, applicationRecords, premiumRecords, uploadRecords] = await Promise.all([
+    const [campaignRecords, applicationRecords, premiumRecords, offerRecords, creatorRecords, uploadRecords] = await Promise.all([
         campaignTable().select({
             filterByFormula: '{입금내역 확인}',
             fields: [
@@ -2255,6 +2260,11 @@ export async function getAdminOverview(leadDays = 30, graceDays = 14): Promise<A
                 '기본 제작 개월수', '추가 기간 연장', '쿠폰이벤트희망',
                 '크리에이터 방문 가능 종료일', '환불 요청일', '환불 요청 금액',
                 '팔로워 쿠폰 코드', '쿠폰코드',
+                // 재발급 준비물 (쿠폰이벤트) + 환불 상한 계산 (SOP-인원리밸런싱 §4)
+                '🎟️ 캠핏 캠핑장 ID', '할인 금액', '쿠폰 적용 요일', '인당 팔로워 쿠폰',
+                '사용가능 최소 예약 박수', '사용가능 최대 예약 박수', '쿠폰 유효 시작일', '쿠폰 유효 종료일',
+                '아이콘 크리에이터 협찬 제안 금액', '파트너 크리에이터 협찬 제안 금액', '라이징 협찬 제안 금액',
+                '프렌들리',
             ],
         }).all(),
         applicationTable().select({
@@ -2263,9 +2273,23 @@ export async function getAdminOverview(leadDays = 30, graceDays = 14): Promise<A
         userTable().select({
             fields: ['크리에이터 채널명 (크리에이터 명단)', '연락처'],
         }).all(),
-        contentUploadTable().select({
-            fields: ['크리에이터 명단', '프리미엄 협찬 캠핑장 이름', '업로드 날짜'],
-        }).all(),
+        offerTable().select({
+            fields: ['캠핑장 이름', '상태', '크리에이터', '크리에이터 발송 일시', '응답 일시', '거절 사유'],
+        }).all().catch((error) => {
+            // 지명 제안 테이블 env 미등록 등으로 실패해도 나머지 보드는 살린다
+            console.error('Admin overview: offers fetch failed', error);
+            return [];
+        }),
+        creatorTable().select({ fields: ['크리에이터 채널명'] }).all().catch((error) => {
+            console.error('Admin overview: creators fetch failed', error);
+            return [];
+        }),
+        // 업로드 테이블은 미업로드 조인 + 정산 집계 겸용이라 전 필드 조회
+        // (정산은 lookup 필드가 많아 fields 제한 불가 — tools/settlement/verify-month.cjs와 동일 필드 사용)
+        contentUploadTable().select().all().catch((error) => {
+            console.error('Admin overview: uploads fetch failed', error);
+            return [];
+        }),
     ]);
 
     const today = kstDayEpoch(new Date(Date.now() + 9 * 3600000).toISOString());
@@ -2302,16 +2326,19 @@ export async function getAdminOverview(leadDays = 30, graceDays = 14): Promise<A
         }
     }
 
-    // ---- 1. 캠페인 헬스 ----
+    // ---- 1. 캠페인 헬스 + 환불 검토 ----
     const campaigns: AdminCampaignHealth[] = [];
     const couponIssues: AdminCouponIssue[] = [];
+    const refundReviews: AdminRefundReview[] = [];
     let closed = 0;
 
     for (const c of campaignRecords) {
-        const available =
-            ((c.get('⭐️ 신청 가능 인원') as number) || 0) +
-            ((c.get('✔️ 신청 가능 인원') as number) || 0) +
-            ((c.get('🔥 신청 가능 인원') as number) || 0);
+        const unfilled = {
+            icon: (c.get('⭐️ 신청 가능 인원') as number) || 0,
+            partner: (c.get('✔️ 신청 가능 인원') as number) || 0,
+            rising: (c.get('🔥 신청 가능 인원') as number) || 0,
+        };
+        const available = unfilled.icon + unfilled.partner + unfilled.rising;
         const name = (c.get('숙소 이름을 적어주세요.') as string) || c.id;
 
         // 쿠폰 정합성은 노출 중 전체를 본다 (마감 여부 무관 — 취소/반납 누락 탐지)
@@ -2339,6 +2366,30 @@ export async function getAdminOverview(leadDays = 30, graceDays = 14): Promise<A
         if (!deadlineRaw) continue; // 수식 필드라 비는 경우는 미입금/미운영뿐 — 여기 올 일 없음
         const deadline = String(deadlineRaw).slice(0, 10);
         const daysLeft = Math.floor((kstDayEpoch(deadline) - today) / KST_DAY_MS);
+        const extensionMonths = (c.get('추가 기간 연장') as number) || 0;
+        const campaignApplications = appCount.get(c.id) || 0;
+
+        // 환불/리밸런싱 검토 (SOP-인원리밸런싱 §4) — gross 단가 필드는 수동이라 상한액으로만 표시
+        const friendly = !!c.get('프렌들리');
+        const grossSum =
+            unfilled.icon * (((c.get('아이콘 크리에이터 협찬 제안 금액') as number) || 0)) +
+            unfilled.partner * (((c.get('파트너 크리에이터 협찬 제안 금액') as number) || 0)) +
+            unfilled.rising * (((c.get('라이징 협찬 제안 금액') as number) || 0));
+        refundReviews.push({
+            campaignId: c.id,
+            name,
+            friendly,
+            unfilled,
+            grossSum,
+            refundCeiling: Math.round(grossSum * (friendly ? 1.0 : 1.1)),
+            applications: campaignApplications,
+            extensionMonths,
+            daysLeft,
+            // SOP §4 "연장이 답이 아닌 경우" — 신청이 아예 없는 캠페인이 핵심 신호.
+            // 연장 횟수만으로 걸면 정당한 소생 이력까지 전부 걸려 소음이 된다.
+            candidate: campaignApplications === 0 && (extensionMonths >= 1 || daysLeft < leadDays),
+            airtableUrl: campaignAirtableUrl(c.id),
+        });
 
         campaigns.push({
             id: c.id,
@@ -2351,17 +2402,29 @@ export async function getAdminOverview(leadDays = 30, graceDays = 14): Promise<A
                 ((c.get('⭐️ 모집 희망 인원') as number) || 0) +
                 ((c.get('✔️ 모집 인원') as number) || 0) +
                 ((c.get('🔥 모집 인원') as number) || 0),
-            applications: appCount.get(c.id) || 0,
+            applications: campaignApplications,
             baseMonths: (c.get('기본 제작 개월수') as number) || 0,
-            extensionMonths: (c.get('추가 기간 연장') as number) || 0,
+            extensionMonths,
             couponEvent: !!c.get('쿠폰이벤트희망'),
             visitEndDate: c.get('크리에이터 방문 가능 종료일')
                 ? String(c.get('크리에이터 방문 가능 종료일')).slice(0, 10)
                 : '',
             refundRequested: !!(c.get('환불 요청일') || c.get('환불 요청 금액')),
             airtableUrl: campaignAirtableUrl(c.id),
+            couponPrep: c.get('쿠폰이벤트희망') ? {
+                campfitCampId: (c.get('🎟️ 캠핏 캠핑장 ID') as string) || '',
+                discount: (c.get('할인 금액') as number) || 0,
+                couponApplyDays: (c.get('쿠폰 적용 요일') as string) || '',
+                couponPerCreator: (c.get('인당 팔로워 쿠폰') as number) || 0,
+                minNights: (c.get('사용가능 최소 예약 박수') as number) || 1,
+                maxNights: (c.get('사용가능 최대 예약 박수') as number) || 3,
+                couponStart: c.get('쿠폰 유효 시작일') ? String(c.get('쿠폰 유효 시작일')).slice(0, 10) : '',
+                couponEnd: c.get('쿠폰 유효 종료일') ? String(c.get('쿠폰 유효 종료일')).slice(0, 10) : '',
+            } : undefined,
         });
     }
+    // 환불 검토: 후보 우선, 그다음 환불 상한 큰 순
+    refundReviews.sort((a, b) => (Number(b.candidate) - Number(a.candidate)) || (b.refundCeiling - a.refundCeiling));
     campaigns.sort((a, b) => a.daysLeft - b.daysLeft);
 
     // ---- 2. 미업로드 독촉 (퇴실 = 입실 + 1박 가정) ----
@@ -2435,6 +2498,108 @@ export async function getAdminOverview(leadDays = 30, graceDays = 14): Promise<A
     }
     recentApplications.sort((a, b) => b.appliedAt.localeCompare(a.appliedAt));
 
+    // ---- 4. 주간 신청 유입 추이 (최근 8주, KST 월요일 시작) ----
+    const kstDow = new Date(today + 9 * 3600000).getUTCDay(); // KST 기준 요일 (0=일)
+    const thisMonday = today - ((kstDow + 6) % 7) * KST_DAY_MS;
+    const epochToYmdKst = (epoch: number) => new Date(epoch + 21 * 3600000).toISOString().slice(0, 10);
+    // weeklyInflow[7] = 이번 주(월요일 시작), [0] = 7주 전
+    const weeklyInflow: AdminWeeklyInflow[] = Array.from({ length: 8 }, (_, i) => ({
+        weekStart: epochToYmdKst(thisMonday - (7 - i) * 7 * KST_DAY_MS),
+        count: 0,
+    }));
+    for (const a of applicationRecords) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- SDK 미노출 createdTime 접근
+        const createdTime = (a as any)._rawJson?.createdTime as string | undefined;
+        if (!createdTime) continue;
+        const createdDay = kstDayEpoch(new Date(new Date(createdTime).getTime() + 9 * 3600000).toISOString());
+        // 몇 주 전 주(週)인지: 이번 주=0. 지난 주 월요일(diff=7일)은 정확히 1이어야 하므로 ceil.
+        const weeksAgo = Math.ceil(Math.max(0, thisMonday - createdDay) / (7 * KST_DAY_MS));
+        const bucket = 7 - weeksAgo;
+        if (bucket >= 0 && bucket <= 7) weeklyInflow[bucket].count++;
+    }
+
+    // ---- 5. 지명형 제안 현황 ----
+    const creatorNameById = new Map<string, string>();
+    for (const cr of creatorRecords) {
+        creatorNameById.set(cr.id, (cr.get('크리에이터 채널명') as string) || cr.id);
+    }
+    const offerCounts = { pending: 0, accepted: 0, rejected: 0, other: 0 };
+    const offerRows: AdminOfferRow[] = [];
+    for (const o of offerRecords) {
+        const status = (o.get('상태') as string) || '';
+        if (status === '크리에이터확인중') offerCounts.pending++;
+        else if (status === '확정') offerCounts.accepted++;
+        else if (status === '거절') offerCounts.rejected++;
+        else offerCounts.other++;
+        const creatorLink = o.get('크리에이터');
+        const creatorId = Array.isArray(creatorLink) ? (creatorLink[0] as string) : undefined;
+        offerRows.push({
+            id: o.id,
+            camp: (o.get('캠핑장 이름') as string) || '(이름 없음)',
+            creatorChannel: creatorId ? (creatorNameById.get(creatorId) || '(미상)') : '(미상)',
+            status: status || '(상태 없음)',
+            sentAt: o.get('크리에이터 발송 일시') ? String(o.get('크리에이터 발송 일시')).slice(0, 10) : '',
+            respondedAt: o.get('응답 일시') ? String(o.get('응답 일시')).slice(0, 10) : '',
+            rejectReason: (o.get('거절 사유') as string) || '',
+        });
+    }
+    offerRows.sort((a, b) => (b.sentAt || '').localeCompare(a.sentAt || ''));
+
+    // ---- 6. 월정산 요약 (SOP-월정산: 전월 Created 저장건 → 이번 달 10일 지급) ----
+    const nowKst = new Date(Date.now() + 9 * 3600000);
+    const currentMonth = nowKst.toISOString().slice(0, 7);
+    const prevMonthDate = new Date(Date.UTC(nowKst.getUTCFullYear(), nowKst.getUTCMonth() - 1, 1));
+    const payoutMonth = prevMonthDate.toISOString().slice(0, 7);
+    const payday = `${currentMonth}-10`;
+    const paydayDaysLeft = Math.floor((kstDayEpoch(payday) - today) / KST_DAY_MS);
+
+    const first = (v: unknown) => (Array.isArray(v) ? v[0] : v);
+    const settleFee = (r: (typeof uploadRecords)[number]): number | null => {
+        const tier = first(r.get('등급화 (from 크리에이터 명단)'));
+        const field = tier === 3 ? '⭐️ 협찬 제안 금액 (from 프리미엄 협찬 캠핑장 이름)'
+            : tier === 2 ? '✔️ 협찬 제안 금액 (from 프리미엄 협찬 캠핑장 이름)'
+            : tier === 1 ? '🔥 협찬 제안 금액 (from 프리미엄 협찬 캠핑장 이름)' : null;
+        const fee = field ? first(r.get(field)) : null;
+        return typeof fee === 'number' ? fee : null;
+    };
+    // 개인: 원천징수 3.3% 공제(×0.967) / 사업자: 부가세 10% 가산(×1.1) — verify-month.cjs와 동일
+    const settlePayout = (fee: number, bizType: string) =>
+        bizType === '사업자' ? Math.round(fee * 1.1) : Math.round(fee * 0.967);
+
+    let prevCount = 0, prevFeeSum = 0, prevPaySum = 0, currentCount = 0, missingFee = 0;
+    const personMap = new Map<string, AdminSettlementPerson>();
+    for (const r of uploadRecords) {
+        if (r.get('협찬의 종류를 골라주세요') !== '프리미엄 협찬') continue;
+        const createdMonth = String(r.get('Created') || '').slice(0, 7);
+        if (createdMonth === currentMonth) { currentCount++; continue; }
+        if (createdMonth !== payoutMonth) continue;
+        prevCount++;
+        const fee = settleFee(r);
+        if (fee == null) { missingFee++; continue; }
+        const bizType = String(first(r.get('개인 / 사업자 (from 프리미엄 협찬을 신청했나요?)')) || '');
+        const pay = settlePayout(fee, bizType);
+        prevFeeSum += fee;
+        prevPaySum += pay;
+        const personName = String(first(r.get('이름 (from 프리미엄 협찬을 신청했나요?)')) || '(이름 없음)').trim();
+        const entry = personMap.get(personName) || { name: personName, bizType, feeSum: 0, paySum: 0, count: 0 };
+        entry.feeSum += fee;
+        entry.paySum += pay;
+        entry.count++;
+        personMap.set(personName, entry);
+    }
+    const settlement: AdminSettlement = {
+        payoutMonth,
+        payday,
+        paydayDaysLeft,
+        prevCount,
+        prevFeeSum,
+        prevPaySum,
+        currentMonth,
+        currentCount,
+        missingFee,
+        persons: [...personMap.values()].sort((a, b) => b.paySum - a.paySum),
+    };
+
     return {
         generatedAt: new Date().toISOString(),
         leadDays,
@@ -2455,6 +2620,10 @@ export async function getAdminOverview(leadDays = 30, graceDays = 14): Promise<A
         overdue,
         couponIssues,
         recentApplications: recentApplications.slice(0, 20),
+        weeklyInflow,
+        refundReviews,
+        offers: { counts: offerCounts, rows: offerRows.slice(0, 30) },
+        settlement,
     };
 }
 
@@ -2569,6 +2738,11 @@ export async function extendCampaignDeadline(
         fields['쿠폰 유효 시작일'] = couponDates.couponStart;
         fields['쿠폰 유효 종료일'] = couponDates.couponEnd;
     }
+    // 운영 로그(감사 기록) — 맨 위가 최신. 누가/언제/무엇을 바꿨는지 없으면 나중에 역추적이 안 된다.
+    const previousLog = (record.get('운영 로그') as string) || '';
+    const logLine = `[${todayStr} 포털어드민] 기한 연장: ${currentDeadline} → ${newDeadline} (연장 ${currentExtension}→${newExtension}개월, 목표 ${targetDate})`
+        + (couponDates ? ` + 방문 ~${couponDates.visitEnd}·쿠폰유효 ~${couponDates.couponEnd} 갱신. 실물 쿠폰 재발급 별도 필요` : '');
+    fields['운영 로그'] = (logLine + (previousLog ? `\n${previousLog}` : '')).slice(0, 90000);
     await campaignTable().update([{ id: campaignId, fields: fields as Partial<FieldSet> }]);
 
     const after = await campaignTable().find(campaignId);

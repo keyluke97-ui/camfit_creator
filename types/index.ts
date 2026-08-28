@@ -599,6 +599,75 @@ export interface AdminCampaignHealth {
     visitEndDate: string;         // 크리에이터 방문 가능 종료일 (없으면 '')
     refundRequested: boolean;     // 환불 요청일/금액 존재
     airtableUrl: string;
+    /** 쿠폰이벤트 캠페인만 — 재발급 준비물 생성용 (SOP Step 5 파라미터) */
+    couponPrep?: {
+        campfitCampId: string;    // 🎟️ 캠핏 캠핑장 ID
+        discount: number;         // 할인 금액 (정액)
+        couponApplyDays: string;  // 쿠폰 적용 요일
+        couponPerCreator: number; // 인당 팔로워 쿠폰
+        minNights: number;
+        maxNights: number;
+        couponStart: string;      // 쿠폰 유효 시작일
+        couponEnd: string;        // 쿠폰 유효 종료일
+    };
+}
+
+/**
+ * 환불/리밸런싱 검토 — 미모집 자리가 있는 캠페인의 환불 상한액.
+ * SOP-인원리밸런싱-환불 §4: 환불 상한 = 미모집 gross 단가 합 × VAT(프렌들리 1.0 / 그 외 1.1).
+ * ⚠️ gross 단가 필드는 수동 입력이라 맹신 금지 — 실행 전 반드시 실입금액 대조(SOP).
+ */
+export interface AdminRefundReview {
+    campaignId: string;
+    name: string;
+    friendly: boolean;
+    unfilled: { icon: number; partner: number; rising: number };  // 등급별 미모집(신청 가능 인원)
+    grossSum: number;             // 미모집 gross 단가 합 (VAT 전)
+    refundCeiling: number;        // grossSum × VAT배수 — 환불 "상한" (실행 전 대조 필수)
+    applications: number;
+    extensionMonths: number;
+    daysLeft: number;
+    candidate: boolean;           // 환불 검토 후보 (연장≥2 or 연장≥1·신청0 or 기한지남·신청0)
+    airtableUrl: string;
+}
+
+/** 지명형(1b) 제안 현황 */
+export interface AdminOfferRow {
+    id: string;
+    camp: string;
+    creatorChannel: string;
+    status: string;               // 크리에이터확인중 / 확정 / 거절 / 기타
+    sentAt: string;               // 크리에이터 발송 일시 (없으면 '')
+    respondedAt: string;
+    rejectReason: string;
+}
+
+/** 월정산 요약 (SOP-월정산: 전월 Created 저장건 → 익월 10일 지급, 개인×0.967/사업자×1.1) */
+export interface AdminSettlementPerson {
+    name: string;
+    bizType: string;
+    feeSum: number;
+    paySum: number;
+    count: number;
+}
+
+export interface AdminSettlement {
+    payoutMonth: string;          // 지급 대상 월 (전월, YYYY-MM)
+    payday: string;               // 지급일 (이번 달 10일, YYYY-MM-DD)
+    paydayDaysLeft: number;       // 지급일까지 D-day (음수 = 지남)
+    prevCount: number;            // 전월 저장 건수
+    prevFeeSum: number;
+    prevPaySum: number;
+    currentMonth: string;         // 진행 중인 이번 달 (YYYY-MM)
+    currentCount: number;         // 이번 달 저장 건수 (다음 사이클)
+    missingFee: number;           // 협찬비 lookup이 비어 지급액 계산 불가 건수 (수동 확인 필요)
+    persons: AdminSettlementPerson[];  // 전월 지급 대상자별 합계
+}
+
+/** 주간 신청 유입 추이 (최근 8주, 월요일 시작 KST) */
+export interface AdminWeeklyInflow {
+    weekStart: string;            // YYYY-MM-DD (월요일)
+    count: number;
 }
 
 /** 퇴실(입실+1박) + 유예일 경과인데 콘텐츠 업로드가 없는 신청 건 */
@@ -653,6 +722,13 @@ export interface AdminOverview {
     overdue: AdminOverdueUpload[];
     couponIssues: AdminCouponIssue[];
     recentApplications: AdminRecentApplication[];  // 최근 30일, 최신순 최대 20건
+    weeklyInflow: AdminWeeklyInflow[];             // 최근 8주 신청 추이
+    refundReviews: AdminRefundReview[];            // 미모집 자리 있는 캠페인 전체 (후보 우선 정렬)
+    offers: {
+        counts: { pending: number; accepted: number; rejected: number; other: number };
+        rows: AdminOfferRow[];    // 최신 30건
+    };
+    settlement: AdminSettlement;
 }
 
 /**
