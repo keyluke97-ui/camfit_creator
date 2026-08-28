@@ -31,7 +31,11 @@ import type {
     Offer,
     CreatorProfileUpdate,
     ChannelDetail,
-    ReviewStatus
+    ReviewStatus,
+    AdminOverview,
+    AdminCampaignHealth,
+    AdminOverdueUpload,
+    AdminCouponIssue
 } from '@/types';
 
 /**
@@ -2215,4 +2219,207 @@ export async function respondToOffer(params: {
         console.error('Respond offer error:', error);
         return { ok: false, code: 'WRITE_FAILED' };
     }
+}
+
+// ============ 내부 관리자 어드민 (조회 전용) ============
+
+/** KST 자정 기준 epoch — 기한 판정은 전부 이 기준 (세션/서버 타임존과 무관) */
+function kstDayEpoch(ymd: string): number {
+    return new Date(`${String(ymd).slice(0, 10)}T00:00:00+09:00`).getTime();
+}
+
+const KST_DAY_MS = 86400000;
+
+function campaignAirtableUrl(recordId: string): string {
+    return `https://airtable.com/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_CAMPAIGN_TABLE_ID}/${recordId}`;
+}
+
+/**
+ * 관리자 어드민 개요 — 캠페인 헬스 / 미업로드 독촉 / 쿠폰 정합성을 한 번에.
+ * tools/campaign-revival/check.cjs + tools/content-followup/overdue.cjs + tools/coupon-pool/audit.cjs
+ * 의 판정 로직을 서버로 이식한 조회 전용 함수. 아무것도 쓰지 않는다.
+ *
+ * 조인은 반드시 레코드 ID 기준(§4 핵심 규칙 5 — 채널명 문자열 조인은 표기 흔들림으로 오탐).
+ * 퇴실일은 1박 가정(입실일 + 1일) — 신청 테이블에 퇴실일/박수 필드가 없다.
+ */
+export async function getAdminOverview(leadDays = 30, graceDays = 14): Promise<AdminOverview> {
+    const [campaignRecords, applicationRecords, premiumRecords, uploadRecords] = await Promise.all([
+        campaignTable().select({
+            filterByFormula: '{입금내역 확인}',
+            fields: [
+                '숙소 이름을 적어주세요.', '콘텐츠 제작 기한 (날짜)',
+                '⭐️ 신청 가능 인원', '✔️ 신청 가능 인원', '🔥 신청 가능 인원',
+                '⭐️ 모집 희망 인원', '✔️ 모집 인원', '🔥 모집 인원',
+                '기본 제작 개월수', '추가 기간 연장', '쿠폰이벤트희망',
+                '크리에이터 방문 가능 종료일', '환불 요청일', '환불 요청 금액',
+                '팔로워 쿠폰 코드', '쿠폰코드',
+            ],
+        }).all(),
+        applicationTable().select({
+            fields: ['크리에이터 채널명', '크리에이터 채널명(프리미엄 협찬 신청)', '숙소 이름 (유료 오퍼)', '입실일', '예약 취소/변경'],
+        }).all(),
+        userTable().select({
+            fields: ['크리에이터 채널명 (크리에이터 명단)', '연락처'],
+        }).all(),
+        contentUploadTable().select({
+            fields: ['크리에이터 명단', '프리미엄 협찬 캠핑장 이름', '업로드 날짜'],
+        }).all(),
+    ]);
+
+    const today = kstDayEpoch(new Date(Date.now() + 9 * 3600000).toISOString());
+
+    // 프리미엄 유저 ID → 크리에이터 명단 ID / 연락처
+    const premiumMap = new Map<string, { creatorId: string | null; phone: string }>();
+    for (const p of premiumRecords) {
+        const link = p.get('크리에이터 채널명 (크리에이터 명단)');
+        premiumMap.set(p.id, {
+            creatorId: Array.isArray(link) ? (link[0] as string) ?? null : null,
+            phone: (p.get('연락처') as string) || '',
+        });
+    }
+
+    // 업로드 인덱스: `크리에이터명단ID::캠페인ID`
+    const uploaded = new Set<string>();
+    for (const u of uploadRecords) {
+        const creatorLink = u.get('크리에이터 명단');
+        const creatorId = Array.isArray(creatorLink) ? (creatorLink[0] as string) : undefined;
+        if (!creatorId) continue;
+        const campLinks = u.get('프리미엄 협찬 캠핑장 이름');
+        for (const campId of (Array.isArray(campLinks) ? campLinks : [])) {
+            uploaded.add(`${creatorId}::${campId}`);
+        }
+    }
+
+    // 캠페인 ID → 유효 신청 수 (취소 제외)
+    const appCount = new Map<string, number>();
+    for (const a of applicationRecords) {
+        if (a.get('예약 취소/변경') === '취소') continue;
+        const campLinks = a.get('숙소 이름 (유료 오퍼)');
+        for (const campId of (Array.isArray(campLinks) ? campLinks : [])) {
+            appCount.set(campId as string, (appCount.get(campId as string) || 0) + 1);
+        }
+    }
+
+    // ---- 1. 캠페인 헬스 ----
+    const campaigns: AdminCampaignHealth[] = [];
+    const couponIssues: AdminCouponIssue[] = [];
+    let closed = 0;
+
+    for (const c of campaignRecords) {
+        const available =
+            ((c.get('⭐️ 신청 가능 인원') as number) || 0) +
+            ((c.get('✔️ 신청 가능 인원') as number) || 0) +
+            ((c.get('🔥 신청 가능 인원') as number) || 0);
+        const name = (c.get('숙소 이름을 적어주세요.') as string) || c.id;
+
+        // 쿠폰 정합성은 노출 중 전체를 본다 (마감 여부 무관 — 취소/반납 누락 탐지)
+        if (c.get('쿠폰이벤트희망')) {
+            const poolCount = String((c.get('팔로워 쿠폰 코드') as string) || '')
+                .split('\n').filter(Boolean).length;
+            const problems: string[] = [];
+            if (poolCount < available) problems.push(`풀(${poolCount}) < 잔여(${available}) — 신청 시 COUPON_POOL_EMPTY`);
+            if (!c.get('쿠폰코드')) problems.push('대표 쿠폰코드 없음 — 신청이 COUPON_NOT_FOUND로 막힘');
+            if (problems.length > 0 && available > 0) {
+                couponIssues.push({
+                    campaignId: c.id,
+                    name,
+                    poolCount,
+                    totalAvailable: available,
+                    issue: problems.join(' · '),
+                    airtableUrl: campaignAirtableUrl(c.id),
+                });
+            }
+        }
+
+        if (available < 1) { closed++; continue; }
+
+        const deadlineRaw = c.get('콘텐츠 제작 기한 (날짜)');
+        if (!deadlineRaw) continue; // 수식 필드라 비는 경우는 미입금/미운영뿐 — 여기 올 일 없음
+        const deadline = String(deadlineRaw).slice(0, 10);
+        const daysLeft = Math.floor((kstDayEpoch(deadline) - today) / KST_DAY_MS);
+
+        campaigns.push({
+            id: c.id,
+            name,
+            deadline,
+            daysLeft,
+            status: daysLeft < 0 ? 'dead' : daysLeft <= leadDays ? 'dying' : 'healthy',
+            totalAvailable: available,
+            totalRecruit:
+                ((c.get('⭐️ 모집 희망 인원') as number) || 0) +
+                ((c.get('✔️ 모집 인원') as number) || 0) +
+                ((c.get('🔥 모집 인원') as number) || 0),
+            applications: appCount.get(c.id) || 0,
+            baseMonths: (c.get('기본 제작 개월수') as number) || 0,
+            extensionMonths: (c.get('추가 기간 연장') as number) || 0,
+            couponEvent: !!c.get('쿠폰이벤트희망'),
+            visitEndDate: c.get('크리에이터 방문 가능 종료일')
+                ? String(c.get('크리에이터 방문 가능 종료일')).slice(0, 10)
+                : '',
+            refundRequested: !!(c.get('환불 요청일') || c.get('환불 요청 금액')),
+            airtableUrl: campaignAirtableUrl(c.id),
+        });
+    }
+    campaigns.sort((a, b) => a.daysLeft - b.daysLeft);
+
+    // ---- 2. 미업로드 독촉 (퇴실 = 입실 + 1박 가정) ----
+    const overdue: AdminOverdueUpload[] = [];
+    const campaignById = new Map(campaignRecords.map((c) => [c.id, c]));
+    for (const a of applicationRecords) {
+        if (a.get('예약 취소/변경') === '취소') continue;
+        const campLinks = a.get('숙소 이름 (유료 오퍼)');
+        const campId = Array.isArray(campLinks) ? (campLinks[0] as string) : undefined;
+        if (!campId) continue;
+        const checkin = a.get('입실일');
+        if (!checkin) continue;
+
+        const dueAt = kstDayEpoch(String(checkin)) + KST_DAY_MS + graceDays * KST_DAY_MS;
+        if (dueAt > today) continue;
+
+        const premiumLink = a.get('크리에이터 채널명(프리미엄 협찬 신청)');
+        const premium = Array.isArray(premiumLink) ? premiumMap.get(premiumLink[0] as string) : undefined;
+        const creatorId = premium?.creatorId;
+        if (creatorId && uploaded.has(`${creatorId}::${campId}`)) continue;
+
+        const camp = campaignById.get(campId);
+        const deadlineRaw = camp?.get('콘텐츠 제작 기한 (날짜)');
+        const deadline = deadlineRaw ? String(deadlineRaw).slice(0, 10) : '';
+        const daysOver = Math.floor((today - dueAt) / KST_DAY_MS);
+        // 90일 초과 과거 건은 화면에서 제외 (overdue.cjs와 동일 컷)
+        if (daysOver > 90) continue;
+
+        overdue.push({
+            channel: (a.get('크리에이터 채널명') as string) || '(이름 없음)',
+            camp: camp ? ((camp.get('숙소 이름을 적어주세요.') as string) || campId) : campId,
+            checkin: String(checkin).slice(0, 10),
+            daysOver,
+            deadline,
+            deadlinePassed: deadline ? kstDayEpoch(deadline) < today : false,
+            phone: premium?.phone || '',
+            noCreatorLink: !creatorId,
+        });
+    }
+    overdue.sort((a, b) => b.daysOver - a.daysOver);
+
+    const dead = campaigns.filter((c) => c.status === 'dead').length;
+    const dying = campaigns.filter((c) => c.status === 'dying').length;
+
+    return {
+        generatedAt: new Date().toISOString(),
+        leadDays,
+        graceDays,
+        summary: {
+            exposed: campaignRecords.length,
+            closed,
+            open: campaigns.length,
+            dead,
+            dying,
+            healthy: campaigns.length - dead - dying,
+            overdueUploads: overdue.length,
+            couponIssues: couponIssues.length,
+        },
+        campaigns,
+        overdue,
+        couponIssues,
+    };
 }

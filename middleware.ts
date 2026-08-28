@@ -43,6 +43,40 @@ export async function middleware(request: NextRequest) {
         }
     }
 
+    // CHANGED: 내부 관리자 어드민 — admin-token(role=admin) 필요. 크리에이터 auth-token과 별개.
+    if (pathname.startsWith('/admin')) {
+        const adminToken = request.cookies.get('admin-token')?.value;
+
+        // 로그인 페이지: 이미 관리자면 어드민으로
+        if (pathname === '/admin/login') {
+            if (adminToken) {
+                try {
+                    const { payload } = await jwtVerify(adminToken, JWT_SECRET);
+                    if (payload.role === 'admin') {
+                        return NextResponse.redirect(new URL('/admin', request.url));
+                    }
+                } catch {
+                    // 만료/위조 토큰 → 로그인 페이지 그대로 표시
+                }
+            }
+            return NextResponse.next();
+        }
+
+        if (!adminToken) {
+            return NextResponse.redirect(new URL('/admin/login', request.url));
+        }
+        try {
+            const { payload } = await jwtVerify(adminToken, JWT_SECRET);
+            if (payload.role !== 'admin') {
+                return NextResponse.redirect(new URL('/admin/login', request.url));
+            }
+            return NextResponse.next();
+        } catch (error) {
+            console.error('Admin token verification failed:', error);
+            return NextResponse.redirect(new URL('/admin/login', request.url));
+        }
+    }
+
     // 대시보드는 인증 필요
     if (pathname.startsWith('/dashboard')) {
         const token = request.cookies.get('auth-token')?.value;
@@ -66,5 +100,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
     // CHANGED: /premium-register 경로 보호 추가
-    matcher: ['/dashboard/:path*', '/premium-register', '/login']
+    // CHANGED: /admin 내부 관리자 어드민 보호 추가
+    matcher: ['/dashboard/:path*', '/premium-register', '/login', '/admin/:path*']
 };
