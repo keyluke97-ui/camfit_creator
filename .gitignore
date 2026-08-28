@@ -45,3 +45,16 @@ next-env.d.ts
 
 # 운영 문서 (본인 전용 · 아티팩트로만 공유). 레포에 올리면 접근 권한자 전원에게 보인다
 docs/운영-워크플로우-지명형협찬.html
+
+# 세션·플러그인 작업 파일 (전사본에 토큰이 섞일 수 있어 커밋 금지)
+.playbook/
+playbook/
+.claude/
+.cpf/
+.superpowers/
+.archive/
+.marketing-assets/
+.project-resume.json
+premium_report/
+handoff_*.md
+claude-project-instructions.md
