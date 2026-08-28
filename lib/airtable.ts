@@ -1,5 +1,9 @@
 import Airtable, { FieldSet } from 'airtable';
-import { hasPartnerEligibleChannel } from '@/lib/constants'; // CHANGED: 통합 — 블로거 차단 헬퍼
+import { hasPartnerEligibleChannel, VISIT_REGIONS, VISIT_DAYS, SPONSOR_SITE_TYPES, getWonjeongCandidates } from '@/lib/constants'; // CHANGED: 통합 블로거 차단 / 지명형 옵션·원정 헬퍼
+import { CHANNEL_TYPES, CHANNEL_FIELD_MAP } from '@/lib/constants'; // CHANGED: 1a-v2 채널 포트폴리오 필드 매핑
+import { validateChannelPayload, collectMissingForPublish, needsReReview, normalizeUploadDeadline, isAllowedUploadDeadline } from '@/lib/creatorProfileRules'; // CHANGED: 1a-v2 서버·폼 공유 판정 로직 / 2026-08-12 기한 정규화
+import { OFFER_STATUS_PENDING } from '@/lib/constants'; // CHANGED: 1b 제안 수신함 — 목록 필터 상태
+import { deadlineMs, canRespond } from '@/lib/offerRules'; // CHANGED: 1b — 마감·응답가능 판정은 화면과 같은 함수를 쓴다
 import type {
     TierLevel,
     ChannelType,
@@ -18,7 +22,13 @@ import type {
     AirtablePartnerCampaignRecord,
     AirtablePartnerApplicationRecord,
     ContentSubmitPayload,
-    ContentUpload
+    ContentUpload,
+    CreatorProfile,
+    SettlementSummary,
+    Offer,
+    CreatorProfileUpdate,
+    ChannelDetail,
+    ReviewStatus
 } from '@/types';
 
 /**
@@ -75,6 +85,8 @@ let _partnerApplicationTable: ReturnType<typeof getTable> | null = null;
 // CHANGED: 콘텐츠 업로드 + 캠핑장목록 테이블 추가
 let _contentUploadTable: ReturnType<typeof getTable> | null = null;
 let _accommodationTable: ReturnType<typeof getTable> | null = null;
+// CHANGED: 1b 제안 수신함 — 지명 제안 테이블 추가
+let _offerTable: ReturnType<typeof getTable> | null = null;
 
 const userTable = () => (_userTable ??= getTable('AIRTABLE_USER_TABLE_ID'));
 const campaignTable = () => (_campaignTable ??= getTable('AIRTABLE_CAMPAIGN_TABLE_ID'));
@@ -85,6 +97,7 @@ const partnerApplicationTable = () => (_partnerApplicationTable ??= getTable('AI
 // CHANGED: 콘텐츠 업로드 + 캠핑장목록 테이블 getter
 const contentUploadTable = () => (_contentUploadTable ??= getTable('AIRTABLE_CONTENT_UPLOAD_TABLE_ID'));
 const accommodationTable = () => (_accommodationTable ??= getTable('AIRTABLE_ACCOMMODATION_TABLE_ID'));
+const offerTable = () => (_offerTable ??= getTable('AIRTABLE_OFFER_TABLE_ID'));
 
 /**
  * 등급별 필드명 매핑
@@ -1358,6 +1371,354 @@ export async function updateCreatorNotification(recordId: string, enabled: boole
 }
 
 // ──────────────────────────────────────────────
+// 지명형 협찬 1a — 크리에이터 포트폴리오 / 조건 / 정산 (SDD v4 A′)
+// 스펙: specs/2026-07-16-지명형협찬-1a-*.md
+// ──────────────────────────────────────────────
+
+/**
+ * 정산 주소(자유 텍스트)에서 기준 지역(시/도) 후보 파싱 — 프리필용 best-effort. 못 뽑으면 ''.
+ * 한국 주소는 시/도로 시작하므로 **선두 토큰(startsWith)**으로 판정한다.
+ * (부분일치 금지 — 상세주소에 섞인 '세종아파트'·'대구리' 같은 토큰이 실제 도를 오분류하는 것 방지.)
+ */
+function parseBaseRegionFromAddress(address: string): string {
+    if (!address) return '';
+    const a = address.replace(/\s/g, '');
+    // 각 지역의 가능한 선두 접두어 목록. 접두어 disjoint라 순서 무관.
+    const rules: Array<[string[], string]> = [
+        [['서울', '인천', '경기'], '경기도(서울, 인천 포함)'],
+        [['강원'], '강원도'],
+        [['충청북도', '충북'], '충청북도'],
+        [['충청남도', '충남', '대전', '세종'], '충청남도'],
+        [['전라북도', '전북'], '전라북도'],
+        [['전라남도', '전남', '광주'], '전라남도'],
+        [['경상북도', '경북', '대구'], '경상북도'],
+        [['경상남도', '경남', '부산', '울산'], '경상남도'],
+        [['제주'], '제주도'],
+    ];
+    for (const [prefixes, region] of rules) {
+        if (prefixes.some((p) => a.startsWith(p))) return region;
+    }
+    return '';
+}
+
+/**
+ * 정산정보 마스킹 조회 (유저 테이블 READ only) — premiumId 없으면 미등록 반환.
+ * 전체 계좌번호·주민번호는 절대 반환 안 함(뒤 4자리만). 주소는 기준 지역 프리필로만 변환해 반환.
+ */
+async function getPremiumSettlement(premiumId: string | null): Promise<SettlementSummary> {
+    const unregistered: SettlementSummary = {
+        registered: false, bank: '', accountLast4: '', accountHolder: '', baseRegionPrefill: '',
+    };
+    if (!premiumId) return unregistered;
+    try {
+        const user = await userTable().find(premiumId);
+        const bankRaw = (user.get('은행') as string) || '';
+        // '기타(직접입력)'이면 동반 필드에서 실제 은행명
+        const bank = bankRaw === '기타(직접입력)'
+            ? ((user.get('기타 은행 (직접 입력)') as string) || '기타')
+            : bankRaw;
+        const accountDigits = ((user.get('계좌번호') as string) || '').replace(/[^0-9]/g, '');
+        const address = (user.get('주소 (상세주소 포함)') as string) || '';
+        return {
+            registered: true,
+            bank,
+            accountLast4: accountDigits.slice(-4),
+            accountHolder: (user.get('예금주') as string) || '',
+            baseRegionPrefill: parseBaseRegionFromAddress(address),
+        };
+    } catch (error) {
+        console.error('Get premium settlement error:', error);
+        // premiumId는 있으니 registered=true 유지(재등록 오유도 방지), 마스킹 값만 비움
+        return { registered: true, bank: '', accountLast4: '', accountHolder: '', baseRegionPrefill: '' };
+    }
+}
+
+/**
+ * 크리에이터 레코드에서 채널별 자기신고 정보를 뽑는다.
+ * ⚠️ 보유하지 않은 채널까지 3채널 전부 채워 반환한다 — UI에서 채널을 껐다 켜도 입력값이 날아가지 않게.
+ *    실제로 Airtable에 쓸지는 updateCreatorProfile이 `채널 종류` 기준으로 다시 판단한다.
+ */
+function readChannelDetails(record: { get: (field: string) => unknown }): Record<string, ChannelDetail> {
+    const result: Record<string, ChannelDetail> = {};
+    for (const channel of CHANNEL_TYPES) {
+        const map = CHANNEL_FIELD_MAP[channel];
+        result[channel] = {
+            url: (record.get(map.url) as string) || '',
+            follower: (record.get(map.follower) as number) || 0,
+            engagement: map.engagement ? ((record.get(map.engagement) as number) || 0) : 0,
+            blogIndex: map.blogIndex ? ((record.get(map.blogIndex) as string) || '') : '',
+            strength: (record.get(map.strength) as string) || '',
+        };
+    }
+    return result;
+}
+
+/**
+ * 크리에이터 프로필 전체 조회 (포트폴리오+채널+조건+원정+공개+심사 + 정산요약).
+ * JWT creatorId로만 조회(IDOR 방어). 조회 실패 시 null.
+ */
+export async function getCreatorProfile(creatorId: string): Promise<CreatorProfile | null> {
+    try {
+        const record = await creatorTable().find(creatorId);
+
+        // 프로필 이미지 — 첨부 첫 장의 (만료성) URL
+        const images = record.get('프로필 이미지') as Array<{ url?: string }> | undefined;
+        const hasProfileImage = Array.isArray(images) && images.length > 0;
+        const profileImageUrl = hasProfileImage ? (images![0]?.url || '') : '';
+
+        const ratingValue = record.get('등급화');
+        const tier = (ratingValue ? String(ratingValue) : '1') as TierLevel;
+
+        // premiumId → 정산 마스킹
+        const premiumLinks = record.get('프리미엄 협찬 신청 인플루언서') as string[] | undefined;
+        const premiumId = Array.isArray(premiumLinks) && premiumLinks.length > 0 ? premiumLinks[0] : null;
+        const settlement = await getPremiumSettlement(premiumId);
+
+        return {
+            profileImageUrl,
+            hasProfileImage,
+            representativeLink: (record.get('대표 콘텐츠 링크') as string) || '',
+            minSponsorAmount: (record.get('협찬 희망 금액') as number) || 0,
+            visitRegions: (record.get('방문 가능 지역') as string[]) || [],
+            visitDays: (record.get('방문 가능 요일') as string[]) || [],
+            acceptSiteTypes: (record.get('수용 사이트 종류') as string[]) || [],
+            baseRegion: (record.get('기준 지역') as string) || '',
+            wonjeongRegions: (record.get('원정 가능 지역') as string[]) || [],
+            isPublic: record.get('프로필 공개') === true,
+            // CHANGED: 1a-v2 D1 — autoAcceptActive 매핑 제거(자동수락 토글 폐지)
+            // CHANGED: 1a-v2 — 채널 포트폴리오·콘텐츠·심사 필드 매핑
+            channelTypes: (record.get('채널 종류') as string[]) || [],
+            representativeChannel: (record.get('대표 채널') as string) || '',
+            channels: readChannelDetails(record),
+            representativeLink2: (record.get('대표 콘텐츠 링크 2') as string) || '',
+            representativeLink3: (record.get('대표 콘텐츠 링크 3') as string) || '',
+            contentFormats: (record.get('제작 콘텐츠 형식') as string[]) || [],
+            contentStandard: (record.get('콘텐츠 제작 기준') as string) || '',
+            creatorEmail: (record.get('크리에이터 이메일') as string) || '',
+            // CHANGED: 2026-08-12 협찬 조건 표준화 — 빈 값은 그대로 빈 값으로 둔다.
+            // 표준값을 여기서 채워 넣으면 "빈 값 = 표준 적용 중" 불변식이 깨지고,
+            // 저장 시 그 값이 Airtable에 박혀 표준을 바꿔도 이 사람만 옛 값으로 남는다.
+            // CHANGED: 2026-08-25 — 허용 밖 값(운영자 수기 입력)은 읽을 때 표준으로 눕힌다.
+            // 그대로 실으면 배너·칩·저장이 서로 다른 말을 하는 막다른 길이 된다.
+            uploadDeadlineDays: isAllowedUploadDeadline((record.get('업로드 기한(일)') as number) || null)
+                ? ((record.get('업로드 기한(일)') as number) || null)
+                : null,
+            companions: (record.get('동반 인원') as number) || 0,
+            petAllowed: record.get('반려동물 동반') === true,
+            droneUsed: record.get('드론 촬영') === true,
+            channelConcepts: (record.get('채널콘셉트(자기신고)') as string[]) || [],
+            // 운영자 관리 필드. 353명 중 170명(48%)에 값이 있다 — 자기신고가 비면 이걸 보여준다
+            channelConceptsFallback: (record.get('채널콘셉트') as string[]) || [],
+            reviewStatus: ((record.get('프로필 심사 상태') as string) || '') as ReviewStatus,
+            reviewRejectReason: (record.get('심사 반려 사유') as string) || '',
+            channelName: (record.get('크리에이터 채널명') as string) || '',
+            tier,
+            followerRange: (record.get('팔로워 구간') as string) || '',
+            settlement,
+        };
+    } catch (error) {
+        console.error('Get creator profile error:', error);
+        return null;
+    }
+}
+
+/** updateCreatorProfile 결과 — ok=false면 API가 400으로 매핑 */
+export type UpdateProfileResult =
+    | { ok: true }
+    // CHANGED: 1a-v2 — AUTO_ACCEPT_REQUIRES_PUBLIC 제거(자동수락 폐지), 채널 위반 detail 추가
+    | { ok: false; code: 'INVALID_OPTION' | 'INVALID_WONJEONG' | 'INCOMPLETE'; missing?: string[]; detail?: string };
+
+/**
+ * 크리에이터 프로필/채널/조건/원정/공개 저장. JWT creatorId로만 수정(IDOR 방어).
+ * 서버 검증: ① 옵션 화이트리스트 ② 원정 지역 ⊆ WONJEONG_MAP[기준] 이고 방문가능과 서로소
+ * ③ 채널·콘텐츠 형식 정합(creatorProfileRules) ④ 공개 ON 시 필수항목 재검증(클라이언트 우회 차단).
+ * 위반 시 ok:false 반환(쓰기 안 함). 심사 상태는 서버만 전이시킨다(1a-v2 §4).
+ */
+export async function updateCreatorProfile(
+    creatorId: string,
+    payload: CreatorProfileUpdate
+): Promise<UpdateProfileResult> {
+    try {
+        const isPublic = payload.isPublic === true;
+
+        // CHANGED: 2026-08-12 — 정규화를 검증보다 먼저 한다.
+        // 표준과 같은 값(14)이 들어왔을 때 400을 던지면, 사용자는 "표준을 골랐는데 저장이 안 된다"를 겪는다.
+        // 형태만 눕히고(14→null) 판정은 그 뒤에 하면 표준 선택이 항상 통과한다.
+        const uploadDeadlineDays = normalizeUploadDeadline(payload.uploadDeadlineDays);
+        const normalized: CreatorProfileUpdate = { ...payload, uploadDeadlineDays };
+
+        const visitRegions = payload.visitRegions || [];
+        const wonjeongRegions = payload.wonjeongRegions || [];
+
+        // ⓪ 옵션 화이트리스트 검증 — 잘못된 값이 Airtable 422→불투명한 500으로 새거나,
+        //    기준지역 상속키(__proto__ 등)가 WONJEONG_MAP 인덱싱 취약점을 타는 것을 클린 400으로 차단.
+        const badOption =
+            visitRegions.some((r) => !VISIT_REGIONS.includes(r)) ||
+            wonjeongRegions.some((r) => !VISIT_REGIONS.includes(r)) ||
+            (payload.visitDays || []).some((d) => !VISIT_DAYS.includes(d)) ||
+            (payload.acceptSiteTypes || []).some((s) => !SPONSOR_SITE_TYPES.includes(s)) ||
+            (payload.baseRegion !== '' && !VISIT_REGIONS.includes(payload.baseRegion));
+        if (badOption) {
+            return { ok: false, code: 'INVALID_OPTION' };
+        }
+
+        // ① 원정 검증: 기준 지역 맵으로 제한 + 방문가능과 상호배타 (근거리 프리미엄 어뷰징 차단)
+        //    baseRegion은 위에서 화이트리스트 통과했으므로 getWonjeongCandidates 인덱싱 안전.
+        const candidates = getWonjeongCandidates(payload.baseRegion);
+        const invalidWonjeong = wonjeongRegions.some((r) => !candidates.includes(r));
+        const overlap = wonjeongRegions.some((r) => visitRegions.includes(r));
+        if (invalidWonjeong || overlap) {
+            return { ok: false, code: 'INVALID_WONJEONG' };
+        }
+
+        // ② 채널·콘텐츠 형식 정합 검증 (1a-v2 §6 규칙 1·2·4·5·6·7)
+        //    서버와 폼이 같은 함수를 쓴다 — 두 벌로 나뉘면 클라가 막은 걸 서버가 안 막게 된다.
+        const channelViolation = validateChannelPayload(normalized);
+        if (channelViolation) {
+            return { ok: false, code: 'INVALID_OPTION', detail: channelViolation };
+        }
+
+        // CHANGED: 1a-v2 — 재검토 판정에 이전 값이 필요해 레코드를 항상 먼저 읽는다
+        //          (기존에는 isPublic일 때만 읽었다)
+        const record = await creatorTable().find(creatorId);
+        const images = record.get('프로필 이미지') as unknown[] | undefined;
+        const hasImage = Array.isArray(images) && images.length > 0;
+        const premiumLinks = record.get('프리미엄 협찬 신청 인플루언서') as string[] | undefined;
+        const hasPremium = Array.isArray(premiumLinks) && premiumLinks.length > 0;
+        const currentReviewStatus = ((record.get('프로필 심사 상태') as string) || '') as ReviewStatus;
+
+        // ③ 공개 게이팅 서버 재검증 (이미지·premiumId는 payload에 없으므로 레코드에서 확인)
+        if (isPublic) {
+            const missing = collectMissingForPublish(normalized, hasImage, hasPremium);
+            if (missing.length > 0) return { ok: false, code: 'INCOMPLETE', missing };
+        }
+
+        const updateFields: Record<string, unknown> = {
+            '대표 콘텐츠 링크': payload.representativeLink,
+            '협찬 희망 금액': payload.minSponsorAmount,
+            '방문 가능 지역': visitRegions,
+            '방문 가능 요일': payload.visitDays || [],
+            '수용 사이트 종류': payload.acceptSiteTypes || [],
+            '원정 가능 지역': wonjeongRegions,
+            '프로필 공개': isPublic,
+            // singleSelect: 빈 값이면 '' 대신 null로 클리어
+            '기준 지역': payload.baseRegion || null,
+            // CHANGED: 1a-v2 — 채널 포트폴리오·콘텐츠 필드
+            '채널 종류': payload.channelTypes || [],
+            '대표 채널': payload.representativeChannel || null,
+            '대표 콘텐츠 링크 2': payload.representativeLink2 || '',
+            '대표 콘텐츠 링크 3': payload.representativeLink3 || '',
+            '제작 콘텐츠 형식': payload.contentFormats || [],
+            '콘텐츠 제작 기준': payload.contentStandard || '',
+            '크리에이터 이메일': payload.creatorEmail || '',
+            // CHANGED: 2026-08-12 협찬 조건 표준화
+            // 빈 값이 곧 "표준 적용 중"(스펙 §9) — 14를 저장하면 나중에 표준을 15로 바꿔도 이 사람만 14로 남는다
+            '업로드 기한(일)': uploadDeadlineDays,
+            '동반 인원': payload.companions > 0 ? payload.companions : null,
+            '반려동물 동반': payload.petAllowed === true,
+            '드론 촬영': payload.droneUsed === true,
+            // ⚠️ 운영자 관리 필드 `채널콘셉트`에는 절대 쓰지 않는다 — 170명 영업 분류가 지워진다
+            '채널콘셉트(자기신고)': payload.channelConcepts || [],
+        };
+
+        // CHANGED: 1a-v2 — 채널별 자기신고 필드.
+        // 미보유 채널은 값을 비운다. 안 그러면 채널을 껐는데 예전 숫자가 캠지기 카드에 그대로 뜬다.
+        for (const channel of CHANNEL_TYPES) {
+            const map = CHANNEL_FIELD_MAP[channel];
+            const owned = (payload.channelTypes || []).includes(channel);
+            const detail = payload.channels?.[channel];
+            updateFields[map.url] = owned ? (detail?.url || '') : '';
+            updateFields[map.follower] = owned && detail?.follower ? detail.follower : null;
+            if (map.engagement) {
+                updateFields[map.engagement] = owned && detail?.engagement ? detail.engagement : null;
+            }
+            if (map.blogIndex) {
+                updateFields[map.blogIndex] = owned && detail?.blogIndex ? detail.blogIndex : null;
+            }
+            updateFields[map.strength] = owned ? (detail?.strength || '') : '';
+        }
+
+        // CHANGED: 1a-v2 §4 — 심사 상태 전이. payload엔 심사 필드가 없어 크리에이터는 못 바꾼다.
+        if (isPublic && (currentReviewStatus === '' || currentReviewStatus === '반려')) {
+            // 최초 공개 신청 또는 반려 후 재신청 → 심사대기
+            updateFields['프로필 심사 상태'] = '심사대기';
+            updateFields['심사 반려 사유'] = '';
+        } else if (currentReviewStatus === '승인') {
+            // 승인 이후 수정 — 노출은 끊지 않고 재검토 큐로만 보낸다(§4.2 불변식 2)
+            const changed = needsReReview({
+                channelTypes: (record.get('채널 종류') as string[]) || [],
+                representativeChannel: (record.get('대표 채널') as string) || '',
+                channels: readChannelDetails(record),
+                representativeLink: (record.get('대표 콘텐츠 링크') as string) || '',
+                representativeLink2: (record.get('대표 콘텐츠 링크 2') as string) || '',
+                representativeLink3: (record.get('대표 콘텐츠 링크 3') as string) || '',
+            }, payload);
+            if (changed) updateFields['지표 재검토 필요'] = true;
+        }
+
+        await creatorTable().update(creatorId, updateFields as unknown as Partial<FieldSet>);
+        return { ok: true };
+    } catch (error) {
+        console.error('Update creator profile error:', error);
+        throw error;
+    }
+}
+
+/**
+ * 크리에이터 프로필 이미지 업로드 → 크리에이터 명단 `프로필 이미지` 첨부 필드에 직접 저장.
+ * airtable SDK엔 첨부 업로드가 없어 content.airtable.com uploadAttachment 엔드포인트를 직접 호출한다
+ * (외부 호스트 불필요, 파일당 ≤5MB). 첨부는 append 동작이라 기존 이미지에 이어 붙는다.
+ * @param creatorId    크리에이터 명단 레코드 ID (JWT creatorId — 본인 것만)
+ * @param fileBase64   data URL 접두어 제거된 순수 base64 문자열
+ * @param contentType  MIME 타입 (예: image/jpeg)
+ * @param filename     저장 파일명
+ * @returns 업로드 후 마지막(방금 올린) 첨부의 (만료성) URL. 파싱 실패 시 ''
+ */
+export async function uploadCreatorProfileImage(
+    creatorId: string,
+    fileBase64: string,
+    contentType: string,
+    filename: string
+): Promise<string> {
+    const baseId = process.env.AIRTABLE_BASE_ID;
+    const token = process.env.AIRTABLE_ACCESS_TOKEN;
+    if (!baseId || !token) {
+        throw new Error('AIRTABLE_BASE_ID/ACCESS_TOKEN 환경변수 미설정');
+    }
+
+    // ⚠️ 업로드 첨부는 api.airtable.com이 아니라 content.airtable.com 호스트를 쓴다.
+    //    첨부 필드명(한글·공백)은 URL 인코딩. fieldId로도 접근 가능하나, 존재가 확인된 실제명을 사용.
+    const fieldPath = encodeURIComponent('프로필 이미지');
+    const url = `https://content.airtable.com/v0/${baseId}/${creatorId}/${fieldPath}/uploadAttachment`;
+
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ contentType, filename, file: fileBase64 })
+    });
+
+    if (!response.ok) {
+        const detail = await response.text();
+        console.error('uploadAttachment failed:', response.status, detail);
+        throw new Error('IMAGE_UPLOAD_FAILED');
+    }
+
+    const data = await response.json();
+    // ⚠️ 응답의 fields는 필드명이 아니라 fieldId로 키잉된다(Airtable 문서 확인).
+    //    이름 → 알려진 fieldId → 첫 배열 순으로 견고하게 파싱(업로드 대상 필드는 하나뿐).
+    const fields = (data?.fields ?? {}) as Record<string, unknown>;
+    const attachments =
+        (fields['프로필 이미지'] as Array<{ url?: string }> | undefined) ??
+        (fields['fldpuIQagshFh2v2s'] as Array<{ url?: string }> | undefined) ??
+        (Object.values(fields).find(Array.isArray) as Array<{ url?: string }> | undefined) ??
+        [];
+    return attachments.length > 0 ? attachments[attachments.length - 1]?.url || '' : '';
+}
+
+// ──────────────────────────────────────────────
 // 콘텐츠 업로드 함수
 // ──────────────────────────────────────────────
 
@@ -1625,5 +1986,79 @@ export async function getCreatorContentUploads(channelName: string): Promise<Con
         // 조회 함수 = 빈 배열 반환 컨벤션의 예외: 본 함수는 사용자에게 "내 콘텐츠"를 보여주는 핵심 경로라 정적/동적 구분이 중요.
         console.error('Get creator content uploads error:', error);
         throw error;
+    }
+}
+
+/**
+ * 내 지명 제안 목록 (제안 수신함 1b — Phase B1, 읽기 전용).
+ * JWT creatorId로만 조회한다(IDOR 방어). 실패 시 빈 배열.
+ *
+ * ⚠️ **소유권을 `filterByFormula`로 거르지 않는다 — 실측(2026-08-26) 결과 못 거른다.**
+ *    `크리에이터`는 Link 필드인데, Airtable 수식에서 Link 필드는 **레코드 ID가 아니라 표시값**으로
+ *    평가된다. 실제 베이스에 대고 확인했다:
+ *
+ *      {크리에이터} = 'recXXX'                  → 0건
+ *      FIND('recXXX', ARRAYJOIN({크리에이터}))  → 0건
+ *      FIND('<채널명>', ARRAYJOIN({크리에이터})) → 1건   ← 표시값으로만 걸린다
+ *
+ *    계획서 초안이 첫 번째 형태였다. 그대로 짰으면 **수신함이 항상 비어 보였을 것**이고,
+ *    에러도 안 나므로 "제안이 아직 없나 보다"로 넘어갔을 것이다.
+ *
+ *    그렇다고 채널명으로 거를 수도 없다 — `FIND`는 부분일치라 다른 사람 제안이 섞이고,
+ *    같은 사람이 계정을 둘 가진 사례(아이콘 복제 계정)와 채널명 공백 변형 이슈가 이미 있다.
+ *    소유권 판정을 문자열 비교에 맡기면 그게 곧 IDOR이다.
+ *
+ * → **수식은 상태만 거르고, 소유권은 `fields`가 돌려주는 레코드 ID 배열로 판정한다.**
+ *    현재 볼륨(오픈 전, 확인중 0건)에선 문제없다. 제안이 많아지면 캠지기측에
+ *    `크리에이터 레코드 ID`(크리에이터 명단의 `RECORD_ID()` formula를 lookup) 필드를 요청해
+ *    수식 단계에서 거르도록 바꾼다.
+ */
+export async function getCreatorOffers(creatorId: string): Promise<Offer[]> {
+    if (!creatorId) return [];
+
+    try {
+        const records = await offerTable()
+            .select({ filterByFormula: `{상태} = '${OFFER_STATUS_PENDING}'` })
+            .all();
+
+        const now = Date.now();
+
+        const mine = records.filter((record) => {
+            const links = record.get('크리에이터') as string[] | undefined;
+            return Array.isArray(links) && links.includes(creatorId);
+        });
+
+        const offers: Offer[] = mine.map((record) => {
+            const status = (record.get('상태') as string) || '';
+            const sentAt = (record.get('크리에이터 발송 일시') as string) || '';
+            const respondedAt = (record.get('응답 일시') as string) || '';
+            const deadline = deadlineMs(sentAt);
+
+            return {
+                id: record.id,
+                status,
+                // 크리에이터가 받는 금액. `노출 금액(캠핑장)`은 읽지도 담지도 않는다
+                amount: (record.get('제안 금액(크리에이터)') as number) || 0,
+                sentAt,
+                respondedAt,
+                rejectReason: (record.get('거절 사유') as string) || '',
+                rejectDetail: (record.get('거절 상세 사유') as string) || '',
+                accommodationName: (record.get('캠핑장 이름') as string) || '',
+                accommodationUrl: (record.get('캠핑장 링크') as string) || '',
+                proposalText: (record.get('제안서 전문') as string) || '',
+                message: (record.get('메시지') as string) || '',
+                // Infinity(마감 없음)는 JSON에서 null이 된다 — 여기서 미리 null로 통일한다
+                deadline: Number.isFinite(deadline) ? deadline : null,
+                canRespond: canRespond(status, sentAt, respondedAt, now),
+            };
+        });
+
+        // 마감 임박 순. 마감 없는 건(운영자가 상태만 수기로 옮긴 경우)은 뒤로 보낸다.
+        // cellFormat:'string'을 쓰지 않으므로 Airtable sort를 써도 되지만,
+        // 정렬 기준이 계산값(마감)이라 JS에서 정렬한다.
+        return offers.sort((a, b) => (a.deadline ?? Infinity) - (b.deadline ?? Infinity));
+    } catch (error) {
+        console.error('Get creator offers error:', error);
+        return [];
     }
 }

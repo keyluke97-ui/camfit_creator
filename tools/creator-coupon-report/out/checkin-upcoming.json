@@ -1,0 +1,932 @@
+[
+  {
+    "checkInTimestamp": 1783047600000,
+    "status": "paid",
+    "name": "신종혁",
+    "campName": "가평포시즌캠핑장",
+    "siteName": "2TEAM",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "크리에이터(슬기로운차박생활)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1783227600000,
+    "status": "paid",
+    "name": "정선미",
+    "campName": "스테이네이처",
+    "siteName": "D-05",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "크리에이터(ssundan_camp"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1783054800000,
+    "status": "paid",
+    "name": "서영준",
+    "campName": "신두리오렌지캠핑장",
+    "siteName": "D-4",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "크리에이터 쿠폰(캠퍼데브)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1783141200000,
+    "status": "paid",
+    "name": "박효선",
+    "campName": "다솔농원캠핑장",
+    "siteName": "다4",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "크리에이터 (써니캠핑)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1783054800000,
+    "status": "paid",
+    "name": "정미나",
+    "campName": "신두57캠핑장",
+    "siteName": "C-15",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "크리에이터 (미뽕)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1783054800000,
+    "status": "paid",
+    "name": "김수인",
+    "campName": "자연이랑캠프&펜션",
+    "siteName": "하09",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "프리미엄 (자연이랑캠프)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1783054800000,
+    "status": "paid",
+    "name": "박재우",
+    "campName": "공주 해월카라반앤캠핑",
+    "siteName": "F03",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "프리미엄 (해월카라반앤캠핑)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1783054800000,
+    "status": "paid",
+    "name": "방정애",
+    "campName": "엉클킴스 캠핑장",
+    "siteName": "1",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "크리에이터(엄마랑딸이랑)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1782878400000,
+    "status": "paid",
+    "name": "김미선",
+    "campName": "달빛강림",
+    "siteName": "H-3",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "크리에이터 (큰별의 소소한 일상)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1783227600000,
+    "status": "paid",
+    "name": "신종혁",
+    "campName": "에코밸리캠핑장",
+    "siteName": "01",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "크리에이터(슬기로운차박생활)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1783141200000,
+    "status": "paid",
+    "name": "장유경",
+    "campName": "판타스틱캠프닉",
+    "siteName": "02 ",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "프리미엄 (판타스틱 캠프닉)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1783054800000,
+    "status": "paid",
+    "name": "정은혜",
+    "campName": "더빌리지",
+    "siteName": "A - 10",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "크리에이터 (hi.minimi)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1783141200000,
+    "status": "paid",
+    "name": "주슬기",
+    "campName": "산머루농원캠핑장",
+    "siteName": "고라니 A1",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "프리미엄 (산머루_이지캠핑)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1783137600000,
+    "status": "paid",
+    "name": "양이슬",
+    "campName": "숲속도마치계곡캠핑(백패킹)",
+    "siteName": "선착순_02",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "크리에이터' (e__seule)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1783054800000,
+    "status": "paid",
+    "name": "서은민",
+    "campName": "청산캠핑장",
+    "siteName": "07",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "크리에이터(seoeunmin3)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1783659600000,
+    "status": "paid",
+    "name": "서영준",
+    "campName": "정선 라만차의 돈키호테 캠핑장",
+    "siteName": "A1",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "프리미엄 (라만차의돈키호테)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1783656000000,
+    "status": "cancelled",
+    "name": "서고은",
+    "campName": "오도치캠핑장",
+    "siteName": "B-06",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "크리에이터' (꼰캠핑)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1783656000000,
+    "status": "cancelled",
+    "name": "장유경",
+    "campName": "캠프다온",
+    "siteName": "A02",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "프리미엄 (캠프다온)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1783659600000,
+    "status": "cancelled",
+    "name": "박효선",
+    "campName": "오페라비앙 ",
+    "siteName": "새집캠핑6블럭",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "크리에이터 (써니캠핑)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1783659600000,
+    "status": "paid",
+    "name": "육설희",
+    "campName": "서종힐링캠핑장",
+    "siteName": "D05",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "프리미엄 (서종힐링캠핑장)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1783663200000,
+    "status": "cancelled",
+    "name": "주슬기",
+    "campName": "그린델발트 캠핑그라운드",
+    "siteName": "01:POOL",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "프리미엄 (그린델발트캠핑그라운드)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1783656000000,
+    "status": "cancelled",
+    "name": "조철민",
+    "campName": "비발디캠핑파크 미루나무점",
+    "siteName": "02",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "크리에이터 (닥터캠퍼)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1783663200000,
+    "status": "paid",
+    "name": "주슬기",
+    "campName": "태안 바다드림 캠핑장",
+    "siteName": "펜션+오토캠7",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "프리미엄 (태안 바다드림)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1783314000000,
+    "status": "paid",
+    "name": "이로운",
+    "campName": "가델캠핑장",
+    "siteName": "C-04",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "프리미엄 (가델캠핑장)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1783483200000,
+    "status": "paid",
+    "name": "김미선",
+    "campName": "몽산포오토캠핑장 2구역",
+    "siteName": "선착순 01",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "크리에이터 (큰별의 소소한 일상)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1783659600000,
+    "status": "paid",
+    "name": "박효선",
+    "campName": "캠프고토일",
+    "siteName": "GO 4",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "크리에이터 (써니캠핑)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1783746000000,
+    "status": "cancelled",
+    "name": "정선미",
+    "campName": "스테이네이처",
+    "siteName": "D-05",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "크리에이터(ssundan_camp"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1783746000000,
+    "status": "paid",
+    "name": "유하림",
+    "campName": "정선 라만차의 돈키호테 캠핑장",
+    "siteName": "B3",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "프리미엄 (라만차의돈키호테)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1783738800000,
+    "status": "paid",
+    "name": "서고은",
+    "campName": "파주 자장캠핑장",
+    "siteName": "코쿤트레일러타",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "프리미엄 (자장캠핑장)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1783746000000,
+    "status": "paid",
+    "name": "곽상태",
+    "campName": "영월 백년펜션&캠핑장",
+    "siteName": "백년계곡존14",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "크리에이터 (greattae1)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1783742400000,
+    "status": "paid",
+    "name": "손영규",
+    "campName": "다람쥐쉼터",
+    "siteName": "05",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "크리에이터' (투유캠핑)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1784264400000,
+    "status": "paid",
+    "name": "정미나",
+    "campName": "바다야놀자 캠핑장펜션",
+    "siteName": "11",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "크리에이터 (미뽕)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1784264400000,
+    "status": "paid",
+    "name": "서영준",
+    "campName": "신두57캠핑장",
+    "siteName": "B-57/타프",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "크리에이터 쿠폰(캠퍼데브)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1784437200000,
+    "status": "cancelled",
+    "name": "정선미",
+    "campName": "히어리캠핑장",
+    "siteName": "A03",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "크리에이터(ssundan_camp"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1784264400000,
+    "status": "paid",
+    "name": "정은혜",
+    "campName": "태안 바다드림 캠핑장",
+    "siteName": "B",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "크리에이터 (hi.minimi)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1784264400000,
+    "status": "paid",
+    "name": "신종혁",
+    "campName": "캠프99",
+    "siteName": "F2 (1층)",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "크리에이터(슬기로운차박생활)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1784264400000,
+    "status": "paid",
+    "name": "김미선",
+    "campName": "산청마실",
+    "siteName": "반려견 동반",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "크리에이터 (큰별의 소소한 일상)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1784264400000,
+    "status": "paid",
+    "name": "곽동화",
+    "campName": "라포레 경주",
+    "siteName": "18",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "크리에이터 (짹짹이야)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1784264400000,
+    "status": "paid",
+    "name": "서고은",
+    "campName": "오페라비앙 ",
+    "siteName": "새집캠핑6블럭",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "크리에이터' (꼰캠핑)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1784350800000,
+    "status": "cancelled",
+    "name": "정선미",
+    "campName": "그린델발트 캠핑그라운드",
+    "siteName": "14",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "프리미엄 (그린델발트캠핑그라운드)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1784260800000,
+    "status": "paid",
+    "name": "이안나",
+    "campName": "캠핑플래닛",
+    "siteName": "73, 74",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "크리에이터'(꿈꾸는 세하)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1784437200000,
+    "status": "paid",
+    "name": "정선미",
+    "campName": "오페라비앙 ",
+    "siteName": "새집캠핑5블럭",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "크리에이터(ssundan_camp"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1784264400000,
+    "status": "paid",
+    "name": "주슬기",
+    "campName": "수타사힐링캠프",
+    "siteName": "02",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "프리미엄 (수타사힐링캠프)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1784869200000,
+    "status": "cancelled",
+    "name": "장유경",
+    "campName": "스테이네이처",
+    "siteName": "D-06",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "크리에이터 (zzazang_)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1784869200000,
+    "status": "paid",
+    "name": "주지은",
+    "campName": "신두57캠핑장",
+    "siteName": "C-04",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "크리에이터(chansung_cam"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1784869200000,
+    "status": "cancelled",
+    "name": "서고은",
+    "campName": "엉클킴스 캠핑장",
+    "siteName": "1",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "크리에이터' (꼰캠핑)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1784955600000,
+    "status": "paid",
+    "name": "이백호",
+    "campName": "월악 포레스트캐빈&캠프",
+    "siteName": "F-1",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "크리에이터' (캠핑엘라)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1784959200000,
+    "status": "cancelled",
+    "name": "김근영",
+    "campName": "그린델발트 캠핑그라운드",
+    "siteName": "01:POOL",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "프리미엄 (그린델발트캠핑그라운드)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1784869200000,
+    "status": "paid",
+    "name": "서고은",
+    "campName": "온수풀장과 개별화장실이 있는 캠핑굄성",
+    "siteName": "프리미엄-02",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "프리미엄 (캠핑굄성)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1784610000000,
+    "status": "paid",
+    "name": "손영규",
+    "campName": "산청마실",
+    "siteName": "반려견 동반",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "크리에이터' (투유캠핑)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1784959200000,
+    "status": "paid",
+    "name": "서영준",
+    "campName": "문경또또캠핑장",
+    "siteName": "세미카라반01",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "프리미엄 (문경또또)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1784865600000,
+    "status": "paid",
+    "name": "장유경",
+    "campName": "캠프다온",
+    "siteName": "D11",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "프리미엄 (캠프다온)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1784872800000,
+    "status": "paid",
+    "name": "김근영",
+    "campName": "태안 바다드림 캠핑장",
+    "siteName": "펜션+캠핑10",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "프리미엄 (태안 바다드림)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1784782800000,
+    "status": "paid",
+    "name": "김미선",
+    "campName": "남양주 포레스트 벨리 캠핑장 ",
+    "siteName": "02",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "크리에이터 (큰별의 소소한 일상)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1785387600000,
+    "status": "paid",
+    "name": "박효선",
+    "campName": "법흥계곡캠핑오늘",
+    "siteName": "10번",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "크리에이터 (써니캠핑)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1785387600000,
+    "status": "cancelled",
+    "name": "서영준",
+    "campName": "반하면오토캠핑장",
+    "siteName": "04번",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "크리에이터 쿠폰(캠퍼데브)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1785038400000,
+    "status": "paid",
+    "name": "유하림",
+    "campName": "밤별생각 낮달이야기 캠핑장",
+    "siteName": "낮달 13",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "크리에이터(문핑)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1785387600000,
+    "status": "paid",
+    "name": "정선미",
+    "campName": "레인보우 관광농원 캠핑장",
+    "siteName": "04",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "프리미엄 (레인보우 관광농원)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1785477600000,
+    "status": "cancelled",
+    "name": "신종혁",
+    "campName": "가평삼화힐링캠핑장&타운",
+    "siteName": "01온수수영장",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "크리에이터(슬기로운차박생활)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1785474000000,
+    "status": "paid",
+    "name": "주지은",
+    "campName": "영월 외룡캠핑장",
+    "siteName": "36.37가족",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "크리에이터(chansung_cam"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1785474000000,
+    "status": "paid",
+    "name": "신종혁",
+    "campName": "풀싸이드(POOLSIDE)",
+    "siteName": "데크+옥상",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "크리에이터(슬기로운차박생활)"
+        }
+      }
+    ]
+  },
+  {
+    "checkInTimestamp": 1785474000000,
+    "status": "cancelled",
+    "name": "육설희",
+    "campName": "오페라비앙 ",
+    "siteName": "새집캠핑6블럭",
+    "calculateLogs": [
+      {
+        "type": "coupon",
+        "coupon": {
+          "name": "크리에이터' (서리캠핑) "
+        }
+      }
+    ]
+  }
+]

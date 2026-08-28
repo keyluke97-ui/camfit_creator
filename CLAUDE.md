@@ -145,6 +145,7 @@ import ApplicationModal from './ApplicationModal';
 | 신청 (Application) | `AIRTABLE_APPLICATION_TABLE_ID` | `tblIV8Wk4SLx2Hh91` |
 | 파트너 캠페인 (🆕) | `AIRTABLE_PARTNER_CAMPAIGN_TABLE_ID` | `tbl5X4YNIow179dTQ` |
 | 파트너 신청 (🆕) | `AIRTABLE_PARTNER_APPLICATION_TABLE_ID` | `tblAc3fbe3oA67Ppo` |
+| 지명 제안 (지명형 1b) | `AIRTABLE_OFFER_TABLE_ID` | `tbl8uODx66771zsKh` |
 
 ### 등급(Tier) 시스템
 
@@ -209,6 +210,9 @@ import ApplicationModal from './ApplicationModal';
 2. **`filterByFormula` 사용자 입력 → `escapeAirtableValue()` 필수**
 3. `cellFormat: 'string'` 사용 시 `sort` 옵션과 함께 쓰지 마라. JS에서 정렬하라
 4. Link to Another Record 필드는 배열(`string[]`)로 반환됨. `Array.isArray()` 분기 처리 필요
+5. **Link 필드는 `filterByFormula`에서 레코드 ID로 못 거른다** — 수식은 표시값으로 평가한다(실측 2026-08-26).
+   `{링크필드} = 'recXXX'`도 `FIND('recXXX', ARRAYJOIN({링크필드}))`도 **0건**이다. 에러가 아니라 빈 결과라 조용히 지나간다.
+   소유권 판정은 수식이 아니라 `record.get()`이 돌려주는 **레코드 ID 배열**로 하라 — 표시값(채널명) 매칭은 부분일치·동명 계정 때문에 IDOR이 된다.
 
 ---
 
@@ -310,6 +314,9 @@ AIRTABLE_APPLICATION_TABLE_ID= # 신청 테이블 ID (tblIV8Wk4SLx2Hh91)
 # 파트너 협찬 (🆕)
 AIRTABLE_PARTNER_CAMPAIGN_TABLE_ID=  # 파트너 캠페인 테이블 ID (tbl5X4YNIow179dTQ)
 AIRTABLE_PARTNER_APPLICATION_TABLE_ID= # 파트너 신청 테이블 ID (tblAc3fbe3oA67Ppo)
+
+# 지명형 협찬 1b — 제안 수신함
+AIRTABLE_OFFER_TABLE_ID=     # 지명 제안 테이블 ID (tbl8uODx66771zsKh) — ⚠️ Vercel 미등록 시 수신함 전체 실패
 
 # JWT
 NEXTAUTH_SECRET=             # JWT 서명용 시크릿 (미설정 시 서버 즉시 에러 — 의도적 설계)

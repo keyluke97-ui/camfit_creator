@@ -393,3 +393,156 @@ export interface AirtablePartnerApplicationRecord {
     '총 팔로워 쿠폰 수 (from 캠페인)'?: number[];
   };
 }
+
+// ──────────────────────────────────────────────
+// 지명형 협찬 1a — 크리에이터 포트폴리오 / 수락 조건 / 원정 / 정산 (SDD v4 A′)
+// 스펙: specs/2026-07-16-지명형협찬-1a-*.md
+// ──────────────────────────────────────────────
+
+/** 정산정보 요약(마스킹 — 유저 테이블 READ only) */
+export interface SettlementSummary {
+  registered: boolean;      // premiumId 존재 여부
+  bank: string;             // 은행 (없으면 '')
+  accountLast4: string;     // 계좌번호 뒤 4자리
+  accountHolder: string;    // 예금주
+  // CHANGED: 원정 §6.4 — 정산 주소에서 파싱한 기준 지역 후보. baseRegion 미설정 시 프리필용. 못 뽑으면 ''
+  baseRegionPrefill: string;
+}
+
+/** 운영 채널 키 — lib/constants.ts CHANNEL_TYPES와 대응 */
+export type ChannelKey = '유튜브' | '인스타' | '블로그';
+
+/** 프로필 심사 상태. ''는 아직 공개 신청을 안 한 상태 (1a-v2 §4) */
+export type ReviewStatus = '' | '심사대기' | '승인' | '반려';
+
+/**
+ * 채널 하나의 자기신고 정보.
+ * follower/engagement는 0이면 미입력, blogIndex는 ''이면 미입력.
+ * blogIndex는 블로그에만, engagement는 유튜브·인스타에만 쓴다(CHANNEL_FIELD_MAP 참조).
+ */
+export interface ChannelDetail {
+  url: string;
+  follower: number;
+  engagement: number;
+  blogIndex: string;
+  strength: string;
+}
+
+/** 편집 화면이 읽어오는 크리에이터 프로필 전체 상태 (getCreatorProfile 반환) */
+export interface CreatorProfile {
+  // 포트폴리오
+  profileImageUrl: string;   // 첫 첨부의 (만료성) URL. 없으면 ''
+  hasProfileImage: boolean;
+  representativeLink: string; // 대표 콘텐츠 링크
+  // 협찬 수락 조건
+  minSponsorAmount: number;   // 협찬 희망 금액 (= 최소 단가/기본가). 미설정 0
+  visitRegions: string[];     // 방문 가능 지역 (기본가)
+  visitDays: string[];        // 방문 가능 요일
+  acceptSiteTypes: string[];  // 수용 사이트 종류
+  // 원정 인센티브 (§6.4)
+  baseRegion: string;         // 기준 지역 (거주). 미설정 ''
+  wonjeongRegions: string[];  // 원정 가능 지역 (+유류비 10만)
+  // 공개 (CHANGED: 1a-v2 D1 — autoAcceptActive 제거. 무응답 자동확정이 이미 전원 기본값이라 토글이 불필요)
+  isPublic: boolean;          // 프로필 공개 (가시성)
+  // CHANGED: 1a-v2 — 채널 포트폴리오
+  channelTypes: string[];                   // 운영 채널 (크리에이터 편집 가능으로 승격)
+  representativeChannel: string;            // 대표 채널. 미설정 ''
+  channels: Record<string, ChannelDetail>;  // 키 = ChannelKey. 3채널 모두 채워서 반환
+  representativeLink2: string;
+  representativeLink3: string;
+  contentFormats: string[];                 // 제작 콘텐츠 형식
+  contentStandard: string;                  // 콘텐츠 제작 기준 (자유 서술)
+  creatorEmail: string;
+  // CHANGED: 2026-08-12 협찬 조건 표준화 — 빈 값 = 표준 적용 중(스펙 E1/E2)
+  uploadDeadlineDays: number | null;   // null이면 표준 14일
+  companions: number;                  // 동반 인원. 0이면 미입력
+  petAllowed: boolean;                 // 반려동물 동반. false가 표준
+  droneUsed: boolean;                  // 드론 촬영. false가 표준
+  channelConcepts: string[];           // 자기신고. 크리에이터가 고른 것
+  channelConceptsFallback: string[];   // 운영자 `채널콘셉트`. 읽기 전용 — 자기신고가 비었을 때만 표시
+  // CHANGED: 1a-v2 §4 — 심사 (서버 전용. 크리에이터 payload로 바꿀 수 없다)
+  reviewStatus: ReviewStatus;
+  reviewRejectReason: string;
+  // 표시 전용 (운영자 관리, 편집 불가)
+  channelName: string;
+  tier: TierLevel;            // 등급화 1~3
+  followerRange: string;      // 팔로워 구간
+  // 정산 요약 (마스킹)
+  settlement: SettlementSummary;
+}
+
+/**
+ * 저장 페이로드 (편집 가능 필드만 — PATCH body).
+ * ⚠️ 심사 필드(reviewStatus·reviewRejectReason)는 의도적으로 없다.
+ *    크리에이터가 자기 프로필을 스스로 '승인'으로 바꿀 수 없어야 한다(1a-v2 §6-9).
+ */
+export interface CreatorProfileUpdate {
+  representativeLink: string;
+  minSponsorAmount: number;
+  visitRegions: string[];
+  visitDays: string[];
+  acceptSiteTypes: string[];
+  baseRegion: string;
+  wonjeongRegions: string[];
+  isPublic: boolean;
+  // CHANGED: 1a-v2 — 채널 포트폴리오·콘텐츠
+  channelTypes: string[];
+  representativeChannel: string;
+  channels: Record<string, ChannelDetail>;
+  representativeLink2: string;
+  representativeLink3: string;
+  contentFormats: string[];
+  contentStandard: string;
+  creatorEmail: string;
+  // CHANGED: 2026-08-12 협찬 조건 표준화
+  uploadDeadlineDays: number | null;
+  companions: number;
+  petAllowed: boolean;
+  droneUsed: boolean;
+  channelConcepts: string[];           // 자기신고만. 운영자 `채널콘셉트`에는 절대 쓰지 않는다
+}
+
+// ─────────────────────────────────────────────────────────────
+// 지명 제안 (제안 수신함 1b) — Phase B1, 읽기 전용
+// 계약: tools/jimyeong/verify-contract.ts의 OFFER_EXPECTED 11필드와 1:1로 맞춘다.
+// ⚠️ `노출 금액(캠핑장)`·`조건 스냅샷`·`버전`·`멱등키`는 **여기 담지 않는다.**
+//    도메인 객체에 담는 순간 API 응답으로 새어 나간다(파트너 `followerCouponCode` 사고와 같은 경로).
+// ─────────────────────────────────────────────────────────────
+
+export interface AirtableOfferRecord {
+    id: string;
+    fields: {
+        '크리에이터'?: string[];               // Link → 레코드 ID 배열. 소유권 판정의 유일한 근거
+        '상태'?: string;
+        '제안 금액(크리에이터)'?: number;      // 크리에이터가 받는 금액. 캠핑장 노출 금액이 아니다
+        '크리에이터 발송 일시'?: string;       // 확인 창 기산점 — `만료 예정 일시`가 아니다
+        '응답 일시'?: string;                  // 중복 응답 가드
+        '거절 사유'?: string;
+        '거절 상세 사유'?: string;
+        '캠핑장 이름'?: string;
+        '캠핑장 링크'?: string;
+        '제안서 전문'?: string;
+        '메시지'?: string;
+    };
+}
+
+export interface Offer {
+    id: string;
+    status: string;
+    amount: number;
+    sentAt: string;
+    respondedAt: string;
+    rejectReason: string;
+    rejectDetail: string;
+    accommodationName: string;
+    accommodationUrl: string;
+    proposalText: string;                  // 그대로 보여준다. 다시 쓰지 않는다(계약서 §4.3)
+    message: string;
+    /**
+     * 확인 창 마감(epoch ms). **마감 없음이면 null** —
+     * `Infinity`는 JSON.stringify에서 null이 되므로 애초에 null로 통일한다.
+     */
+    deadline: number | null;
+    /** 서버가 판정한다. 화면이 자기 시계로 다시 계산하면 둘이 어긋난다 */
+    canRespond: boolean;
+}

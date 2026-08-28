@@ -1,0 +1,14 @@
+{"ts":"2026-06-30T10:15:51.657Z","tool":"Edit","filePath":"/Users/choiwooseok/choiwooseok_ai/influencer-portal/tools/creator-coupon-report/test_checkin_lib.py","target":"local_only","ruleId":"default"}
+{"ts":"2026-06-30T10:16:06.997Z","tool":"Edit","filePath":"/Users/choiwooseok/choiwooseok_ai/influencer-portal/tools/creator-coupon-report/test_checkin_lib.py","target":"local_only","ruleId":"default"}
+{"ts":"2026-06-30T10:16:21.448Z","tool":"Edit","filePath":"/Users/choiwooseok/choiwooseok_ai/influencer-portal/tools/creator-coupon-report/checkin_lib.py","target":"local_only","ruleId":"default"}
+{"ts":"2026-06-30T10:16:37.872Z","tool":"Edit","filePath":"/Users/choiwooseok/choiwooseok_ai/influencer-portal/tools/creator-coupon-report/checkin_lib.py","target":"local_only","ruleId":"default"}
+{"ts":"2026-06-30T10:17:03.306Z","tool":"Edit","filePath":"/Users/choiwooseok/choiwooseok_ai/influencer-portal/tools/creator-coupon-report/checkin_lib.py","target":"local_only","ruleId":"default"}
+{"ts":"2026-06-30T10:19:04.169Z","tool":"Write","filePath":"/Users/choiwooseok/choiwooseok_ai/influencer-portal/tools/creator-coupon-report/fixtures/sample-checkin-upcoming.json","target":"local_only","ruleId":"default"}
+{"ts":"2026-06-30T10:19:10.432Z","tool":"Write","filePath":"/Users/choiwooseok/choiwooseok_ai/influencer-portal/tools/creator-coupon-report/fixtures/sample-premium-apps.json","target":"local_only","ruleId":"default"}
+{"ts":"2026-06-30T10:19:19.688Z","tool":"Write","filePath":"/Users/choiwooseok/choiwooseok_ai/influencer-portal/tools/creator-coupon-report/test_checkin_match.py","target":"local_only","ruleId":"default"}
+{"ts":"2026-06-30T10:19:58.680Z","tool":"Write","filePath":"/Users/choiwooseok/choiwooseok_ai/influencer-portal/tools/creator-coupon-report/checkin_match.py","target":"local_only","ruleId":"default"}
+{"ts":"2026-06-30T10:21:37.501Z","tool":"Write","filePath":"/Users/choiwooseok/choiwooseok_ai/influencer-portal/tools/creator-coupon-report/test_gen_checkin_html.py","target":"local_only","ruleId":"default"}
+{"ts":"2026-06-30T10:22:18.391Z","tool":"Write","filePath":"/Users/choiwooseok/choiwooseok_ai/influencer-portal/tools/creator-coupon-report/gen_checkin_html.py","target":"local_only","ruleId":"default"}
+{"ts":"2026-06-30T10:23:22.887Z","tool":"Write","filePath":"/Users/choiwooseok/choiwooseok_ai/influencer-portal/tools/creator-coupon-report/CHECKIN-RUNBOOK.md","target":"playground_artifacts","ruleId":"generic_docs","secondaryTargets":["logos_graph"]}
+{"ts":"2026-07-01T02:44:47.907Z","tool":"Write","filePath":"/private/tmp/claude-501/-Users-choiwooseok-choiwooseok-ai-influencer-portal/b8e51a55-d676-4d18-a73c-4127ab16f883/scratchpad/build_upcoming.py","target":"local_only","ruleId":"default"}
+{"ts":"2026-07-01T02:56:42.196Z","tool":"Edit","filePath":"/Users/choiwooseok/choiwooseok_ai/influencer-portal/tools/creator-coupon-report/gen_activity_html.py","target":"local_only","ruleId":"default"}

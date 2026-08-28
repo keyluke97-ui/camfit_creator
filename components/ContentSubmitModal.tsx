@@ -574,11 +574,14 @@ export default function ContentSubmitModal({
                         <p className="text-sm text-ink3 text-center">
                             콘텐츠가 성공적으로 전달되었습니다.
                         </p>
-                        <div className="w-full bg-brand-bg border border-brand/20 rounded-lg px-4 py-3">
-                            <p className="text-xs text-brand-strong text-center font-medium flex items-center justify-center gap-1">
-                                <BrandIcon name="briefcase" size={15} /> 검수 후 익월 10일에 정산이 진행돼요
-                            </p>
-                        </div>
+                        {/* CHANGED: 정산 안내는 프리미엄 협찬 전용 — 숙소 협찬(캠핑장 예약)은 현금 정산이 없어 잘못된 기대를 만든다 */}
+                        {sponsorshipType === '프리미엄 협찬' && (
+                            <div className="w-full bg-brand-bg border border-brand/20 rounded-lg px-4 py-3">
+                                <p className="text-xs text-brand-strong text-center font-medium flex items-center justify-center gap-1">
+                                    <BrandIcon name="briefcase" size={15} /> 검수 후 익월 10일에 정산이 진행돼요
+                                </p>
+                            </div>
+                        )}
                         <button
                             onClick={onClose}
                             className="w-full h-12 bg-brand text-black font-bold rounded-xl hover:bg-brand-hover transition-colors mt-2"
