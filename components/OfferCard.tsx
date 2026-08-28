@@ -8,6 +8,8 @@ import type { Offer } from '@/types';
 interface OfferCardProps {
     offer: Offer;
     now: number;
+    /** 아직 열어보지 않은 제안 — 기기 로컬 기록 기준 (lib/offerSeen) */
+    isNew: boolean;
     onOpen: (offer: Offer) => void;
 }
 
@@ -18,7 +20,7 @@ interface OfferCardProps {
  * 마감 임박(24시간 미만)은 색으로 구분한다. 확인 창이 2영업일이라
  * 하루가 남았다는 건 사실상 마지막 날이라는 뜻이다.
  */
-export default function OfferCard({ offer, now, onOpen }: OfferCardProps) {
+export default function OfferCard({ offer, now, isNew, onOpen }: OfferCardProps) {
     const isAccepted = offer.status === OFFER_STATUS_ACCEPTED;
     const remaining = offer.deadline === null ? Infinity : offer.deadline - now;
     const isExpired = !isAccepted && Number.isFinite(remaining) && remaining <= 0;
@@ -28,11 +30,20 @@ export default function OfferCard({ offer, now, onOpen }: OfferCardProps) {
         <button
             type="button"
             onClick={() => onOpen(offer)}
-            className="w-full text-left bg-card border border-line rounded-xl p-4 flex flex-col gap-3 hover:border-brand transition-colors"
+            className={`w-full text-left bg-card border rounded-xl p-4 flex flex-col gap-3 transition-colors ${
+                isNew ? 'border-brand shadow-[0_0_0_3px_rgba(1,223,130,0.12)]' : 'border-line hover:border-brand'
+            }`}
         >
             <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                    <p className="text-base font-bold text-ink truncate">{offer.accommodationName || '캠핑장'}</p>
+                    <div className="flex items-center gap-1.5">
+                        {isNew && (
+                            <span className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded bg-brand text-black tracking-wide">
+                                NEW
+                            </span>
+                        )}
+                        <p className="text-base font-bold text-ink truncate">{offer.accommodationName || '캠핑장'}</p>
+                    </div>
                     {offer.region && <p className="text-xs text-ink3 mt-0.5">{offer.region}</p>}
                 </div>
                 {isAccepted ? (

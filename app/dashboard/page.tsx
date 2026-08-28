@@ -17,6 +17,7 @@ import ContentEntryBanner from '@/components/ContentEntryBanner';
 // CHANGED: 캠냥이 마스코트 (빈 상태) + 오브젝트 아이콘
 import Mascot from '@/components/Mascot';
 import BrandIcon from '@/components/BrandIcon';
+import { readSeen, unseenIds } from '@/lib/offerSeen';
 import type { Application, Campaign, ContentUpload, TierLevel, ChannelType, CampaignSortKey } from '@/types';
 // CHANGED: 공통 상수를 constants.ts에서 import
 import { KAKAO_CHANNEL_URL } from '@/lib/constants';
@@ -62,6 +63,7 @@ function DashboardContent() {
     // 제안이 없는 사람에게 빈 수신함으로 들어가는 문을 만들 이유가 없고,
     // 이 배너가 곧 기능 오픈이라 제안이 실제로 생기기 전까지는 아무에게도 보이지 않아야 한다.
     const [offerCount, setOfferCount] = useState(0);
+    const [newOfferCount, setNewOfferCount] = useState(0);
     // CHANGED: userRecordId 상태 제거 — API에서 JWT로 사용자 식별
     const [isCheckinModalOpen, setIsCheckinModalOpen] = useState(false);
     // CHANGED: 입실일 미등록 건수 — CTA 뱃지용. 모달을 열어야만 알 수 있던 '남은 할 일'을
@@ -222,7 +224,10 @@ function DashboardContent() {
                 const response = await fetch('/api/offers');
                 if (!response.ok) return;
                 const data = await response.json();
-                if (alive) setOfferCount((data.offers || []).length);
+                if (!alive) return;
+                const list: { id: string }[] = data.offers || [];
+                setOfferCount(list.length);
+                setNewOfferCount(unseenIds(list.map((o) => o.id), readSeen()).length);
             } catch {
                 // 무시 — 배너만 안 뜬다
             }
@@ -349,9 +354,19 @@ function DashboardContent() {
                             onClick={() => router.push('/dashboard/offers')}
                             className="w-full flex items-center justify-between bg-brand-bg border border-brand/30 rounded-xl p-4 hover:border-brand transition-colors text-left"
                         >
-                            <div>
-                                <p className="text-sm font-bold text-ink">받은 제안 {offerCount}건</p>
-                                <p className="text-xs text-ink2 mt-0.5">기한 안에 수락 또는 거절로 회신해주세요</p>
+                            <div className="flex items-center gap-2">
+                                {newOfferCount > 0 && (
+                                    <span className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded bg-brand text-black tracking-wide">
+                                        NEW
+                                    </span>
+                                )}
+                                <div>
+                                    <p className="text-sm font-bold text-ink">
+                                        받은 제안 {offerCount}건
+                                        {newOfferCount > 0 && <span className="text-brand-strong"> · 새 제안 {newOfferCount}건</span>}
+                                    </p>
+                                    <p className="text-xs text-ink2 mt-0.5">기한 안에 수락 또는 거절로 회신해주세요</p>
+                                </div>
                             </div>
                             <svg className="w-5 h-5 text-brand-strong" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

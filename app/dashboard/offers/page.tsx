@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import OfferCard from '@/components/OfferCard';
 import OfferDetailModal from '@/components/OfferDetailModal';
+import { readSeen, markSeen, unseenIds } from '@/lib/offerSeen';
 import type { Offer } from '@/types';
 
 /**
@@ -24,6 +25,15 @@ export default function OffersPage() {
     const [actionError, setActionError] = useState('');
     // 카운트다운을 1분마다 다시 그린다. 초 단위로 돌릴 이유가 없다(기한이 영업일 단위다).
     const [now, setNow] = useState(() => Date.now());
+    // 열어본 제안 id — 서버에 쓰지 않고 기기 로컬에만 남긴다(lib/offerSeen 주석 참고).
+    // 첫 렌더는 빈 배열로 두고 마운트 후 읽는다. SSR과 클라이언트 마크업이 어긋나면 안 된다.
+    const [seen, setSeen] = useState<string[]>([]);
+    useEffect(() => { setSeen(readSeen()); }, []);
+
+    const openOffer = (offer: Offer) => {
+        setSelected(offer);
+        setSeen(markSeen(offer.id));
+    };
 
     useEffect(() => {
         const timer = setInterval(() => setNow(Date.now()), 60_000);
@@ -118,7 +128,13 @@ export default function OffersPage() {
                     </div>
                 ) : (
                     offers.map((offer) => (
-                        <OfferCard key={offer.id} offer={offer} now={now} onOpen={setSelected} />
+                        <OfferCard
+                            key={offer.id}
+                            offer={offer}
+                            now={now}
+                            isNew={unseenIds([offer.id], seen).length > 0}
+                            onOpen={openOffer}
+                        />
                     ))
                 )}
             </main>

@@ -13,6 +13,7 @@ import {
     deadlineMs, remainingMs, canRespond, formatRemaining, validateOfferResponse,
     OFFER_ERROR_MESSAGES, offerErrorMessage,
 } from '../../lib/offerRules';
+import { unseenIds } from '../../lib/offerSeen';
 import type { CreatorProfileUpdate } from '../../types';
 
 let pass = 0;
@@ -345,6 +346,13 @@ check('빈 문장인 코드는 없다', Object.values(OFFER_ERROR_MESSAGES).filt
 check('모르는 코드 → 일반 문구', offerErrorMessage('SOMETHING_ELSE'), '요청을 처리하지 못했어요. 잠시 후 다시 시도해주세요.');
 check('undefined → 일반 문구', offerErrorMessage(undefined), '요청을 처리하지 못했어요. 잠시 후 다시 시도해주세요.');
 check('기한 지남과 이미 응답은 다른 문장', OFFER_ERROR_MESSAGES.EXPIRED !== OFFER_ERROR_MESSAGES.ALREADY_RESPONDED, true);
+
+// ── NEW 표시 (열어보지 않은 제안) ──
+check('처음이면 전부 새 제안', unseenIds(['a', 'b'], []), ['a', 'b']);
+check('열어본 건 빠진다', unseenIds(['a', 'b'], ['a']), ['b']);
+check('전부 열어봤으면 없음', unseenIds(['a', 'b'], ['a', 'b']), []);
+check('빈 id는 세지 않는다', unseenIds(['', 'a'], []), ['a']);
+check('없어진 제안이 기록에 남아 있어도 무해', unseenIds(['a'], ['a', 'zzz']), []);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);
