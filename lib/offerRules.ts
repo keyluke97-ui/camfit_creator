@@ -160,3 +160,33 @@ export function validateOfferResponse(input: {
 
     return { ok: true };
 }
+
+/** 응답 실패 코드 전체 — API·화면이 같은 목록을 본다 */
+export type OfferResponseErrorCode =
+    | 'NOT_FOUND' | 'FORBIDDEN' | 'INVALID_ACTION' | 'INVALID_REASON'
+    | 'NOT_PENDING' | 'ALREADY_RESPONDED' | 'EXPIRED' | 'CONFLICT' | 'WRITE_FAILED';
+
+/**
+ * 실패 코드에 맞는 한국어 문장. `violationMessage`와 같은 패턴이다.
+ *
+ * 코드를 나눠 둔 이유가 여기 있다 — **"이미 응답하셨어요"와 "기한이 지났어요"는 다른 말이다.**
+ * 뭉쳐서 "처리할 수 없어요"로 보여주면 크리에이터는 무엇을 해야 할지 모르고, 그대로 문의가 된다.
+ */
+export const OFFER_ERROR_MESSAGES: Record<OfferResponseErrorCode, string> = {
+    NOT_FOUND: '제안을 찾을 수 없어요. 목록을 새로고침해주세요.',
+    FORBIDDEN: '이 제안에 응답할 권한이 없어요.',
+    INVALID_ACTION: '수락 또는 거절만 선택할 수 있어요.',
+    INVALID_REASON: '거절 사유를 선택해주세요.',
+    NOT_PENDING: '이미 처리가 끝난 제안이에요. 목록을 새로고침해주세요.',
+    ALREADY_RESPONDED: '이미 응답하신 제안이에요. 목록을 새로고침해주세요.',
+    EXPIRED: '회신 기한이 지났어요. 궁금하신 점은 카카오톡 채널로 문의해주세요.',
+    CONFLICT: '처리 중에 제안 상태가 바뀌었어요. 목록을 새로고침한 뒤 다시 확인해주세요.',
+    WRITE_FAILED: '저장에 실패했어요. 잠시 후 다시 시도해주세요.',
+};
+
+/** 모르는 코드면 일반 문구로 떨어진다(문자열은 서버 경계에서 온다) */
+export function offerErrorMessage(code: string | undefined): string {
+    if (code && code in OFFER_ERROR_MESSAGES) return OFFER_ERROR_MESSAGES[code as OfferResponseErrorCode];
+    return '요청을 처리하지 못했어요. 잠시 후 다시 시도해주세요.';
+}
+

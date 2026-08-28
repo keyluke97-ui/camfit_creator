@@ -9,7 +9,10 @@ import {
     VIOLATION_MESSAGES, violationMessage,
 } from '../../lib/creatorProfileRules';
 import { buildDeliverableSummary, buildVisitConditionSummary, withRo } from '../../lib/sponsorshipTerms';
-import { deadlineMs, remainingMs, canRespond, formatRemaining, validateOfferResponse } from '../../lib/offerRules';
+import {
+    deadlineMs, remainingMs, canRespond, formatRemaining, validateOfferResponse,
+    OFFER_ERROR_MESSAGES, offerErrorMessage,
+} from '../../lib/offerRules';
 import type { CreatorProfileUpdate } from '../../types';
 
 let pass = 0;
@@ -329,6 +332,19 @@ check('발송 일시 빈 값 → 통과', validateOfferResponse({ ...offerBase, 
 // 판정 순서 — 먼저 걸리는 것이 이긴다. 크리에이터에게 가장 정확한 이유를 보여주기 위해서다
 check('사유 오류가 상태보다 먼저', validateOfferResponse({ ...offerBase, action: 'reject', rejectReason: '가격', status: '확정' }), { ok: false, code: 'INVALID_REASON' });
 check('이미 응답함이 마감보다 먼저', validateOfferResponse({ ...offerBase, action: 'accept', respondedAt: '2026-08-26T09:00:00+09:00', now: Date.parse('2026-08-28T00:00:00+09:00') }), { ok: false, code: 'ALREADY_RESPONDED' });
+
+// ── 응답 실패 코드 → 문장 (B3) ──
+// 코드가 늘었는데 문장을 안 붙이면 화면이 빈 말을 하거나 일반 문구로 뭉개진다.
+// validateOfferResponse가 낼 수 있는 코드 + respondToOffer가 내는 코드를 전부 덮는지 본다.
+const ALL_CODES = [
+    'NOT_FOUND', 'FORBIDDEN', 'INVALID_ACTION', 'INVALID_REASON',
+    'NOT_PENDING', 'ALREADY_RESPONDED', 'EXPIRED', 'CONFLICT', 'WRITE_FAILED',
+];
+check('실패 코드 9종 전부 문장이 있다', ALL_CODES.filter((c) => !(c in OFFER_ERROR_MESSAGES)), []);
+check('빈 문장인 코드는 없다', Object.values(OFFER_ERROR_MESSAGES).filter((m) => !m.trim()), []);
+check('모르는 코드 → 일반 문구', offerErrorMessage('SOMETHING_ELSE'), '요청을 처리하지 못했어요. 잠시 후 다시 시도해주세요.');
+check('undefined → 일반 문구', offerErrorMessage(undefined), '요청을 처리하지 못했어요. 잠시 후 다시 시도해주세요.');
+check('기한 지남과 이미 응답은 다른 문장', OFFER_ERROR_MESSAGES.EXPIRED !== OFFER_ERROR_MESSAGES.ALREADY_RESPONDED, true);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);
