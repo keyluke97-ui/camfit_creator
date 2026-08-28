@@ -5,7 +5,7 @@
 
 import {
     OFFER_STATUS_PENDING, OFFER_RESPONSE_WINDOW_BUSINESS_DAYS,
-    KR_HOLIDAYS, KR_HOLIDAYS_COVERED_THROUGH,
+    KR_HOLIDAYS, KR_HOLIDAYS_COVERED_THROUGH, OFFER_REJECT_REASONS,
 } from './constants';
 
 // CHANGED: 절대시간(48h) → 2영업일 (2026-08-26 사장님 확답).
@@ -111,3 +111,82 @@ export function formatRemaining(ms: number): string {
     if (hours >= 1) return `${hours}시간 남음`;
     return `${Math.max(1, Math.floor(ms / 60_000))}분 남음`;
 }
+
+/** 수락/거절 요청이 유효한가. 실패 코드는 API가 그대로 상태코드로 매핑한다 */
+export type OfferResponseAction = 'accept' | 'reject';
+export type OfferResponseCheck =
+    | { ok: true }
+    | { ok: false; code: 'INVALID_ACTION' | 'INVALID_REASON' | 'NOT_PENDING' | 'ALREADY_RESPONDED' | 'EXPIRED' };
+
+/**
+ * 응답 가능 여부 판정 — **Airtable에 쓰기 전에 서버가 반드시 통과시켜야 하는 관문.**
+ *
+ * UI가 막아도 여기서 다시 막는다. 화면은 낡은 데이터를 들고 있을 수 있고(마감 직전에 연 탭),
+ * API는 화면 없이도 호출된다.
+ *
+ * 실패 코드를 나눠 두는 이유: 크리에이터에게 보여줄 말이 전부 다르다.
+ * "이미 응답하셨어요"와 "기한이 지났어요"를 같은 말로 뭉치면 문의가 된다.
+ *
+ * ⚠️ 순수 함수로 둔다. Airtable 접근은 airtable.ts의 respondToOffer가 하고,
+ *    이 판정은 verify-rules가 직접 돌려 검증한다.
+ */
+export function validateOfferResponse(input: {
+    action: string;
+    rejectReason?: string;
+    status: string;
+    sentAt: string;
+    respondedAt: string;
+    now: number;
+}): OfferResponseCheck {
+    const { action, rejectReason, status, sentAt, respondedAt, now } = input;
+
+    if (action !== 'accept' && action !== 'reject') return { ok: false, code: 'INVALID_ACTION' };
+
+    // 거절 사유는 화이트리스트 3종만. 자유 서술은 `거절 상세 사유`가 받는다.
+    if (action === 'reject' && !OFFER_REJECT_REASONS.includes(rejectReason || '')) {
+        return { ok: false, code: 'INVALID_REASON' };
+    }
+
+    // 상태 화이트리스트 — 크리에이터확인중이 아니면 제안서를 못 봤거나 이미 끝난 건이다
+    if (status !== OFFER_STATUS_PENDING) return { ok: false, code: 'NOT_PENDING' };
+
+    // 중복 응답 가드. 버전 낙관적 잠금을 쓸 수 없어(운영자가 Airtable UI로 직접 고치는 게
+    // 정상 경로인데 UI는 버전을 올리지 않는다) `응답 일시` 존재 여부로 막는다.
+    if (respondedAt) return { ok: false, code: 'ALREADY_RESPONDED' };
+
+    // 확인 창. `크리에이터 발송 일시`가 비면 remainingMs가 Infinity라 통과한다 —
+    // 자동화를 안 거치고 운영자가 상태만 수기로 옮긴 경우를 잠그지 않기 위해서다.
+    if (remainingMs(sentAt, now) <= 0) return { ok: false, code: 'EXPIRED' };
+
+    return { ok: true };
+}
+
+/** 응답 실패 코드 전체 — API·화면이 같은 목록을 본다 */
+export type OfferResponseErrorCode =
+    | 'NOT_FOUND' | 'FORBIDDEN' | 'INVALID_ACTION' | 'INVALID_REASON'
+    | 'NOT_PENDING' | 'ALREADY_RESPONDED' | 'EXPIRED' | 'CONFLICT' | 'WRITE_FAILED';
+
+/**
+ * 실패 코드에 맞는 한국어 문장. `violationMessage`와 같은 패턴이다.
+ *
+ * 코드를 나눠 둔 이유가 여기 있다 — **"이미 응답하셨어요"와 "기한이 지났어요"는 다른 말이다.**
+ * 뭉쳐서 "처리할 수 없어요"로 보여주면 크리에이터는 무엇을 해야 할지 모르고, 그대로 문의가 된다.
+ */
+export const OFFER_ERROR_MESSAGES: Record<OfferResponseErrorCode, string> = {
+    NOT_FOUND: '제안을 찾을 수 없어요. 목록을 새로고침해주세요.',
+    FORBIDDEN: '이 제안에 응답할 권한이 없어요.',
+    INVALID_ACTION: '수락 또는 거절만 선택할 수 있어요.',
+    INVALID_REASON: '거절 사유를 선택해주세요.',
+    NOT_PENDING: '이미 처리가 끝난 제안이에요. 목록을 새로고침해주세요.',
+    ALREADY_RESPONDED: '이미 응답하신 제안이에요. 목록을 새로고침해주세요.',
+    EXPIRED: '회신 기한이 지났어요. 궁금하신 점은 카카오톡 채널로 문의해주세요.',
+    CONFLICT: '처리 중에 제안 상태가 바뀌었어요. 목록을 새로고침한 뒤 다시 확인해주세요.',
+    WRITE_FAILED: '저장에 실패했어요. 잠시 후 다시 시도해주세요.',
+};
+
+/** 모르는 코드면 일반 문구로 떨어진다(문자열은 서버 경계에서 온다) */
+export function offerErrorMessage(code: string | undefined): string {
+    if (code && code in OFFER_ERROR_MESSAGES) return OFFER_ERROR_MESSAGES[code as OfferResponseErrorCode];
+    return '요청을 처리하지 못했어요. 잠시 후 다시 시도해주세요.';
+}
+

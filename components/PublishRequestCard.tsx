@@ -34,7 +34,7 @@ interface PublishRequestCardProps {
 const OFFER_FLOW: string[] = [
     '캠지기가 먼저 입금한 뒤 제안합니다',
     '캠핏이 입금을 확인하고 제안서를 이메일로 보내드려요',
-    '제안서를 받으시면 2영업일 안에 수락 또는 거절로 회신해주세요 (주말·공휴일은 세지 않아요)',
+    '제안이 오면 이메일로 알려드려요. 포털 「받은 제안」에서 2영업일 안에 수락 또는 거절해주세요 (주말·공휴일은 세지 않아요)',
     '회신하지 않으시면 매칭이 확정되지 않아요. 임의로 수락 처리되지 않습니다',
     '거절하실 땐 사유를 적어주셔야 하고, 거절이 반복되면 서비스 이용이 제한될 수 있어요',
     '등록하신 채널 전부에 콘텐츠를 올리는 조건이에요',
@@ -50,17 +50,36 @@ export default function PublishRequestCard({
     if (isPublic) {
         return (
             <div className="bg-card border border-line rounded-xl p-5 flex flex-col gap-3">
+                {/* CHANGED: 2026-08-27 — 심사 결과를 크리에이터가 화면에서 알 수 있게 명시.
+                    이전엔 승인돼도 '공개 중'만 떠서 "심사가 끝난 건지"를 알 수 없었다.
+                    결과 통보가 카톡 수동이라, 통보를 놓쳐도 여기서 확인되게 만든다. */}
                 <div className="flex items-center gap-2">
-                    <span className="w-6 h-6 bg-brand-bg rounded-full flex items-center justify-center text-brand-strong text-xs">✓</span>
+                    <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${
+                        reviewStatus === '반려' ? 'bg-red-50 text-red-500' : 'bg-brand-bg text-brand-strong'
+                    }`}>{reviewStatus === '승인' ? '✓' : reviewStatus === '반려' ? '!' : '⋯'}</span>
                     <span className="text-sm font-medium text-ink">
-                        {reviewStatus === '승인' ? '공개 중' : reviewStatus === '반려' ? '공개 반려됨' : '캠핏 확인 중'}
+                        {reviewStatus === '승인' ? '심사 완료 · 공개 중' : reviewStatus === '반려' ? '심사 반려됨' : '캠핏 확인 중'}
                     </span>
                 </div>
-                {reviewStatus === '심사대기' && (
-                    <p className="text-xs text-ink2">확인이 끝나면 캠지기에게 보입니다. 보통 1영업일 걸려요.</p>
+                {reviewStatus === '승인' && (
+                    <p className="text-xs text-ink2 leading-relaxed">
+                        캠핏 확인이 끝났어요. 지금부터 캠지기가 회원님의 프로필을 보고 협찬을 제안할 수 있습니다.
+                    </p>
                 )}
-                {reviewStatus === '반려' && reviewRejectReason && (
-                    <p className="text-xs text-red-500 leading-relaxed">사유: {reviewRejectReason}</p>
+                {reviewStatus === '심사대기' && (
+                    <p className="text-xs text-ink2 leading-relaxed">
+                        캠핏이 확인하고 있어요. 보통 <b className="text-ink">5영업일</b> 안에 끝나고, 끝나면 이 화면에 표시됩니다.
+                    </p>
+                )}
+                {reviewStatus === '반려' && (
+                    <div className="flex flex-col gap-1">
+                        {reviewRejectReason && (
+                            <p className="text-xs text-red-500 leading-relaxed">사유: {reviewRejectReason}</p>
+                        )}
+                        <p className="text-xs text-ink2 leading-relaxed">
+                            사유에 맞게 고치고 다시 저장하시면 재심사가 진행돼요.
+                        </p>
+                    </div>
                 )}
                 <button
                     type="button"
@@ -141,7 +160,8 @@ export default function PublishRequestCard({
             >
                 {saving ? '처리 중...' : '공개 신청하기'}
             </button>
-            <p className="text-xs text-ink3 text-center">캠핏 확인 후 캠지기에게 보입니다 (보통 1영업일)</p>
+            {/* CHANGED: 2026-08-27 — 심사 SLA 1영업일 → 5영업일. 심사가 사람 손이라 1영업일은 지킬 수 없는 약속이었다. */}
+            <p className="text-xs text-ink3 text-center">캠핏 확인 후 캠지기에게 보입니다 (보통 5영업일)</p>
         </div>
     );
 }

@@ -58,6 +58,27 @@ export function violationMessage(code: string | undefined): string {
     return '입력 조건을 확인해주세요.';
 }
 
+/**
+ * 로그인 2차 확인 — 이메일 앞 3자리.
+ *
+ * ⚠️ **등록된 이메일이 없으면 통과시킨다.** 크리에이터 명단 163명 중 이메일이 있는 사람은
+ *    80명(49%)뿐이라(실측 2026-08-27), 전원에게 요구하면 83명이 그날로 로그인이 막힌다.
+ *    프리미엄 협찬 신청·프로필 등록 때 이메일이 쌓이면 자연히 전원 3요소가 된다.
+ *
+ * 대소문자와 앞뒤 공백은 무시한다 — 사람이 자기 이메일을 대문자로 치는 건 흔하다.
+ * 로컬파트(@ 앞)만 본다.
+ */
+export function matchesEmailPrefix(registeredEmail: string, input: string): boolean {
+    const local = (registeredEmail || '').trim().split('@')[0].toLowerCase();
+    if (!local) return true;                       // 등록된 이메일이 없으면 이 관문을 적용하지 않는다
+    return local.slice(0, 3) === (input || '').trim().toLowerCase().slice(0, 3);
+}
+
+/** 등록 이메일이 있어 앞 3자리를 요구해야 하는 계정인가 */
+export function requiresEmailPrefix(registeredEmail: string): boolean {
+    return Boolean((registeredEmail || '').trim().split('@')[0]);
+}
+
 /** 이메일 형식 — RFC 완전 준수가 아니라 오타 차단 목적 */
 export function isValidEmail(value: string): boolean {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);

@@ -6,10 +6,14 @@
 import {
     validateChannelPayload, collectMissingForPublish, needsReReview, isValidEmail,
     isFormatAvailable, pruneContentFormats, normalizeUploadDeadline, isAllowedUploadDeadline,
-    VIOLATION_MESSAGES, violationMessage,
+    VIOLATION_MESSAGES, violationMessage, matchesEmailPrefix, requiresEmailPrefix,
 } from '../../lib/creatorProfileRules';
 import { buildDeliverableSummary, buildVisitConditionSummary, withRo } from '../../lib/sponsorshipTerms';
-import { deadlineMs, remainingMs, canRespond, formatRemaining } from '../../lib/offerRules';
+import {
+    deadlineMs, remainingMs, canRespond, formatRemaining, validateOfferResponse,
+    OFFER_ERROR_MESSAGES, offerErrorMessage,
+} from '../../lib/offerRules';
+import { unseenIds } from '../../lib/offerSeen';
 import type { CreatorProfileUpdate } from '../../types';
 
 let pass = 0;
@@ -301,6 +305,69 @@ check('2일 3시간', formatRemaining(51 * H), '2일 3시간 남음');
 check('이메일 유효', isValidEmail('a@b.co.kr'), true);
 check('이메일 무효 — TLD 없음', isValidEmail('a@b'), false);
 check('이메일 무효 — 공백', isValidEmail('a b@c.com'), false);
+
+// ── validateOfferResponse (B2 쓰기 관문) ──
+// UI가 막아도 서버가 다시 막는다. 실패 코드를 나눠 두는 이유는 크리에이터에게 보여줄 말이 다르기 때문이다.
+const OK = { ok: true };
+const offerBase = { status: PENDING, sentAt: SENT_TUE, respondedAt: '', now: Date.parse('2026-08-26T10:00:00+09:00') };
+
+check('수락 → 통과', validateOfferResponse({ ...offerBase, action: 'accept' }), OK);
+check('거절 + 사유 일정 → 통과', validateOfferResponse({ ...offerBase, action: 'reject', rejectReason: '일정' }), OK);
+check('거절 + 사유 금액 → 통과', validateOfferResponse({ ...offerBase, action: 'reject', rejectReason: '금액' }), OK);
+check('거절 + 사유 기타 → 통과', validateOfferResponse({ ...offerBase, action: 'reject', rejectReason: '기타' }), OK);
+
+check('거절인데 사유 없음', validateOfferResponse({ ...offerBase, action: 'reject' }), { ok: false, code: 'INVALID_REASON' });
+check('거절 사유가 화이트리스트 밖', validateOfferResponse({ ...offerBase, action: 'reject', rejectReason: '가격' }), { ok: false, code: 'INVALID_REASON' });
+check('알 수 없는 action', validateOfferResponse({ ...offerBase, action: 'cancel' }), { ok: false, code: 'INVALID_ACTION' });
+check('빈 action', validateOfferResponse({ ...offerBase, action: '' }), { ok: false, code: 'INVALID_ACTION' });
+
+check('이미 확정된 건', validateOfferResponse({ ...offerBase, action: 'accept', status: '확정' }), { ok: false, code: 'NOT_PENDING' });
+check('선입금대기 건', validateOfferResponse({ ...offerBase, action: 'accept', status: '선입금대기' }), { ok: false, code: 'NOT_PENDING' });
+check('이미 응답함', validateOfferResponse({ ...offerBase, action: 'accept', respondedAt: '2026-08-26T09:00:00+09:00' }), { ok: false, code: 'ALREADY_RESPONDED' });
+check('마감 지남', validateOfferResponse({ ...offerBase, action: 'accept', now: Date.parse('2026-08-28T00:00:00+09:00') }), { ok: false, code: 'EXPIRED' });
+check('마감 1분 전은 통과', validateOfferResponse({ ...offerBase, action: 'accept', now: Date.parse('2026-08-27T23:59:00+09:00') }), OK);
+
+// 발송 일시가 비면 마감 없음 — 운영자가 자동화 없이 상태만 수기로 옮긴 경우를 잠그지 않는다
+check('발송 일시 빈 값 → 통과', validateOfferResponse({ ...offerBase, action: 'accept', sentAt: '' }), OK);
+
+// 판정 순서 — 먼저 걸리는 것이 이긴다. 크리에이터에게 가장 정확한 이유를 보여주기 위해서다
+check('사유 오류가 상태보다 먼저', validateOfferResponse({ ...offerBase, action: 'reject', rejectReason: '가격', status: '확정' }), { ok: false, code: 'INVALID_REASON' });
+check('이미 응답함이 마감보다 먼저', validateOfferResponse({ ...offerBase, action: 'accept', respondedAt: '2026-08-26T09:00:00+09:00', now: Date.parse('2026-08-28T00:00:00+09:00') }), { ok: false, code: 'ALREADY_RESPONDED' });
+
+// ── 응답 실패 코드 → 문장 (B3) ──
+// 코드가 늘었는데 문장을 안 붙이면 화면이 빈 말을 하거나 일반 문구로 뭉개진다.
+// validateOfferResponse가 낼 수 있는 코드 + respondToOffer가 내는 코드를 전부 덮는지 본다.
+const ALL_CODES = [
+    'NOT_FOUND', 'FORBIDDEN', 'INVALID_ACTION', 'INVALID_REASON',
+    'NOT_PENDING', 'ALREADY_RESPONDED', 'EXPIRED', 'CONFLICT', 'WRITE_FAILED',
+];
+check('실패 코드 9종 전부 문장이 있다', ALL_CODES.filter((c) => !(c in OFFER_ERROR_MESSAGES)), []);
+check('빈 문장인 코드는 없다', Object.values(OFFER_ERROR_MESSAGES).filter((m) => !m.trim()), []);
+check('모르는 코드 → 일반 문구', offerErrorMessage('SOMETHING_ELSE'), '요청을 처리하지 못했어요. 잠시 후 다시 시도해주세요.');
+check('undefined → 일반 문구', offerErrorMessage(undefined), '요청을 처리하지 못했어요. 잠시 후 다시 시도해주세요.');
+check('기한 지남과 이미 응답은 다른 문장', OFFER_ERROR_MESSAGES.EXPIRED !== OFFER_ERROR_MESSAGES.ALREADY_RESPONDED, true);
+
+// ── NEW 표시 (열어보지 않은 제안) ──
+check('처음이면 전부 새 제안', unseenIds(['a', 'b'], []), ['a', 'b']);
+check('열어본 건 빠진다', unseenIds(['a', 'b'], ['a']), ['b']);
+check('전부 열어봤으면 없음', unseenIds(['a', 'b'], ['a', 'b']), []);
+check('빈 id는 세지 않는다', unseenIds(['', 'a'], []), ['a']);
+check('없어진 제안이 기록에 남아 있어도 무해', unseenIds(['a'], ['a', 'zzz']), []);
+
+// ── 로그인 이메일 앞 3자리 (조건부 3요소) ──
+// 등록된 이메일이 없는 계정은 이 관문을 적용하지 않는다 — 163명 중 83명이 여기 해당한다.
+check('앞 3자리 일치', matchesEmailPrefix('lovecamp@naver.com', 'lov'), true);
+check('대문자로 쳐도 통과', matchesEmailPrefix('lovecamp@naver.com', 'LOV'), true);
+check('앞뒤 공백 무시', matchesEmailPrefix('lovecamp@naver.com', ' lov '), true);
+check('3자리 넘게 쳐도 앞 3자리만 본다', matchesEmailPrefix('lovecamp@naver.com', 'lovec'), true);
+check('틀리면 거부', matchesEmailPrefix('lovecamp@naver.com', 'abc'), false);
+check('빈 입력은 거부', matchesEmailPrefix('lovecamp@naver.com', ''), false);
+check('도메인은 보지 않는다', matchesEmailPrefix('lov@naver.com', 'lov'), true);
+check('등록 이메일 없으면 무조건 통과', matchesEmailPrefix('', 'aaa'), true);
+check('등록 이메일 없고 입력도 없으면 통과', matchesEmailPrefix('', ''), true);
+check('공백뿐인 등록값도 통과', matchesEmailPrefix('   ', ''), true);
+check('요구 대상 판정 — 있음', requiresEmailPrefix('lovecamp@naver.com'), true);
+check('요구 대상 판정 — 없음', requiresEmailPrefix(''), false);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

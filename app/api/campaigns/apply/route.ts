@@ -66,6 +66,8 @@ export async function POST(req: NextRequest) {
             channelName,
             userRecordId: premiumId,
             email,
+            // CHANGED: 2026-08-27 — 신청 이메일을 크리에이터 명단에 역채움(비어 있을 때만)
+            creatorId: (payload.creatorId as string) || undefined,
             tier,
             channelTypes
         });

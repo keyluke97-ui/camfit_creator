@@ -1,9 +1,12 @@
 import Airtable, { FieldSet } from 'airtable';
 import { hasPartnerEligibleChannel, VISIT_REGIONS, VISIT_DAYS, SPONSOR_SITE_TYPES, getWonjeongCandidates } from '@/lib/constants'; // CHANGED: 통합 블로거 차단 / 지명형 옵션·원정 헬퍼
 import { CHANNEL_TYPES, CHANNEL_FIELD_MAP } from '@/lib/constants'; // CHANGED: 1a-v2 채널 포트폴리오 필드 매핑
-import { validateChannelPayload, collectMissingForPublish, needsReReview, normalizeUploadDeadline, isAllowedUploadDeadline } from '@/lib/creatorProfileRules'; // CHANGED: 1a-v2 서버·폼 공유 판정 로직 / 2026-08-12 기한 정규화
-import { OFFER_STATUS_PENDING } from '@/lib/constants'; // CHANGED: 1b 제안 수신함 — 목록 필터 상태
-import { deadlineMs, canRespond } from '@/lib/offerRules'; // CHANGED: 1b — 마감·응답가능 판정은 화면과 같은 함수를 쓴다
+import { validateChannelPayload, collectMissingForPublish, needsReReview, normalizeUploadDeadline, isAllowedUploadDeadline, matchesEmailPrefix } from '@/lib/creatorProfileRules'; // CHANGED: 1a-v2 서버·폼 공유 판정 로직 / 2026-08-12 기한 정규화
+import {
+    OFFER_STATUS_PENDING, OFFER_STATUS_ACCEPTED, OFFER_STATUS_REJECTED, OFFER_WRITABLE_FIELDS,
+} from '@/lib/constants'; // CHANGED: 1b 제안 수신함 — 상태값 + 쓰기 화이트리스트
+import { deadlineMs, canRespond, validateOfferResponse } from '@/lib/offerRules'; // CHANGED: 1b — 마감·응답 판정은 화면과 같은 함수를 쓴다
+import type { OfferResponseAction } from '@/lib/offerRules';
 import type {
     TierLevel,
     ChannelType,
@@ -179,7 +182,8 @@ function convertBirthDate(input: string): string {
  */
 export async function authenticateCreator(
     channelName: string,
-    phoneLastFour: string
+    phoneLastFour: string,
+    emailPrefix?: string
 ): Promise<Influencer | null> {
     try {
         // CHANGED: TRIM으로 Airtable 데이터 앞뒤 공백 무시 (캠퍼스타 등 공백 포함 데이터 대응)
@@ -204,6 +208,15 @@ export async function authenticateCreator(
         const cleanedPhone = phone.replace(/[^0-9]/g, '');
         const actualLastFour = cleanedPhone.slice(-4);
         if (actualLastFour !== phoneLastFour) return null;
+
+        // CHANGED: 2026-08-27 로그인 3요소 — 등록된 이메일이 있으면 앞 3자리까지 맞아야 한다.
+        // 이메일 출처 우선순위: 포털에서 직접 입력한 `크리에이터 이메일` → 신청 폼 원본(룩업).
+        // 없으면 이 관문을 적용하지 않는다(163명 중 80명만 이메일 보유 — 전원 요구 시 83명이 잠긴다).
+        const lookupEmail = fields['협찬 관련 내용을 전달 받고 싶은 이메일을 적어주세요. (from 협찬을 희망해요.)'];
+        const registeredEmail = (fields['크리에이터 이메일'] as string)
+            || (Array.isArray(lookupEmail) ? (lookupEmail[0] as string) : (lookupEmail as string))
+            || '';
+        if (!matchesEmailPrefix(registeredEmail, emailPrefix || '')) return null;
 
         // 등급 추출 — rating 타입 (1~3 숫자)
         const ratingValue = fields['등급화'];
@@ -379,6 +392,8 @@ interface ApplyCampaignParams {
     channelName: string;
     userRecordId: string;
     email: string;
+    /** 크리에이터 명단 레코드 id (JWT). 이메일 역채움에만 쓴다 — 없으면 역채움을 건너뛴다 */
+    creatorId?: string;
     tier: TierLevel; // CHANGED: 잔여 인원 체크를 위해 등급 정보 추가
     channelTypes?: string[]; // CHANGED: 통합 — 블로거(인스타/유튜브 없음)가 couponEvent 캠페인 신청 시 BLOCKER
 }
@@ -386,11 +401,35 @@ interface ApplyCampaignParams {
 /**
  * 캠페인 신청 처리
  */
+/**
+ * 크리에이터 명단의 `크리에이터 이메일`을 채운다 — **비어 있을 때만.**
+ *
+ * 왜 필요한가: 이 필드는 포털 프로필에서만 입력받아 163명 중 1명(1%)만 채워져 있었다.
+ * 그런데 프리미엄 협찬은 신청할 때마다 이메일을 손으로 받는다 — 같은 정보를 매번 받으면서
+ * 어디에도 쌓지 않고 있었다. 신청 한 번이 곧 이메일 한 건이 되게 한다.
+ * 채움률이 오르면 로그인 3요소(이메일 앞 3자리)가 자연히 전원에게 적용된다.
+ *
+ * ⚠️ **덮어쓰지 않는다.** 프로필에서 직접 입력한 값이 우선이고, 신청 폼 이메일이
+ *    그걸 밀어내면 크리에이터가 고쳐놓은 주소가 조용히 되돌아간다.
+ * ⚠️ 실패해도 신청을 막지 않는다. 부수 효과이지 신청의 조건이 아니다.
+ */
+async function backfillCreatorEmail(creatorId: string, email: string): Promise<void> {
+    if (!creatorId || !email) return;
+    try {
+        const record = await creatorTable().find(creatorId);
+        if ((record.get('크리에이터 이메일') as string) || '') return;   // 이미 있으면 건드리지 않는다
+        await creatorTable().update(creatorId, { '크리에이터 이메일': email } as unknown as Partial<FieldSet>);
+    } catch (error) {
+        console.error('Creator email backfill error:', error);
+    }
+}
+
 export async function applyCampaign({
     campaignId,
     channelName,
     userRecordId,
     email,
+    creatorId,
     tier,
     channelTypes
 }: ApplyCampaignParams): Promise<{ success: boolean; couponCode: string; followerCouponCode?: string }> {
@@ -453,6 +492,10 @@ export async function applyCampaign({
         const createdRecords = await applicationTable().create([
             { fields: applicationFields as Partial<FieldSet> }
         ]);
+
+        // CHANGED: 2026-08-27 — 신청 때 받은 이메일을 크리에이터 명단에 쌓는다(비어 있을 때만).
+        // await 하지만 실패는 삼킨다 — 신청은 이미 성립했고 이건 부수 효과다.
+        if (creatorId) await backfillCreatorEmail(creatorId, email);
 
         if (!createdRecords || createdRecords.length === 0) {
             throw new Error('FAILED_TO_CREATE_APPLICATION');
@@ -2021,8 +2064,13 @@ export async function getCreatorOffers(creatorId: string): Promise<Offer[]> {
     if (!creatorId) return [];
 
     try {
+        // CHANGED: 1b Phase C — `확정`도 함께 읽는다. 수락한 제안의 쿠폰 코드를 보여줘야 하고
+        //          (Q2 — 노출은 수락 후), 크리에이터가 "내가 뭘 수락했더라"를 확인할 곳이 여기뿐이다.
+        //          `거절`은 넣지 않는다 — 할 일이 없는 카드가 목록을 채운다.
         const records = await offerTable()
-            .select({ filterByFormula: `{상태} = '${OFFER_STATUS_PENDING}'` })
+            .select({
+                filterByFormula: `OR({상태} = '${OFFER_STATUS_PENDING}', {상태} = '${OFFER_STATUS_ACCEPTED}')`,
+            })
             .all();
 
         const now = Date.now();
@@ -2049,8 +2097,24 @@ export async function getCreatorOffers(creatorId: string): Promise<Offer[]> {
                 rejectDetail: (record.get('거절 상세 사유') as string) || '',
                 accommodationName: (record.get('캠핑장 이름') as string) || '',
                 accommodationUrl: (record.get('캠핑장 링크') as string) || '',
+                region: (record.get('캠핑장 지역') as string) || '',
                 proposalText: (record.get('제안서 전문') as string) || '',
                 message: (record.get('메시지') as string) || '',
+                siteTypes: (record.get('협찬 사이트 종류') as string[]) || [],
+                visitDays: (record.get('방문 가능 기간(일수)') as number) || 0,
+                visitStartDate: (record.get('크리에이터 방문 가능 시작일') as string) || '',
+                visitEndDate: (record.get('크리에이터 방문 가능 종료일') as string) || '',
+                couponDiscount: (record.get('할인 금액') as number) || 0,
+                couponPerPerson: (record.get('인당 장수') as number) || 0,
+                couponApplyDays: (record.get('적용 요일') as string) || '',
+                minNights: (record.get('사용가능 최소 예약 박수') as number) || 0,
+                maxNights: (record.get('사용가능 최대 예약 박수') as number) || 0,
+                // ⚠️ 수락(확정) 후에만 싣는다. 확인 창 단계에서 담으면 거절한 사람도 코드를 갖게 되고,
+                //    그 코드는 다음 제안에 재배포되므로 오염된다. 화면에서 가리는 것으로는 부족하다 —
+                //    API 응답에 있으면 개발자도구로 보인다(파트너 `followerCouponCode` 사고와 같은 경로).
+                creatorCouponCode: status === OFFER_STATUS_ACCEPTED
+                    ? (record.get('크리에이터 쿠폰 코드') as string) || ''
+                    : '',
                 // Infinity(마감 없음)는 JSON에서 null이 된다 — 여기서 미리 null로 통일한다
                 deadline: Number.isFinite(deadline) ? deadline : null,
                 canRespond: canRespond(status, sentAt, respondedAt, now),
@@ -2064,6 +2128,96 @@ export async function getCreatorOffers(creatorId: string): Promise<Offer[]> {
     } catch (error) {
         console.error('Get creator offers error:', error);
         return [];
+    }
+}
+
+/** respondToOffer 결과 — ok=false면 API가 코드별 상태코드로 매핑한다 */
+export type RespondOfferResult =
+    | { ok: true; status: string }
+    | {
+        ok: false;
+        code: 'NOT_FOUND' | 'FORBIDDEN' | 'INVALID_ACTION' | 'INVALID_REASON'
+            | 'NOT_PENDING' | 'ALREADY_RESPONDED' | 'EXPIRED' | 'CONFLICT' | 'WRITE_FAILED';
+    };
+
+/**
+ * 제안 수락/거절 (제안 수신함 1b — Phase B2).
+ *
+ * **쓰기는 화이트리스트 4필드만** — `상태`·`응답 일시`·`거절 사유`·`거절 상세 사유`.
+ * 캠지기 계약 v2 §9 개정으로 사장님 승인을 받은 범위이고, 늘리려면 다시 승인을 받아야 한다.
+ * 금액 4종·`제안서 전문`·`조건 스냅샷`은 분쟁 시 증거라, 쓰기 주체가 두 곳으로 갈리면
+ * "누가 바꿨나"를 못 가린다. 아래 런타임 가드가 코드가 조용히 늘어나는 것을 막는다
+ * (정적 검사는 tools/jimyeong/verify-contract.ts가 한다).
+ *
+ * **동시성**: Airtable에는 트랜잭션이 없고, 여기선 버전 낙관적 잠금을 쓸 수 없다 —
+ * 운영자가 Airtable UI로 상태를 직접 고치는 게 정상 경로인데 UI는 `버전`을 올리지 않는다.
+ * 그래서 `applyCampaign`과 같은 2단계로 간다: **사전 체크(`응답 일시` 비어 있음) + 사후 검증.**
+ * 사후 검증에서 상태가 우리가 쓴 값이 아니면 다른 주체가 끼어든 것이므로 `CONFLICT`로 알린다.
+ * 롤백은 하지 않는다 — 되돌리면 그 사람의 응답을 우리가 지우는 셈이 된다.
+ */
+export async function respondToOffer(params: {
+    creatorId: string;
+    offerId: string;
+    action: OfferResponseAction | string;
+    rejectReason?: string;
+    rejectDetail?: string;
+}): Promise<RespondOfferResult> {
+    const { creatorId, offerId, action, rejectReason, rejectDetail } = params;
+    if (!creatorId || !offerId) return { ok: false, code: 'NOT_FOUND' };
+
+    try {
+        let record;
+        try {
+            record = await offerTable().find(offerId);
+        } catch {
+            return { ok: false, code: 'NOT_FOUND' };
+        }
+
+        // IDOR 방어 — JWT creatorId와 레코드의 링크 배열(레코드 ID)로만 판정한다.
+        // 채널명 같은 표시값 비교는 부분일치·동일인 복수 계정 때문에 그 자체가 IDOR이다.
+        const links = record.get('크리에이터') as string[] | undefined;
+        if (!Array.isArray(links) || !links.includes(creatorId)) {
+            return { ok: false, code: 'FORBIDDEN' };
+        }
+
+        const status = (record.get('상태') as string) || '';
+        const sentAt = (record.get('크리에이터 발송 일시') as string) || '';
+        const respondedAt = (record.get('응답 일시') as string) || '';
+
+        // UI가 막아도 서버가 다시 막는다. 화면은 낡은 데이터를 들고 있을 수 있다.
+        const check = validateOfferResponse({ action, rejectReason, status, sentAt, respondedAt, now: Date.now() });
+        if (!check.ok) return { ok: false, code: check.code };
+
+        const nextStatus = action === 'accept' ? OFFER_STATUS_ACCEPTED : OFFER_STATUS_REJECTED;
+        const fields: Record<string, unknown> = {
+            '상태': nextStatus,
+            '응답 일시': new Date().toISOString(),
+        };
+        if (action === 'reject') {
+            fields['거절 사유'] = rejectReason;
+            fields['거절 상세 사유'] = (rejectDetail || '').trim();
+        }
+
+        // 런타임 화이트리스트 가드 — 위 객체에 금지 필드가 섞이면 쓰지 않고 실패시킨다.
+        const outside = Object.keys(fields).filter((f) => !OFFER_WRITABLE_FIELDS.includes(f));
+        if (outside.length > 0) {
+            console.error('Respond offer blocked — 화이트리스트 밖 필드 쓰기 시도:', outside);
+            return { ok: false, code: 'WRITE_FAILED' };
+        }
+
+        await offerTable().update(offerId, fields as unknown as Partial<FieldSet>);
+
+        // 사후 검증 — 다른 주체(운영자 수기 조작 / 동시 요청)가 끼어들었는지 확인한다.
+        const after = await offerTable().find(offerId);
+        if (((after.get('상태') as string) || '') !== nextStatus) {
+            console.error('Respond offer conflict — 사후 검증 실패:', offerId, after.get('상태'));
+            return { ok: false, code: 'CONFLICT' };
+        }
+
+        return { ok: true, status: nextStatus };
+    } catch (error) {
+        console.error('Respond offer error:', error);
+        return { ok: false, code: 'WRITE_FAILED' };
     }
 }
 
