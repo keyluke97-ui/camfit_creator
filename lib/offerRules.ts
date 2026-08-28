@@ -5,7 +5,7 @@
 
 import {
     OFFER_STATUS_PENDING, OFFER_RESPONSE_WINDOW_BUSINESS_DAYS,
-    KR_HOLIDAYS, KR_HOLIDAYS_COVERED_THROUGH,
+    KR_HOLIDAYS, KR_HOLIDAYS_COVERED_THROUGH, OFFER_REJECT_REASONS,
 } from './constants';
 
 // CHANGED: 절대시간(48h) → 2영업일 (2026-08-26 사장님 확답).
@@ -110,4 +110,53 @@ export function formatRemaining(ms: number): string {
     if (hours >= 24) return `${Math.floor(hours / 24)}일 ${hours % 24}시간 남음`;
     if (hours >= 1) return `${hours}시간 남음`;
     return `${Math.max(1, Math.floor(ms / 60_000))}분 남음`;
+}
+
+/** 수락/거절 요청이 유효한가. 실패 코드는 API가 그대로 상태코드로 매핑한다 */
+export type OfferResponseAction = 'accept' | 'reject';
+export type OfferResponseCheck =
+    | { ok: true }
+    | { ok: false; code: 'INVALID_ACTION' | 'INVALID_REASON' | 'NOT_PENDING' | 'ALREADY_RESPONDED' | 'EXPIRED' };
+
+/**
+ * 응답 가능 여부 판정 — **Airtable에 쓰기 전에 서버가 반드시 통과시켜야 하는 관문.**
+ *
+ * UI가 막아도 여기서 다시 막는다. 화면은 낡은 데이터를 들고 있을 수 있고(마감 직전에 연 탭),
+ * API는 화면 없이도 호출된다.
+ *
+ * 실패 코드를 나눠 두는 이유: 크리에이터에게 보여줄 말이 전부 다르다.
+ * "이미 응답하셨어요"와 "기한이 지났어요"를 같은 말로 뭉치면 문의가 된다.
+ *
+ * ⚠️ 순수 함수로 둔다. Airtable 접근은 airtable.ts의 respondToOffer가 하고,
+ *    이 판정은 verify-rules가 직접 돌려 검증한다.
+ */
+export function validateOfferResponse(input: {
+    action: string;
+    rejectReason?: string;
+    status: string;
+    sentAt: string;
+    respondedAt: string;
+    now: number;
+}): OfferResponseCheck {
+    const { action, rejectReason, status, sentAt, respondedAt, now } = input;
+
+    if (action !== 'accept' && action !== 'reject') return { ok: false, code: 'INVALID_ACTION' };
+
+    // 거절 사유는 화이트리스트 3종만. 자유 서술은 `거절 상세 사유`가 받는다.
+    if (action === 'reject' && !OFFER_REJECT_REASONS.includes(rejectReason || '')) {
+        return { ok: false, code: 'INVALID_REASON' };
+    }
+
+    // 상태 화이트리스트 — 크리에이터확인중이 아니면 제안서를 못 봤거나 이미 끝난 건이다
+    if (status !== OFFER_STATUS_PENDING) return { ok: false, code: 'NOT_PENDING' };
+
+    // 중복 응답 가드. 버전 낙관적 잠금을 쓸 수 없어(운영자가 Airtable UI로 직접 고치는 게
+    // 정상 경로인데 UI는 버전을 올리지 않는다) `응답 일시` 존재 여부로 막는다.
+    if (respondedAt) return { ok: false, code: 'ALREADY_RESPONDED' };
+
+    // 확인 창. `크리에이터 발송 일시`가 비면 remainingMs가 Infinity라 통과한다 —
+    // 자동화를 안 거치고 운영자가 상태만 수기로 옮긴 경우를 잠그지 않기 위해서다.
+    if (remainingMs(sentAt, now) <= 0) return { ok: false, code: 'EXPIRED' };
+
+    return { ok: true };
 }
