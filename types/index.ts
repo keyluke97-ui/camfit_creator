@@ -23,6 +23,10 @@ export interface AirtableCreatorRecord {
     '휴먼 상태 '?: boolean; // CHANGED: Airtable 필드명 끝에 공백 포함
     '프리미엄 협찬 신청 인플루언서'?: string[]; // multipleRecordLinks → tblDOC7jcmeuQzNJY
     '캠페인 알림'?: boolean; // CHANGED: 캠페인 알림 토글 필드 추가
+    // CHANGED: 2026-08-27 로그인 3요소 — 이메일 앞 3자리 검증용.
+    // 포털에서 입력한 값이 우선이고, 없으면 신청 폼 원본(룩업)을 본다. 둘 다 없으면 관문을 적용하지 않는다.
+    '크리에이터 이메일'?: string;
+    '협찬 관련 내용을 전달 받고 싶은 이메일을 적어주세요. (from 협찬을 희망해요.)'?: string[] | string;
   };
 }
 

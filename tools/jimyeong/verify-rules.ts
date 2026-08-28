@@ -6,7 +6,7 @@
 import {
     validateChannelPayload, collectMissingForPublish, needsReReview, isValidEmail,
     isFormatAvailable, pruneContentFormats, normalizeUploadDeadline, isAllowedUploadDeadline,
-    VIOLATION_MESSAGES, violationMessage,
+    VIOLATION_MESSAGES, violationMessage, matchesEmailPrefix, requiresEmailPrefix,
 } from '../../lib/creatorProfileRules';
 import { buildDeliverableSummary, buildVisitConditionSummary, withRo } from '../../lib/sponsorshipTerms';
 import {
@@ -353,6 +353,21 @@ check('열어본 건 빠진다', unseenIds(['a', 'b'], ['a']), ['b']);
 check('전부 열어봤으면 없음', unseenIds(['a', 'b'], ['a', 'b']), []);
 check('빈 id는 세지 않는다', unseenIds(['', 'a'], []), ['a']);
 check('없어진 제안이 기록에 남아 있어도 무해', unseenIds(['a'], ['a', 'zzz']), []);
+
+// ── 로그인 이메일 앞 3자리 (조건부 3요소) ──
+// 등록된 이메일이 없는 계정은 이 관문을 적용하지 않는다 — 163명 중 83명이 여기 해당한다.
+check('앞 3자리 일치', matchesEmailPrefix('lovecamp@naver.com', 'lov'), true);
+check('대문자로 쳐도 통과', matchesEmailPrefix('lovecamp@naver.com', 'LOV'), true);
+check('앞뒤 공백 무시', matchesEmailPrefix('lovecamp@naver.com', ' lov '), true);
+check('3자리 넘게 쳐도 앞 3자리만 본다', matchesEmailPrefix('lovecamp@naver.com', 'lovec'), true);
+check('틀리면 거부', matchesEmailPrefix('lovecamp@naver.com', 'abc'), false);
+check('빈 입력은 거부', matchesEmailPrefix('lovecamp@naver.com', ''), false);
+check('도메인은 보지 않는다', matchesEmailPrefix('lov@naver.com', 'lov'), true);
+check('등록 이메일 없으면 무조건 통과', matchesEmailPrefix('', 'aaa'), true);
+check('등록 이메일 없고 입력도 없으면 통과', matchesEmailPrefix('', ''), true);
+check('공백뿐인 등록값도 통과', matchesEmailPrefix('   ', ''), true);
+check('요구 대상 판정 — 있음', requiresEmailPrefix('lovecamp@naver.com'), true);
+check('요구 대상 판정 — 없음', requiresEmailPrefix(''), false);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

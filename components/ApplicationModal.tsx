@@ -58,6 +58,29 @@ export default function ApplicationModal({ isOpen, onClose, campaign, channelTyp
         }
     }, [isOpen]);
 
+    // CHANGED: 2026-08-27 — 등록된 이메일이 있으면 미리 채운다.
+    // 같은 정보를 매번 손으로 다시 받을 이유가 없고, 매번 새로 치면 오타로 서로 다른 주소가 쌓인다.
+    // (비어 있으면 신청 시 입력값이 크리에이터 명단에 역채움된다 — backfillCreatorEmail)
+    // 실패는 무시한다. 프리필은 편의이지 신청의 조건이 아니다.
+    useEffect(() => {
+        if (!isOpen) return;
+        let alive = true;
+        (async () => {
+            try {
+                const response = await fetch('/api/creator/profile');
+                if (!response.ok) return;
+                const data = await response.json();
+                const registered = data?.profile?.creatorEmail;
+                if (alive && typeof registered === 'string' && registered) {
+                    setEmail((current) => current || registered);
+                }
+            } catch {
+                // 무시 — 사용자가 직접 입력하면 된다
+            }
+        })();
+        return () => { alive = false; };
+    }, [isOpen]);
+
     // 이메일 유효성 검사
     const isValidEmail = (email: string) => {
         return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);

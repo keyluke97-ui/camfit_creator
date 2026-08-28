@@ -13,7 +13,8 @@ const JWT_SECRET = new TextEncoder().encode(process.env.NEXTAUTH_SECRET);
 export async function POST(request: NextRequest) {
     try {
         // CHANGED: 생년월일 제거 — 채널명 + 연락처 뒤4자리만으로 인증
-        const { channelName, phoneLastFour } = await request.json();
+        // CHANGED: 2026-08-27 — 이메일 앞 3자리 추가(등록된 이메일이 있는 계정만 검사).
+        const { channelName, phoneLastFour, emailPrefix } = await request.json();
 
         // 입력 검증
         if (!channelName || !phoneLastFour) {
@@ -32,7 +33,7 @@ export async function POST(request: NextRequest) {
         }
 
         // CHANGED: 크리에이터 명단 테이블 기반 인증
-        const creator = await authenticateCreator(channelName, phoneLastFour);
+        const creator = await authenticateCreator(channelName, phoneLastFour, emailPrefix);
 
         if (!creator) {
             return NextResponse.json(

@@ -19,7 +19,8 @@ export default function LoginPage() {
     // CHANGED: 생년월일 제거 — 채널명 + 연락처 뒤4자리만 사용
     const [formData, setFormData] = useState({
         channelName: '',
-        phoneLastFour: ''
+        phoneLastFour: '',
+        emailPrefix: ''
     });
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -107,7 +108,9 @@ export default function LoginPage() {
                 // CHANGED: 생년월일 제거
                 body: JSON.stringify({
                     channelName: formData.channelName,
-                    phoneLastFour: formData.phoneLastFour
+                    phoneLastFour: formData.phoneLastFour,
+                    // CHANGED: 2026-08-27 — 등록된 이메일이 있는 계정만 서버가 검사한다.
+                    emailPrefix: formData.emailPrefix
                 })
             });
 
@@ -221,6 +224,33 @@ export default function LoginPage() {
                         />
                     </div>
 
+                    {/* CHANGED: 2026-08-27 로그인 3요소 — 이메일 앞 3자리.
+                        등록된 이메일이 없는 계정(163명 중 83명)은 비워두면 통과한다.
+                        전원에게 요구하면 그 83명이 그날로 로그인이 막힌다. */}
+                    <div>
+                        <label
+                            htmlFor="emailPrefix"
+                            className="block text-sm font-medium text-ink mb-2"
+                        >
+                            이메일 앞 3자리
+                        </label>
+                        <input
+                            id="emailPrefix"
+                            type="text"
+                            autoComplete="off"
+                            maxLength={3}
+                            placeholder="예: abc"
+                            value={formData.emailPrefix}
+                            onChange={(event) => {
+                                setFormData({ ...formData, emailPrefix: event.target.value.trim() });
+                            }}
+                            className="w-full h-12 px-4 bg-card text-ink border border-line rounded-lg focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
+                        />
+                        <p className="mt-1.5 text-xs text-ink3">
+                            캠핏에 등록된 이메일의 <b className="text-ink2">@ 앞 3글자</b>예요. 등록된 이메일이 없으시면 비워두고 로그인하세요.
+                        </p>
+                    </div>
+
                     {/* 점진적 에러 메시지 영역 */}
                     {error && (
                         <div className="space-y-3">
@@ -228,7 +258,7 @@ export default function LoginPage() {
                                 <p className="text-red-600 text-sm">{error}</p>
                                 {failCount >= 1 && (
                                     <p className="text-red-500 text-xs mt-2">
-                                        등록된 채널명과 연락처 뒤 4자리로 로그인해주세요.
+                                        등록된 채널명·연락처 뒤 4자리·이메일 앞 3자리를 확인해주세요.
                                     </p>
                                 )}
                             </div>

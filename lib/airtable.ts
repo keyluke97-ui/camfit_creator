@@ -1,7 +1,7 @@
 import Airtable, { FieldSet } from 'airtable';
 import { hasPartnerEligibleChannel, VISIT_REGIONS, VISIT_DAYS, SPONSOR_SITE_TYPES, getWonjeongCandidates } from '@/lib/constants'; // CHANGED: 통합 블로거 차단 / 지명형 옵션·원정 헬퍼
 import { CHANNEL_TYPES, CHANNEL_FIELD_MAP } from '@/lib/constants'; // CHANGED: 1a-v2 채널 포트폴리오 필드 매핑
-import { validateChannelPayload, collectMissingForPublish, needsReReview, normalizeUploadDeadline, isAllowedUploadDeadline } from '@/lib/creatorProfileRules'; // CHANGED: 1a-v2 서버·폼 공유 판정 로직 / 2026-08-12 기한 정규화
+import { validateChannelPayload, collectMissingForPublish, needsReReview, normalizeUploadDeadline, isAllowedUploadDeadline, matchesEmailPrefix } from '@/lib/creatorProfileRules'; // CHANGED: 1a-v2 서버·폼 공유 판정 로직 / 2026-08-12 기한 정규화
 import {
     OFFER_STATUS_PENDING, OFFER_STATUS_ACCEPTED, OFFER_STATUS_REJECTED, OFFER_WRITABLE_FIELDS,
 } from '@/lib/constants'; // CHANGED: 1b 제안 수신함 — 상태값 + 쓰기 화이트리스트
@@ -178,7 +178,8 @@ function convertBirthDate(input: string): string {
  */
 export async function authenticateCreator(
     channelName: string,
-    phoneLastFour: string
+    phoneLastFour: string,
+    emailPrefix?: string
 ): Promise<Influencer | null> {
     try {
         // CHANGED: TRIM으로 Airtable 데이터 앞뒤 공백 무시 (캠퍼스타 등 공백 포함 데이터 대응)
@@ -203,6 +204,15 @@ export async function authenticateCreator(
         const cleanedPhone = phone.replace(/[^0-9]/g, '');
         const actualLastFour = cleanedPhone.slice(-4);
         if (actualLastFour !== phoneLastFour) return null;
+
+        // CHANGED: 2026-08-27 로그인 3요소 — 등록된 이메일이 있으면 앞 3자리까지 맞아야 한다.
+        // 이메일 출처 우선순위: 포털에서 직접 입력한 `크리에이터 이메일` → 신청 폼 원본(룩업).
+        // 없으면 이 관문을 적용하지 않는다(163명 중 80명만 이메일 보유 — 전원 요구 시 83명이 잠긴다).
+        const lookupEmail = fields['협찬 관련 내용을 전달 받고 싶은 이메일을 적어주세요. (from 협찬을 희망해요.)'];
+        const registeredEmail = (fields['크리에이터 이메일'] as string)
+            || (Array.isArray(lookupEmail) ? (lookupEmail[0] as string) : (lookupEmail as string))
+            || '';
+        if (!matchesEmailPrefix(registeredEmail, emailPrefix || '')) return null;
 
         // 등급 추출 — rating 타입 (1~3 숫자)
         const ratingValue = fields['등급화'];
@@ -378,6 +388,8 @@ interface ApplyCampaignParams {
     channelName: string;
     userRecordId: string;
     email: string;
+    /** 크리에이터 명단 레코드 id (JWT). 이메일 역채움에만 쓴다 — 없으면 역채움을 건너뛴다 */
+    creatorId?: string;
     tier: TierLevel; // CHANGED: 잔여 인원 체크를 위해 등급 정보 추가
     channelTypes?: string[]; // CHANGED: 통합 — 블로거(인스타/유튜브 없음)가 couponEvent 캠페인 신청 시 BLOCKER
 }
@@ -385,11 +397,35 @@ interface ApplyCampaignParams {
 /**
  * 캠페인 신청 처리
  */
+/**
+ * 크리에이터 명단의 `크리에이터 이메일`을 채운다 — **비어 있을 때만.**
+ *
+ * 왜 필요한가: 이 필드는 포털 프로필에서만 입력받아 163명 중 1명(1%)만 채워져 있었다.
+ * 그런데 프리미엄 협찬은 신청할 때마다 이메일을 손으로 받는다 — 같은 정보를 매번 받으면서
+ * 어디에도 쌓지 않고 있었다. 신청 한 번이 곧 이메일 한 건이 되게 한다.
+ * 채움률이 오르면 로그인 3요소(이메일 앞 3자리)가 자연히 전원에게 적용된다.
+ *
+ * ⚠️ **덮어쓰지 않는다.** 프로필에서 직접 입력한 값이 우선이고, 신청 폼 이메일이
+ *    그걸 밀어내면 크리에이터가 고쳐놓은 주소가 조용히 되돌아간다.
+ * ⚠️ 실패해도 신청을 막지 않는다. 부수 효과이지 신청의 조건이 아니다.
+ */
+async function backfillCreatorEmail(creatorId: string, email: string): Promise<void> {
+    if (!creatorId || !email) return;
+    try {
+        const record = await creatorTable().find(creatorId);
+        if ((record.get('크리에이터 이메일') as string) || '') return;   // 이미 있으면 건드리지 않는다
+        await creatorTable().update(creatorId, { '크리에이터 이메일': email } as unknown as Partial<FieldSet>);
+    } catch (error) {
+        console.error('Creator email backfill error:', error);
+    }
+}
+
 export async function applyCampaign({
     campaignId,
     channelName,
     userRecordId,
     email,
+    creatorId,
     tier,
     channelTypes
 }: ApplyCampaignParams): Promise<{ success: boolean; couponCode: string; followerCouponCode?: string }> {
@@ -452,6 +488,10 @@ export async function applyCampaign({
         const createdRecords = await applicationTable().create([
             { fields: applicationFields as Partial<FieldSet> }
         ]);
+
+        // CHANGED: 2026-08-27 — 신청 때 받은 이메일을 크리에이터 명단에 쌓는다(비어 있을 때만).
+        // await 하지만 실패는 삼킨다 — 신청은 이미 성립했고 이건 부수 효과다.
+        if (creatorId) await backfillCreatorEmail(creatorId, email);
 
         if (!createdRecords || createdRecords.length === 0) {
             throw new Error('FAILED_TO_CREATE_APPLICATION');
