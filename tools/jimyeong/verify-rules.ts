@@ -7,6 +7,8 @@ import {
     validateChannelPayload, collectMissingForPublish, needsReReview, isValidEmail,
     isFormatAvailable, pruneContentFormats, normalizeUploadDeadline, isAllowedUploadDeadline,
     VIOLATION_MESSAGES, violationMessage, matchesEmailPrefix, requiresEmailPrefix,
+    parseBaseRegionFromAddress, validateWonjeongSelection, pruneWonjeongRegions, wonjeongMessage,
+    WONJEONG_MESSAGES,
 } from '../../lib/creatorProfileRules';
 import { buildDeliverableSummary, buildVisitConditionSummary, withRo } from '../../lib/sponsorshipTerms';
 import {
@@ -14,6 +16,7 @@ import {
     OFFER_ERROR_MESSAGES, offerErrorMessage,
 } from '../../lib/offerRules';
 import { unseenIds } from '../../lib/offerSeen';
+import { VISIT_REGIONS, getWonjeongCandidates } from '../../lib/constants';
 import type { CreatorProfileUpdate } from '../../types';
 
 let pass = 0;
@@ -35,7 +38,6 @@ const base: CreatorProfileUpdate = {
     visitRegions: ['강원도'],
     visitDays: ['월'],
     acceptSiteTypes: ['오토캠핑'],
-    baseRegion: '경기도(서울, 인천 포함)',
     wonjeongRegions: [],
     isPublic: false,
     channelTypes: ['유튜브'],
@@ -68,12 +70,12 @@ check('정상 payload', validateChannelPayload(base), null);
 // ── collectMissingForPublish ──
 check('유튜브 URL 누락', collectMissingForPublish({
     ...base, channels: { '유튜브': { url: '', follower: 0, engagement: 0, blogIndex: '', strength: '' } },
-}, true, true), ['유튜브 채널 URL']);
+}, true, true), ['유튜브 채널 주소']);
 check('전부 충족', collectMissingForPublish(base, true, true), []);
 check('이미지·정산 누락', collectMissingForPublish(base, false, false), ['프로필 이미지', '정산 정보']);
 check('신규 3종 누락', collectMissingForPublish({
     ...base, representativeChannel: '', contentFormats: [], creatorEmail: '',
-}, true, true), ['대표 채널', '제작 콘텐츠 형식', '크리에이터 이메일']);
+}, true, true), ['대표 채널', '제작 콘텐츠 형식', '이메일']);
 
 // ── needsReReview ──
 const before = {
@@ -368,6 +370,62 @@ check('등록 이메일 없고 입력도 없으면 통과', matchesEmailPrefix('
 check('공백뿐인 등록값도 통과', matchesEmailPrefix('   ', ''), true);
 check('요구 대상 판정 — 있음', requiresEmailPrefix('lovecamp@naver.com'), true);
 check('요구 대상 판정 — 없음', requiresEmailPrefix(''), false);
+
+// ── 기준 지역 앵커 파싱 (2026-08-31) ──
+// ⚠️ 이 함수가 원거리 할증 후보 집합 전체를 결정한다. 자기신고가 아니라 정산 주소가 앵커다.
+//    아래 케이스는 전부 프로덕션 실데이터(크리에이터 349명 중 프리미엄 링크 86명)에서 뽑았다.
+const KG = '경기도(서울, 인천 포함)';
+check('정상 — 시/도로 시작', parseBaseRegionFromAddress('경기도 수원시 팔달구 1'), KG);
+check('서울은 경기권으로 접는다', parseBaseRegionFromAddress('서울특별시 영등포구 도림천로19길 11'), KG);
+check('광주는 전남권', parseBaseRegionFromAddress('광주광역시 서구 상무대로'), '전라남도');
+check('대구는 경북권', parseBaseRegionFromAddress('대구광역시 수성구'), '경상북도');
+check('부산은 경남권', parseBaseRegionFromAddress('부산광역시 해운대구'), '경상남도');
+check('세종은 충남권', parseBaseRegionFromAddress('세종특별자치시 한누리대로'), '충청남도');
+
+// 실측 실패 사례 — 선두 우편번호 4종. 전에는 전부 ''을 뱉어 원정이 잠겼다.
+check('우편번호 괄호 접두', parseBaseRegionFromAddress('(07448) 서울특별시 영등포구 도림천로19길 11'), KG);
+check('우편번호 + 개행', parseBaseRegionFromAddress('34423\n대전광역시 대덕구 송촌덩 486-4번지 30'), '충청남도');
+check('(우편번호 NNNNN) 형태', parseBaseRegionFromAddress('(우편번호 18025) 경기도 평택시 신촌5로 20 동'), KG);
+check('닫는 괄호만 남은 형태', parseBaseRegionFromAddress('14508) 경기도 부천시 도약로16 라일락마을 경남아'), KG);
+check('구 6자리 우편번호', parseBaseRegionFromAddress('123-456 강원도 원주시'), '강원도');
+
+// 여전히 못 뽑는 것 — 시/도를 생략하고 시 이름으로 시작하는 주소. 지어내지 않고 ''을 준다
+// (앵커가 없으면 원거리 할증을 잠근다 — WONJEONG_NO_ANCHOR).
+check('시 이름으로 시작하면 포기', parseBaseRegionFromAddress('창원시 진해구 진해대로 975번길 26'), '');
+check('김포시도 포기', parseBaseRegionFromAddress('김포시 김포한강11로 37 103동 2401호'), '');
+check('빈 주소', parseBaseRegionFromAddress(''), '');
+
+// 부분일치 금지 회귀 — 상세주소 토큰이 도를 오분류하면 엉뚱한 지역이 앵커가 된다
+check('세종아파트는 세종이 아니다', parseBaseRegionFromAddress('경상북도 안동시 세종아파트 101동'), '경상북도');
+check('대구리는 대구가 아니다', parseBaseRegionFromAddress('강원도 양양군 대구리 12'), '강원도');
+
+// ── 원거리 추가금 선택 (2026-08-31) ──
+// 앵커는 정산 주소 파생값만 넘긴다. 경기 거주자의 후보는 전북·전남·경북·경남.
+const KGG = '경기도(서울, 인천 포함)';
+check('추가금 미선택은 항상 통과', validateWonjeongSelection('', [], []), null);
+check('앵커 없으면 잠긴다', validateWonjeongSelection('', ['강원도'], ['전라남도']), 'WONJEONG_NO_ANCHOR');
+check('방문가능 0개인데 추가금만', validateWonjeongSelection(KGG, [], ['전라남도']), 'WONJEONG_WITHOUT_VISIT');
+check('방문가능과 겹침', validateWonjeongSelection(KGG, ['전라남도'], ['전라남도']), 'WONJEONG_OVERLAP');
+check('근거리를 추가금으로(어뷰징)', validateWonjeongSelection(KGG, ['강원도'], ['충청남도']), 'WONJEONG_OUT_OF_RANGE');
+check('자기 거주지를 추가금으로', validateWonjeongSelection(KGG, ['강원도'], [KGG]), 'WONJEONG_OUT_OF_RANGE');
+check('정상 — 먼 지역', validateWonjeongSelection(KGG, ['강원도'], ['전라남도', '경상남도']), null);
+check('제주 거주자는 후보 없음', validateWonjeongSelection('제주도', ['제주도'], ['전라남도']), 'WONJEONG_OUT_OF_RANGE');
+
+// 대칭성 회귀 — 어느 지역이든 자기 거주지는 절대 자기 후보에 없어야 한다.
+// (이 불변식이 깨지면 앵커를 정산 주소로 옮겨도 집 앞에 추가금이 붙는다)
+for (const region of VISIT_REGIONS) {
+    check(`자기 거주지가 후보에 없음 — ${region}`, getWonjeongCandidates(region).includes(region), false);
+}
+
+// 폼 정리 술어 — 서버 검증과 어긋나면 사용자가 화면에 없는 이유로 막힌다
+check('방문가능 비우면 추가금도 비운다', pruneWonjeongRegions([], ['전라남도']), []);
+check('겹치는 것만 걷어낸다', pruneWonjeongRegions(['전라남도'], ['전라남도', '경상남도']), ['경상남도']);
+check('폼 정리 결과는 서버를 통과한다',
+    validateWonjeongSelection(KGG, ['강원도', '전라남도'], pruneWonjeongRegions(['강원도', '전라남도'], ['전라남도', '경상남도'])), null);
+
+// 메시지 — 위반마다 다른 문장이 나와야 "왜 막혔는지"가 전달된다
+check('위반마다 다른 문장', new Set(Object.values(WONJEONG_MESSAGES)).size, 4);
+check('모르는 코드는 일반 문구', wonjeongMessage('ZZZ'), WONJEONG_MESSAGES.WONJEONG_OUT_OF_RANGE);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);
