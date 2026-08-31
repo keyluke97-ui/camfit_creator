@@ -5,7 +5,7 @@ import { cookies } from 'next/headers';
 import { jwtVerify } from 'jose';
 import { getCreatorProfile, updateCreatorProfile } from '@/lib/airtable';
 import { CHANNEL_TYPES } from '@/lib/constants';
-import { violationMessage } from '@/lib/creatorProfileRules';
+import { violationMessage, wonjeongMessage } from '@/lib/creatorProfileRules';
 import type { CreatorProfileUpdate, ChannelDetail } from '@/types';
 
 if (!process.env.NEXTAUTH_SECRET) {
@@ -92,7 +92,9 @@ export async function PATCH(request: NextRequest) {
             visitRegions: Array.isArray(body.visitRegions) ? body.visitRegions : [],
             visitDays: Array.isArray(body.visitDays) ? body.visitDays : [],
             acceptSiteTypes: Array.isArray(body.acceptSiteTypes) ? body.acceptSiteTypes : [],
-            baseRegion: typeof body.baseRegion === 'string' ? body.baseRegion : '',
+            // CHANGED: 2026-08-31 — baseRegion을 의도적으로 안 받는다(심사 필드와 같은 이유).
+            //   기준 지역은 원정 후보 집합 전체를 결정하는 앵커라, 크리에이터가 정하면
+            //   자기 거주지를 원정으로 켤 수 있다(WONJEONG_MAP 좌우 대칭). 서버가 정산 주소에서 파생시킨다.
             wonjeongRegions: Array.isArray(body.wonjeongRegions) ? body.wonjeongRegions : [],
             isPublic: body.isPublic === true,
             // CHANGED: 1a-v2 — 채널 포트폴리오·콘텐츠. autoAcceptActive는 폐지(D1).
@@ -122,7 +124,8 @@ export async function PATCH(request: NextRequest) {
             if (result.code === 'INCOMPLETE' && result.missing?.length) {
                 message = `공개하려면 다음을 먼저 채워주세요 — ${result.missing.join(' · ')}`;
             } else if (result.code === 'INVALID_WONJEONG') {
-                message = '원정 가능 지역은 기준 지역에서 갈 수 있는 곳 중에서 골라주세요. 방문 가능 지역과 겹칠 수 없어요.';
+                // CHANGED: 2026-08-31 — 막힌 이유가 4가지라 detail로 갈라 말해준다(WONJEONG_MESSAGES).
+                message = wonjeongMessage(result.detail);
             } else {
                 message = violationMessage(result.detail);
             }

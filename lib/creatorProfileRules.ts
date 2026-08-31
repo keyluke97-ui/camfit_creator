@@ -14,6 +14,7 @@ import {
     COMPANION_MIN,
     COMPANION_MAX,
     CHANNEL_CONCEPTS,
+    getWonjeongCandidates,
 } from './constants';
 import type { ChannelDetail, CreatorProfileUpdate } from '@/types';
 
@@ -77,6 +78,44 @@ export function matchesEmailPrefix(registeredEmail: string, input: string): bool
 /** 등록 이메일이 있어 앞 3자리를 요구해야 하는 계정인가 */
 export function requiresEmailPrefix(registeredEmail: string): boolean {
     return Boolean((registeredEmail || '').trim().split('@')[0]);
+}
+
+/**
+ * 정산 주소(자유 텍스트) → 기준 지역(시/도). 못 뽑으면 ''.
+ *
+ * ⚠️ 이 값이 **원정(원거리 추가금) 후보 집합 전체를 결정하는 앵커**다.
+ *    전에는 크리에이터가 select로 직접 고른 `기준 지역`을 앵커로 썼는데,
+ *    WONJEONG_MAP이 좌우 대칭이라 자기 거주지가 후보로 들어오는 기준 지역이 반드시 존재했다
+ *    (경기 거주자가 기준을 '전라남도'로 두면 WONJEONG_MAP['전라남도']에 경기도가 있다).
+ *    즉 자기 집 앞 캠핑장에 할증을 붙일 수 있었다. 앵커를 정산 주소로 옮겨 그 문을 닫는다.
+ *    정산 주소는 돈을 받는 주소라 거짓말 유인이 반대 방향인 유일한 지역 신호다.
+ *
+ * 한국 주소는 시/도로 시작하므로 **선두 토큰(startsWith)**으로 판정한다.
+ * (부분일치 금지 — 상세주소에 섞인 '세종아파트'·'대구리' 같은 토큰이 실제 도를 오분류하는 것 방지.)
+ * 선두 우편번호는 걷어낸다 — 실측 349명 중 파싱 실패 7건의 과반이 `(07448)`·`34423`·`(우편번호18025)`
+ * 같은 우편번호 접두였다(2026-08-31).
+ */
+export function parseBaseRegionFromAddress(address: string): string {
+    if (!address) return '';
+    // 공백 제거 후 선두 우편번호(신5자리/구6자리) + 감싼 괄호를 걷어낸다.
+    // 한국 주소는 숫자로 시작하지 않으므로 정상 주소를 깎을 위험이 없다.
+    const a = address.replace(/\s/g, '').replace(/^[(（]?(?:우편번호)?\d{3}-?\d{2,3}[)）]?/, '');
+    // 각 지역의 가능한 선두 접두어 목록. 접두어 disjoint라 순서 무관.
+    const rules: Array<[string[], string]> = [
+        [['서울', '인천', '경기'], '경기도(서울, 인천 포함)'],
+        [['강원'], '강원도'],
+        [['충청북도', '충북'], '충청북도'],
+        [['충청남도', '충남', '대전', '세종'], '충청남도'],
+        [['전라북도', '전북'], '전라북도'],
+        [['전라남도', '전남', '광주'], '전라남도'],
+        [['경상북도', '경북', '대구'], '경상북도'],
+        [['경상남도', '경남', '부산', '울산'], '경상남도'],
+        [['제주'], '제주도'],
+    ];
+    for (const [prefixes, region] of rules) {
+        if (prefixes.some((p) => a.startsWith(p))) return region;
+    }
+    return '';
 }
 
 /** 이메일 형식 — RFC 완전 준수가 아니라 오타 차단 목적 */
@@ -178,18 +217,22 @@ export function collectMissingForPublish(
     const missing: string[] = [];
 
     // 기존 7종 (1a에서 그대로 유지)
+    // CHANGED: 2026-08-31 카피 정리 — 라벨을 **화면에 적힌 말**로 통일한다.
+    //   같은 화면에서 완성도 바는 '인스타 채널 주소', 공개 칩은 '인스타 채널 URL'이라 불렀고
+    //   금액은 화면이 '협찬 금액', 칩이 '최소 협찬 단가'였다. 한 사람이 한 화면에서 보는 것들이다.
+    //   특히 '최소 협찬 단가'는 D5(캠지기가 이 금액으로 제안 — '이상' 폐기)를 못 따라온 잔재였다.
     if (!hasImage) missing.push('프로필 이미지');
     if (!payload.representativeLink) missing.push('대표 콘텐츠 링크');
     if ((payload.visitRegions || []).length === 0) missing.push('방문 가능 지역');
     if ((payload.visitDays || []).length === 0) missing.push('방문 가능 요일');
-    if ((payload.acceptSiteTypes || []).length === 0) missing.push('수용 사이트 종류');
-    if (!(payload.minSponsorAmount > 0)) missing.push('최소 협찬 단가');
+    if ((payload.acceptSiteTypes || []).length === 0) missing.push('방문 가능한 사이트 종류');
+    if (!(payload.minSponsorAmount > 0)) missing.push('협찬 금액');
     if (!hasPremium) missing.push('정산 정보');
 
     // 1a-v2 신규 3종
     if (!payload.representativeChannel) missing.push('대표 채널');
     if ((payload.contentFormats || []).length === 0) missing.push('제작 콘텐츠 형식');
-    if (!payload.creatorEmail) missing.push('크리에이터 이메일');
+    if (!payload.creatorEmail) missing.push('이메일');
 
     // CHANGED: 2026-08-25 — `동반 인원`을 공개 게이트에서 뺀다. 스펙 E3 폐기.
     // E3는 "캠지기가 사이트를 그 인원에 맞춰 잡아둔다"를 전제로 했는데 사실이 아니다.
@@ -199,7 +242,7 @@ export function collectMissingForPublish(
 
     // 조건부 — 선택한 채널마다 URL (규칙 3)
     for (const channel of payload.channelTypes || []) {
-        if (!payload.channels?.[channel]?.url) missing.push(`${channel} 채널 URL`);
+        if (!payload.channels?.[channel]?.url) missing.push(`${channel} 채널 주소`);
     }
 
     // 자기신고 지표는 필수가 아니다 (D7 — 등록 마찰보다 리스트 밀도가 우선)
@@ -221,6 +264,63 @@ export function isFormatAvailable(format: string, channelTypes: string[]): boole
  */
 export function pruneContentFormats(channelTypes: string[], contentFormats: string[]): string[] {
     return contentFormats.filter((format) => isFormatAvailable(format, channelTypes));
+}
+
+/**
+ * 원거리 추가금 선택 위반 코드 (2026-08-31).
+ * 폼이 못 고르게 막는 것과 서버가 400으로 막는 것이 어긋나면, 사용자는 화면에 보이지도 않는
+ * 이유로 저장이 실패한다. 그래서 술어를 여기 한 곳에 둔다.
+ */
+export type WonjeongViolation =
+    | 'WONJEONG_NO_ANCHOR'      // 정산 주소로 거주 지역을 못 정함 → 추가금 자체가 불가
+    | 'WONJEONG_WITHOUT_VISIT'  // 기본가로 갈 곳을 하나도 안 고르고 먼 곳만 켬
+    | 'WONJEONG_OUT_OF_RANGE'   // 거주지 기준 근거리를 추가금 대상으로 켬
+    | 'WONJEONG_OVERLAP';       // 같은 지역이 기본가와 추가금 양쪽에
+
+export const WONJEONG_MESSAGES: Record<WonjeongViolation, string> = {
+    WONJEONG_NO_ANCHOR: '정산 주소로 사시는 지역을 확인하지 못해 원거리 추가금을 켤 수 없어요. 카카오톡 채널로 문의해주세요.',
+    WONJEONG_WITHOUT_VISIT: '기본 협찬가로 가실 지역을 먼저 한 곳 이상 골라주세요. 그다음에 먼 지역을 고르실 수 있어요.',
+    WONJEONG_OUT_OF_RANGE: '사시는 곳에서 먼 지역만 추가금을 받으실 수 있어요. 화면을 새로고침한 뒤 다시 골라주세요.',
+    WONJEONG_OVERLAP: '같은 지역을 기본 협찬가와 추가금 양쪽에 넣으실 수는 없어요.',
+};
+
+export function wonjeongMessage(code: string | undefined): string {
+    if (code && code in WONJEONG_MESSAGES) return WONJEONG_MESSAGES[code as WonjeongViolation];
+    return WONJEONG_MESSAGES.WONJEONG_OUT_OF_RANGE;
+}
+
+/**
+ * 원거리 추가금 선택 검증. 통과하면 null.
+ *
+ * ⚠️ anchorRegion은 **정산 주소에서 파생된 값만** 넘겨라. 자기신고를 넘기면
+ *    WONJEONG_MAP 좌우 대칭 때문에 자기 거주지를 추가금 대상으로 켤 수 있다.
+ * ⚠️ WONJEONG_WITHOUT_VISIT — 방문 가능 지역이 0개면 추가금도 0개여야 한다.
+ *    전에는 폼이 방문 지역을 다 지워도 추가금 값이 payload에 남아 그대로 저장됐다.
+ *    "기본가로는 아무 데도 안 가는데 먼 곳은 추가금 받고 간다"는 성립하지 않는 조합이고,
+ *    화면에서도 블록이 사라져 사용자가 자기가 뭘 저장했는지 볼 수 없었다.
+ */
+export function validateWonjeongSelection(
+    anchorRegion: string,
+    visitRegions: string[],
+    wonjeongRegions: string[]
+): WonjeongViolation | null {
+    if (wonjeongRegions.length === 0) return null;
+    if (!anchorRegion) return 'WONJEONG_NO_ANCHOR';
+    if (visitRegions.length === 0) return 'WONJEONG_WITHOUT_VISIT';
+    if (wonjeongRegions.some((r) => visitRegions.includes(r))) return 'WONJEONG_OVERLAP';
+    const candidates = getWonjeongCandidates(anchorRegion);
+    if (wonjeongRegions.some((r) => !candidates.includes(r))) return 'WONJEONG_OUT_OF_RANGE';
+    return null;
+}
+
+/**
+ * 방문 가능 지역이 바뀌었을 때 남길 수 있는 원거리 추가금 지역.
+ * 폼이 호출한다 — 서버가 400으로 막기 전에 화면에서 먼저 정리해, 사용자가 자기가 건드린 적 없는
+ * 항목 때문에 막히지 않게 한다(pruneContentFormats와 같은 역할).
+ */
+export function pruneWonjeongRegions(visitRegions: string[], wonjeongRegions: string[]): string[] {
+    if (visitRegions.length === 0) return [];
+    return wonjeongRegions.filter((region) => !visitRegions.includes(region));
 }
 
 /** needsReReview가 비교하는 승인 시점 값 */
@@ -281,7 +381,7 @@ export function computeCompletion(
         { label: '제작 콘텐츠 형식', filled: (payload.contentFormats || []).length > 0 },
         { label: '방문 가능 지역', filled: (payload.visitRegions || []).length > 0 },
         { label: '방문 가능 요일', filled: (payload.visitDays || []).length > 0 },
-        { label: '수용 사이트 종류', filled: (payload.acceptSiteTypes || []).length > 0 },
+        { label: '방문 가능한 사이트 종류', filled: (payload.acceptSiteTypes || []).length > 0 },
         { label: '협찬 금액', filled: payload.minSponsorAmount > 0 },
         { label: '정산 정보', filled: hasPremium },
         // CHANGED: 2026-08-12 — 업로드 기한·반려동물·드론은 넣지 않는다.

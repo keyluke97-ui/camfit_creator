@@ -191,6 +191,30 @@ async function main() {
         }
     }
 
+    // ── 기준 지역 앵커 불변식 (2026-08-31) ────────────────────────────────
+    // `기준 지역`은 원거리 할증 후보 집합 전체를 결정한다. 크리에이터가 정하면
+    // WONJEONG_MAP 좌우 대칭 때문에 자기 거주지를 할증 대상으로 켤 수 있다
+    // (경기 거주 → 기준 '전라남도' → 후보에 경기도). 정산 주소에서만 파생시킨다.
+    // 타입에서 지웠어도 누군가 route에 다시 추가하면 조용히 구멍이 열리므로 소스를 직접 훑는다.
+    {
+        const routeSource = readFileSync('app/api/creator/profile/route.ts', 'utf8');
+        if (/body\.baseRegion/.test(routeSource)) {
+            console.log('FAIL  [프로필] route가 body.baseRegion을 파싱한다 — 기준 지역은 정산 주소에서만 파생시켜야 한다');
+            failed++;
+        } else {
+            console.log('ok    [프로필] route가 body.baseRegion을 받지 않음');
+        }
+
+        const src = readFileSync('lib/airtable.ts', 'utf8');
+        const scope = src.slice(src.indexOf('export async function updateCreatorProfile'));
+        if (/getWonjeongCandidates\(\s*payload\.baseRegion/.test(scope) || /'기준 지역':\s*payload\./.test(scope)) {
+            console.log('FAIL  [프로필] 원정 후보/기준 지역 쓰기가 payload를 앵커로 쓴다');
+            failed++;
+        } else {
+            console.log('ok    [프로필] 원정 후보·기준 지역 쓰기가 정산 주소 앵커(anchorRegion) 기준');
+        }
+    }
+
     console.log(failed === 0 ? '\n계약 일치 — 스키마 드리프트 없음' : `\n${failed}건 불일치`);
     process.exit(failed === 0 ? 0 : 1);
 }

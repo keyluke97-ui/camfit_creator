@@ -1,7 +1,7 @@
 import Airtable, { FieldSet } from 'airtable';
-import { hasPartnerEligibleChannel, VISIT_REGIONS, VISIT_DAYS, SPONSOR_SITE_TYPES, getWonjeongCandidates } from '@/lib/constants'; // CHANGED: 통합 블로거 차단 / 지명형 옵션·원정 헬퍼
+import { hasPartnerEligibleChannel, VISIT_REGIONS, VISIT_DAYS, SPONSOR_SITE_TYPES } from '@/lib/constants'; // CHANGED: 통합 블로거 차단 / 지명형 옵션 (원정 후보 조회는 creatorProfileRules로 이동)
 import { CHANNEL_TYPES, CHANNEL_FIELD_MAP } from '@/lib/constants'; // CHANGED: 1a-v2 채널 포트폴리오 필드 매핑
-import { validateChannelPayload, collectMissingForPublish, needsReReview, normalizeUploadDeadline, isAllowedUploadDeadline, matchesEmailPrefix } from '@/lib/creatorProfileRules'; // CHANGED: 1a-v2 서버·폼 공유 판정 로직 / 2026-08-12 기한 정규화
+import { validateChannelPayload, collectMissingForPublish, needsReReview, normalizeUploadDeadline, isAllowedUploadDeadline, matchesEmailPrefix, parseBaseRegionFromAddress, validateWonjeongSelection } from '@/lib/creatorProfileRules'; // CHANGED: 1a-v2 서버·폼 공유 판정 로직 / 2026-08-12 기한 정규화 / 2026-08-31 기준 지역 앵커 파서
 import {
     OFFER_STATUS_PENDING, OFFER_STATUS_ACCEPTED, OFFER_STATUS_REJECTED, OFFER_WRITABLE_FIELDS,
 } from '@/lib/constants'; // CHANGED: 1b 제안 수신함 — 상태값 + 쓰기 화이트리스트
@@ -1429,31 +1429,8 @@ export async function updateCreatorNotification(recordId: string, enabled: boole
 // 스펙: specs/2026-07-16-지명형협찬-1a-*.md
 // ──────────────────────────────────────────────
 
-/**
- * 정산 주소(자유 텍스트)에서 기준 지역(시/도) 후보 파싱 — 프리필용 best-effort. 못 뽑으면 ''.
- * 한국 주소는 시/도로 시작하므로 **선두 토큰(startsWith)**으로 판정한다.
- * (부분일치 금지 — 상세주소에 섞인 '세종아파트'·'대구리' 같은 토큰이 실제 도를 오분류하는 것 방지.)
- */
-function parseBaseRegionFromAddress(address: string): string {
-    if (!address) return '';
-    const a = address.replace(/\s/g, '');
-    // 각 지역의 가능한 선두 접두어 목록. 접두어 disjoint라 순서 무관.
-    const rules: Array<[string[], string]> = [
-        [['서울', '인천', '경기'], '경기도(서울, 인천 포함)'],
-        [['강원'], '강원도'],
-        [['충청북도', '충북'], '충청북도'],
-        [['충청남도', '충남', '대전', '세종'], '충청남도'],
-        [['전라북도', '전북'], '전라북도'],
-        [['전라남도', '전남', '광주'], '전라남도'],
-        [['경상북도', '경북', '대구'], '경상북도'],
-        [['경상남도', '경남', '부산', '울산'], '경상남도'],
-        [['제주'], '제주도'],
-    ];
-    for (const [prefixes, region] of rules) {
-        if (prefixes.some((p) => a.startsWith(p))) return region;
-    }
-    return '';
-}
+// CHANGED: 2026-08-31 — parseBaseRegionFromAddress를 lib/creatorProfileRules.ts로 옮겼다.
+// 여기 두면 verify-rules가 Airtable SDK·env를 끌고 와야 해서 회귀 케이스를 못 붙인다.
 
 /**
  * 정산정보 마스킹 조회 (유저 테이블 READ only) — premiumId 없으면 미등록 반환.
@@ -1461,7 +1438,7 @@ function parseBaseRegionFromAddress(address: string): string {
  */
 async function getPremiumSettlement(premiumId: string | null): Promise<SettlementSummary> {
     const unregistered: SettlementSummary = {
-        registered: false, bank: '', accountLast4: '', accountHolder: '', baseRegionPrefill: '',
+        registered: false, bank: '', accountLast4: '', accountHolder: '', baseRegionFromAddress: '',
     };
     if (!premiumId) return unregistered;
     try {
@@ -1478,12 +1455,12 @@ async function getPremiumSettlement(premiumId: string | null): Promise<Settlemen
             bank,
             accountLast4: accountDigits.slice(-4),
             accountHolder: (user.get('예금주') as string) || '',
-            baseRegionPrefill: parseBaseRegionFromAddress(address),
+            baseRegionFromAddress: parseBaseRegionFromAddress(address),
         };
     } catch (error) {
         console.error('Get premium settlement error:', error);
         // premiumId는 있으니 registered=true 유지(재등록 오유도 방지), 마스킹 값만 비움
-        return { registered: true, bank: '', accountLast4: '', accountHolder: '', baseRegionPrefill: '' };
+        return { registered: true, bank: '', accountLast4: '', accountHolder: '', baseRegionFromAddress: '' };
     }
 }
 
@@ -1536,7 +1513,10 @@ export async function getCreatorProfile(creatorId: string): Promise<CreatorProfi
             visitRegions: (record.get('방문 가능 지역') as string[]) || [],
             visitDays: (record.get('방문 가능 요일') as string[]) || [],
             acceptSiteTypes: (record.get('수용 사이트 종류') as string[]) || [],
-            baseRegion: (record.get('기준 지역') as string) || '',
+            // CHANGED: 2026-08-31 — Airtable `기준 지역` 필드를 읽지 않는다.
+            //   그 필드는 이제 서버가 정산 주소에서 파생시켜 쓰는 값이라, 읽기도 같은 출처를 봐야
+            //   화면·검증·저장이 한 값으로 모인다(레코드를 읽으면 아직 재저장 전인 옛 자기신고가 섞인다).
+            baseRegion: settlement.baseRegionFromAddress,
             wonjeongRegions: (record.get('원정 가능 지역') as string[]) || [],
             isPublic: record.get('프로필 공개') === true,
             // CHANGED: 1a-v2 D1 — autoAcceptActive 매핑 제거(자동수락 토글 폐지)
@@ -1580,13 +1560,19 @@ export async function getCreatorProfile(creatorId: string): Promise<CreatorProfi
 export type UpdateProfileResult =
     | { ok: true }
     // CHANGED: 1a-v2 — AUTO_ACCEPT_REQUIRES_PUBLIC 제거(자동수락 폐지), 채널 위반 detail 추가
+    // CHANGED: 2026-08-31 — 원거리 추가금 위반은 INVALID_WONJEONG + detail(WonjeongViolation)로 전달한다.
+    //   "왜 막혔는지"가 4가지라 코드 하나로는 사용자에게 할 말을 고를 수 없다.
     | { ok: false; code: 'INVALID_OPTION' | 'INVALID_WONJEONG' | 'INCOMPLETE'; missing?: string[]; detail?: string };
 
 /**
  * 크리에이터 프로필/채널/조건/원정/공개 저장. JWT creatorId로만 수정(IDOR 방어).
- * 서버 검증: ① 옵션 화이트리스트 ② 원정 지역 ⊆ WONJEONG_MAP[기준] 이고 방문가능과 서로소
+ * 서버 검증: ① 옵션 화이트리스트 ② 원정 지역 ⊆ WONJEONG_MAP[**정산 주소 앵커**] 이고 방문가능과 서로소
  * ③ 채널·콘텐츠 형식 정합(creatorProfileRules) ④ 공개 ON 시 필수항목 재검증(클라이언트 우회 차단).
  * 위반 시 ok:false 반환(쓰기 안 함). 심사 상태는 서버만 전이시킨다(1a-v2 §4).
+ *
+ * ⚠️ 2026-08-31 — `기준 지역`은 payload에서 받지 않는다. 정산 주소에서 서버가 파생시킨다.
+ *    자기신고였을 때는 WONJEONG_MAP의 좌우 대칭 때문에 **자기 거주지를 원정으로 켜는 기준 지역이
+ *    반드시 존재**했다(경기 거주 → 기준 '전라남도' → 후보에 경기도 포함). 집 앞에 할증이 붙었다.
  */
 export async function updateCreatorProfile(
     creatorId: string,
@@ -1604,44 +1590,48 @@ export async function updateCreatorProfile(
         const visitRegions = payload.visitRegions || [];
         const wonjeongRegions = payload.wonjeongRegions || [];
 
-        // ⓪ 옵션 화이트리스트 검증 — 잘못된 값이 Airtable 422→불투명한 500으로 새거나,
-        //    기준지역 상속키(__proto__ 등)가 WONJEONG_MAP 인덱싱 취약점을 타는 것을 클린 400으로 차단.
+        // ⓪ 옵션 화이트리스트 검증 — 잘못된 값이 Airtable 422→불투명한 500으로 새는 것을 클린 400으로 차단.
+        //    CHANGED: 2026-08-31 — baseRegion 검사가 빠졌다. payload에 더 이상 없다(앵커는 아래에서 파생).
         const badOption =
             visitRegions.some((r) => !VISIT_REGIONS.includes(r)) ||
             wonjeongRegions.some((r) => !VISIT_REGIONS.includes(r)) ||
             (payload.visitDays || []).some((d) => !VISIT_DAYS.includes(d)) ||
-            (payload.acceptSiteTypes || []).some((s) => !SPONSOR_SITE_TYPES.includes(s)) ||
-            (payload.baseRegion !== '' && !VISIT_REGIONS.includes(payload.baseRegion));
+            (payload.acceptSiteTypes || []).some((s) => !SPONSOR_SITE_TYPES.includes(s));
         if (badOption) {
             return { ok: false, code: 'INVALID_OPTION' };
         }
 
-        // ① 원정 검증: 기준 지역 맵으로 제한 + 방문가능과 상호배타 (근거리 프리미엄 어뷰징 차단)
-        //    baseRegion은 위에서 화이트리스트 통과했으므로 getWonjeongCandidates 인덱싱 안전.
-        const candidates = getWonjeongCandidates(payload.baseRegion);
-        const invalidWonjeong = wonjeongRegions.some((r) => !candidates.includes(r));
-        const overlap = wonjeongRegions.some((r) => visitRegions.includes(r));
-        if (invalidWonjeong || overlap) {
-            return { ok: false, code: 'INVALID_WONJEONG' };
+        // CHANGED: 1a-v2 — 재검토 판정에 이전 값이 필요해 레코드를 항상 먼저 읽는다
+        //          (기존에는 isPublic일 때만 읽었다)
+        // CHANGED: 2026-08-31 — 원정 앵커(정산 주소)도 여기서 필요해 ① 검증보다 앞으로 올렸다.
+        const record = await creatorTable().find(creatorId);
+        const images = record.get('프로필 이미지') as unknown[] | undefined;
+        const hasImage = Array.isArray(images) && images.length > 0;
+        const premiumLinks = record.get('프리미엄 협찬 신청 인플루언서') as string[] | undefined;
+        const hasPremium = Array.isArray(premiumLinks) && premiumLinks.length > 0;
+        const premiumId = hasPremium ? premiumLinks![0] : null;
+        const currentReviewStatus = ((record.get('프로필 심사 상태') as string) || '') as ReviewStatus;
+
+        // ① 원거리 추가금 앵커 — 정산 주소에서 파생. 크리에이터 입력이 아니다.
+        //    ⚠️ 앵커가 없으면 추가금을 켤 수 없다. 돈이 나가는 결정인데 "먼 곳"을 판정할
+        //       근거 자체가 없기 때문이다. 지어내는 대신 잠근다.
+        const anchorRegion = (await getPremiumSettlement(premiumId)).baseRegionFromAddress;
+
+        // ② 원거리 추가금 검증 — 술어는 creatorProfileRules에 있다(폼과 같은 함수를 쓴다).
+        //    앵커 밖(근거리 프리미엄) · 방문가능과 겹침 · 방문가능 0개인데 추가금만 켬을 모두 막는다.
+        const wonjeongViolation = validateWonjeongSelection(anchorRegion, visitRegions, wonjeongRegions);
+        if (wonjeongViolation) {
+            return { ok: false, code: 'INVALID_WONJEONG', detail: wonjeongViolation };
         }
 
-        // ② 채널·콘텐츠 형식 정합 검증 (1a-v2 §6 규칙 1·2·4·5·6·7)
+        // ③ 채널·콘텐츠 형식 정합 검증 (1a-v2 §6 규칙 1·2·4·5·6·7)
         //    서버와 폼이 같은 함수를 쓴다 — 두 벌로 나뉘면 클라가 막은 걸 서버가 안 막게 된다.
         const channelViolation = validateChannelPayload(normalized);
         if (channelViolation) {
             return { ok: false, code: 'INVALID_OPTION', detail: channelViolation };
         }
 
-        // CHANGED: 1a-v2 — 재검토 판정에 이전 값이 필요해 레코드를 항상 먼저 읽는다
-        //          (기존에는 isPublic일 때만 읽었다)
-        const record = await creatorTable().find(creatorId);
-        const images = record.get('프로필 이미지') as unknown[] | undefined;
-        const hasImage = Array.isArray(images) && images.length > 0;
-        const premiumLinks = record.get('프리미엄 협찬 신청 인플루언서') as string[] | undefined;
-        const hasPremium = Array.isArray(premiumLinks) && premiumLinks.length > 0;
-        const currentReviewStatus = ((record.get('프로필 심사 상태') as string) || '') as ReviewStatus;
-
-        // ③ 공개 게이팅 서버 재검증 (이미지·premiumId는 payload에 없으므로 레코드에서 확인)
+        // ④ 공개 게이팅 서버 재검증 (이미지·premiumId는 payload에 없으므로 레코드에서 확인)
         if (isPublic) {
             const missing = collectMissingForPublish(normalized, hasImage, hasPremium);
             if (missing.length > 0) return { ok: false, code: 'INCOMPLETE', missing };
@@ -1655,8 +1645,11 @@ export async function updateCreatorProfile(
             '수용 사이트 종류': payload.acceptSiteTypes || [],
             '원정 가능 지역': wonjeongRegions,
             '프로필 공개': isPublic,
+            // CHANGED: 2026-08-31 — 자기신고가 아니라 정산 주소 앵커를 쓴다.
+            //   앵커를 못 뽑으면 null로 비운다 — 옛 자기신고 값이 남아 캠지기 화면에서
+            //   "확정된 거주지"처럼 읽히면 안 된다(원정 판정은 이미 앵커만 본다).
             // singleSelect: 빈 값이면 '' 대신 null로 클리어
-            '기준 지역': payload.baseRegion || null,
+            '기준 지역': anchorRegion || null,
             // CHANGED: 1a-v2 — 채널 포트폴리오·콘텐츠 필드
             '채널 종류': payload.channelTypes || [],
             '대표 채널': payload.representativeChannel || null,

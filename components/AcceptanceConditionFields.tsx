@@ -1,8 +1,8 @@
 // AcceptanceConditionFields.tsx - 협찬 수락 조건 입력
-// 지역 2단(기준→방문가능→원정 제안) + 요일·사이트유형·최소단가. (스펙 §6.4 / D5)
+// 지역 2단(기준→방문가능→원거리 추가금) + 요일·사이트유형·최소단가. (스펙 §6.4 / D5)
+// CHANGED: 2026-08-31 — 기준 지역은 더 이상 입력이 아니다. 정산 주소에서 서버가 확정한 값을 표시만 한다.
 'use client';
 
-import { useEffect } from 'react';
 import MultiSelectChips from './MultiSelectChips';
 import {
     VISIT_REGIONS,
@@ -14,9 +14,10 @@ import {
     getWonjeongCandidates,
 } from '@/lib/constants';
 import { buildVisitConditionSummary } from '@/lib/sponsorshipTerms';
+import { pruneWonjeongRegions } from '@/lib/creatorProfileRules';
 
 type ConditionPatch = Partial<{
-    baseRegion: string;
+    // ⚠️ baseRegion 없음 — 정산 주소 파생 앵커라 크리에이터가 못 바꾼다(2026-08-31).
     visitRegions: string[];
     wonjeongRegions: string[];
     visitDays: string[];
@@ -29,8 +30,8 @@ type ConditionPatch = Partial<{
 }>;
 
 interface AcceptanceConditionFieldsProps {
-    baseRegion: string;
-    baseRegionPrefill: string;   // 정산 주소에서 파싱한 기준 지역 후보 (미설정 시 프리필)
+    baseRegion: string;          // 정산 주소에서 확정된 기준 지역. 확정 불가 시 '' → 원거리 추가금 잠김
+    settlementRegistered: boolean; // 정산 정보 등록 여부. 안내 문구가 갈린다(등록 후엔 포털에서 주소를 못 고친다)
     visitRegions: string[];
     wonjeongRegions: string[];
     visitDays: string[];
@@ -44,7 +45,7 @@ interface AcceptanceConditionFieldsProps {
 
 export default function AcceptanceConditionFields({
     baseRegion,
-    baseRegionPrefill,
+    settlementRegistered,
     visitRegions,
     wonjeongRegions,
     visitDays,
@@ -55,28 +56,19 @@ export default function AcceptanceConditionFields({
     droneUsed,
     onChange,
 }: AcceptanceConditionFieldsProps) {
-    // 주소 파싱 기준 지역을 최초 1회 프리필(사용자가 아직 미설정일 때만).
-    // baseRegion이 채워지면 가드로 재실행돼도 no-op → 무한 루프 없음.
-    useEffect(() => {
-        if (!baseRegion && baseRegionPrefill && VISIT_REGIONS.includes(baseRegionPrefill)) {
-            onChange({ baseRegion: baseRegionPrefill });
-        }
-    }, [baseRegion, baseRegionPrefill, onChange]);
+    // CHANGED: 2026-08-31 — 프리필 useEffect 삭제. onChange(=patchProfile)가 매 렌더 새 identity라
+    //   effect가 매 렌더 돌았고, 가드가 `!baseRegion` 하나뿐이라 사용자가 기준 지역을 비우면
+    //   즉시 되채워졌다("최초 1회 프리필"이라는 주석과 실제 동작이 달랐다).
+    //   이제 기준 지역은 정산 주소에서 서버가 정하므로 폼이 쓸 일 자체가 없다.
 
-    // 기준 지역 변경 → 원정 후보 밖으로 벗어난 기존 선택 제거(서버 ⊆ WONJEONG_MAP 검증과 정합)
-    function handleBaseRegionChange(value: string) {
-        const candidates = getWonjeongCandidates(value);
-        onChange({
-            baseRegion: value,
-            wonjeongRegions: wonjeongRegions.filter((region) => candidates.includes(region)),
-        });
-    }
-
-    // 방문 가능 지역 변경 → 겹치는 원정 지역 제거(서버 ∩ visitRegions = ∅ 상호배타 검증과 정합)
+    // 방문 가능 지역 변경 → 원거리 추가금 지역 정리.
+    // CHANGED: 2026-08-31 — 전에는 겹침만 걷어내서, 방문 가능 지역을 전부 지우면
+    //   추가금 값이 payload에 그대로 남아 저장됐다(화면에서는 블록이 사라져 보이지도 않는다).
+    //   규칙은 pruneWonjeongRegions에 두고 서버(validateWonjeongSelection)와 같은 술어를 쓴다.
     function handleVisitRegionsChange(next: string[]) {
         onChange({
             visitRegions: next,
-            wonjeongRegions: wonjeongRegions.filter((region) => !next.includes(region)),
+            wonjeongRegions: pruneWonjeongRegions(next, wonjeongRegions),
         });
     }
 
@@ -89,7 +81,7 @@ export default function AcceptanceConditionFields({
         onChange({ wonjeongRegions: next });
     }
 
-    // 원정 제안 후보 = 기준 지역 맵 중 방문 가능(기본가)으로 이미 고른 지역 제외
+    // 원거리 추가금 후보 = 기준 지역(정산 주소 확정) 맵 중 방문 가능(기본가)으로 이미 고른 지역 제외
     const wonjeongCandidates = getWonjeongCandidates(baseRegion).filter(
         (region) => !visitRegions.includes(region)
     );
@@ -98,23 +90,46 @@ export default function AcceptanceConditionFields({
 
     return (
         <div className="space-y-5">
-            {/* 1. 기준 지역 */}
+            {/* 1. 기준 지역 — 표시 전용. 정산 주소에서 확정한다.
+                CHANGED: 2026-08-31 — select 삭제. 자기신고였을 때는 WONJEONG_MAP이 좌우 대칭이라
+                자기 거주지를 원거리 추가금으로 켤 수 있는 기준 지역이 반드시 존재했다
+                (경기 거주 → 기준 '전라남도' → 후보에 경기도 포함). 집 앞에 추가금이 붙는 구멍이었다. */}
             <div>
+                {/* CHANGED: 2026-08-31 카피 — 라벨을 '기준 지역'에서 바꿨다.
+                    '기준 지역'은 Airtable 필드명이자 우리끼리 쓰는 말이다. 이 화면을 보는 사람은
+                    크리에이터고, 그에게 이 칸은 그냥 자기가 사는 곳이다. */}
                 <label className="block text-sm font-medium text-ink mb-2">
-                    기준 지역 <span className="text-ink3 font-normal">(거주 지역 — 원정 제안 기준)</span>
+                    내가 사는 지역 <span className="text-ink3 font-normal">(먼 거리인지 재는 기준이 돼요)</span>
                 </label>
-                <select
-                    value={baseRegion}
-                    onChange={(event) => handleBaseRegionChange(event.target.value)}
-                    className="w-full h-12 px-4 bg-card border border-line rounded-lg text-ink text-sm focus:border-brand focus:outline-none transition-colors"
-                >
-                    <option value="">선택해주세요</option>
-                    {VISIT_REGIONS.map((region) => (
-                        <option key={region} value={region}>
-                            {region}
-                        </option>
-                    ))}
-                </select>
+                {baseRegion ? (
+                    <div className="w-full h-12 px-4 bg-subtle border border-line rounded-lg flex items-center justify-between gap-2">
+                        <span className="text-sm text-ink font-medium">{baseRegion}</span>
+                        <span className="text-xs text-ink3 shrink-0">정산 주소에서 가져왔어요</span>
+                    </div>
+                ) : (
+                    <div className="w-full px-4 py-3 bg-subtle border border-line rounded-lg">
+                        {/* CHANGED: 2026-08-31 — 등록 여부로 안내를 가른다.
+                            등록된 정산 정보는 포털에서 못 고친다(SettlementConfirmCard도 카카오 문의로 보낸다).
+                            "주소를 정확히 등록해주세요"는 그 사람들에게 할 수 없는 일을 시키는 문장이다. */}
+                        {settlementRegistered ? (
+                            <>
+                                <p className="text-sm text-ink2">정산 주소로 사시는 지역을 확인하지 못했어요.</p>
+                                <p className="text-xs text-ink3 mt-1 leading-relaxed">
+                                    먼 지역 추가금을 받으시려면 카카오톡 채널로 주소 확인을 요청해주세요.
+                                    나머지 조건은 지금 그대로 저장하셔도 괜찮아요.
+                                </p>
+                            </>
+                        ) : (
+                            <>
+                                <p className="text-sm text-ink2">정산 정보를 아직 등록하지 않으셨어요.</p>
+                                <p className="text-xs text-ink3 mt-1 leading-relaxed">
+                                    아래 <strong>정산 정보</strong>를 등록하시면 주소로 사시는 지역이 정해지고,
+                                    먼 지역 추가금도 받으실 수 있어요.
+                                </p>
+                            </>
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* 2. 방문 가능 지역 (기본가) */}
@@ -129,15 +144,29 @@ export default function AcceptanceConditionFields({
                 />
             </div>
 
-            {/* 3. 원정 제안 (기준 지역 선택 + 후보 있을 때만) */}
-            {/* CHANGED: 1a-v2 D4 — 방문 가능 지역을 1개 이상 고른 뒤에만 원정 제안 노출.
-                저장은 강제하지 않는다(저장 안 한 사람이 원정을 영영 못 보는 것 방지). */}
+            {/* 3. 원거리 추가금 (사는 지역 확정 + 후보 있을 때만) */}
+            {/* CHANGED: 1a-v2 D4 — 방문 가능 지역을 1개 이상 고른 뒤에만 노출.
+                저장은 강제하지 않는다(저장 안 한 사람이 추가금을 영영 못 보는 것 방지). */}
+            {/* CHANGED: 2026-08-31 카피 — 세 가지를 고쳤다.
+                ① "유류비" → "추가금". 유류비는 영수증 내고 받는 실비로 읽힌다. 실제론 고정액이다.
+                ② "할증"도 안 쓴다. 할증은 **내는** 사람 쪽 단어다(택시 할증·심야 할증).
+                   이 화면을 보는 크리에이터는 **받는** 쪽이라 "할증을 받으세요"가 어색하고,
+                   자칫 자기가 더 내야 하는 것으로 읽힌다.
+                ③ "안 가신다고 하신 지역 중에" → "먼 지역이에요". 전자는 방문 가능 지역을
+                   적게 고를수록 보상이 커지는 프레이밍이라, 일부러 덜 고르고 추가금으로 돌리는 걸
+                   화면이 권하는 꼴이었다. 보상 근거는 "안 골랐다"가 아니라 "멀다"다. */}
             {visitRegions.length > 0 && wonjeongCandidates.length > 0 && (
                 <div className="rounded-xl border border-brand/30 bg-brand-bg p-4">
-                    <p className="text-sm font-bold text-ink mb-1">더 받으실 수 있어요</p>
+                    <p className="text-sm font-bold text-ink mb-1">먼 지역은 {surcharge}원을 더 받으실 수 있어요</p>
                     {/* CHANGED: 1a-v2 D1 — '자동수락이 켜져 있을 때' 문구 제거(토글 폐지). */}
-                    <p className="text-xs text-ink2 leading-relaxed mb-3">
-                        안 가신다고 하신 지역 중에 유류비 {surcharge}원을 더 드리면 가주실 곳이 있나요?
+                    <p className="text-xs text-ink2 leading-relaxed mb-1">
+                        {baseRegion}에서 먼 곳이라 이동에 시간이 더 들어요. 그만큼
+                        기본 협찬가에 <strong className="text-brand-strong">{surcharge}원</strong>을 더 얹어 드려요.
+                        그래도 가실 수 있는 곳을 골라주세요.
+                    </p>
+                    <p className="text-xs text-ink3 leading-relaxed mb-3">
+                        기름값을 영수증으로 정산해 드리는 게 아니라, 거리에 따라 정해진 금액이에요.
+                        금액이 올라가는 만큼 그 지역 제안은 줄어들 수도 있어요.
                     </p>
                     <div className="space-y-2">
                         {wonjeongCandidates.map((region) => {
@@ -193,9 +222,11 @@ export default function AcceptanceConditionFields({
                 />
             </div>
 
-            {/* 5. 수용 사이트 종류 */}
+            {/* 5. 방문 가능한 사이트 종류 */}
+            {/* CHANGED: 2026-08-31 카피 — '수용'은 행정 문서 말투다(수용 인원·수용 시설).
+                Airtable 필드명은 `수용 사이트 종류`로 두되 화면에는 사람 말로 적는다. */}
             <div>
-                <label className="block text-sm font-medium text-ink mb-2">수용 사이트 종류</label>
+                <label className="block text-sm font-medium text-ink mb-2">방문 가능한 사이트 종류</label>
                 <MultiSelectChips
                     options={SPONSOR_SITE_TYPES}
                     selected={acceptSiteTypes}

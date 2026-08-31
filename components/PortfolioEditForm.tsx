@@ -27,7 +27,7 @@ function buildPayload(profile: CreatorProfile, isPublicOverride?: boolean): Crea
         visitRegions: profile.visitRegions,
         visitDays: profile.visitDays,
         acceptSiteTypes: profile.acceptSiteTypes,
-        baseRegion: profile.baseRegion,
+        // ⚠️ baseRegion은 보내지 않는다 — 서버가 정산 주소에서 파생시킨다(2026-08-31)
         wonjeongRegions: profile.wonjeongRegions,
         isPublic: isPublicOverride ?? profile.isPublic,
         // CHANGED: 1a-v2 — 채널 포트폴리오·콘텐츠
@@ -189,7 +189,7 @@ export default function PortfolioEditForm() {
                 title="포트폴리오"
                 desc="캠지기가 보는 내 소개"
                 summary={profile.creatorEmail || ''}
-                missingCount={missingIn(['프로필 이미지', '대표 콘텐츠 링크', '크리에이터 이메일'])}
+                missingCount={missingIn(['프로필 이미지', '대표 콘텐츠 링크', '이메일'])}
                 defaultOpen={!isRegistered}
             >
             <ProfileImageUploader
@@ -260,7 +260,7 @@ export default function PortfolioEditForm() {
                 title="내 채널"
                 desc="운영 중인 채널과 규모"
                 summary={channelSummary}
-                missingCount={missingIn(['대표 채널', '채널 URL'])}
+                missingCount={missingIn(['대표 채널', '채널 주소'])}
                 defaultOpen={!isRegistered}
             >
             <ChannelSelector
@@ -305,12 +305,12 @@ export default function PortfolioEditForm() {
                 title="협찬 수락 조건"
                 desc="이 조건에 맞는 제안만 받아요"
                 summary={conditionSummary}
-                missingCount={missingIn(['방문 가능', '수용 사이트', '최소 협찬 단가'])}
+                missingCount={missingIn(['방문 가능', '사이트 종류', '협찬 금액'])}
                 defaultOpen={!isRegistered}
             >
             <AcceptanceConditionFields
                 baseRegion={profile.baseRegion}
-                baseRegionPrefill={settlement?.baseRegionPrefill || ''}
+                settlementRegistered={hasPremium}
                 visitRegions={profile.visitRegions}
                 wonjeongRegions={profile.wonjeongRegions}
                 visitDays={profile.visitDays}

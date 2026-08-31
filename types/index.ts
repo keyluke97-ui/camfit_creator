@@ -409,8 +409,10 @@ export interface SettlementSummary {
   bank: string;             // 은행 (없으면 '')
   accountLast4: string;     // 계좌번호 뒤 4자리
   accountHolder: string;    // 예금주
-  // CHANGED: 원정 §6.4 — 정산 주소에서 파싱한 기준 지역 후보. baseRegion 미설정 시 프리필용. 못 뽑으면 ''
-  baseRegionPrefill: string;
+  // CHANGED: 2026-08-31 — 프리필이 아니라 **앵커**다. 원정(원거리 추가금) 후보 집합이 이 값으로 결정된다.
+  //   크리에이터가 고르는 값이 아니라 정산 주소에서 파싱한 값이라 이름도 바꿨다(baseRegionPrefill → 이것).
+  //   못 뽑으면 '' → 원정 자체가 잠긴다(WONJEONG_NO_ANCHOR).
+  baseRegionFromAddress: string;
 }
 
 /** 운영 채널 키 — lib/constants.ts CHANNEL_TYPES와 대응 */
@@ -444,7 +446,9 @@ export interface CreatorProfile {
   visitDays: string[];        // 방문 가능 요일
   acceptSiteTypes: string[];  // 수용 사이트 종류
   // 원정 인센티브 (§6.4)
-  baseRegion: string;         // 기준 지역 (거주). 미설정 ''
+  // CHANGED: 2026-08-31 — 자기신고 아님. 정산 주소에서 파싱한 값을 그대로 싣는다(읽기 전용 표시용).
+  //   못 뽑으면 '' → 화면에서 원정 블록 대신 "정산 주소를 등록해주세요" 안내가 뜬다.
+  baseRegion: string;         // 기준 지역 (거주) — 정산 주소 파생. 확정 불가 시 ''
   wonjeongRegions: string[];  // 원정 가능 지역 (+유류비 10만)
   // 공개 (CHANGED: 1a-v2 D1 — autoAcceptActive 제거. 무응답 자동확정이 이미 전원 기본값이라 토글이 불필요)
   isPublic: boolean;          // 프로필 공개 (가시성)
@@ -486,7 +490,9 @@ export interface CreatorProfileUpdate {
   visitRegions: string[];
   visitDays: string[];
   acceptSiteTypes: string[];
-  baseRegion: string;
+  // ⚠️ baseRegion은 여기 없다 (2026-08-31 제거). 크리에이터가 정하는 값이 아니라
+  //    정산 주소에서 서버가 파생시키는 앵커다. payload에 자리를 두면 조작 경로가 다시 생긴다
+  //    — 심사 필드(reviewStatus)를 안 받는 것과 같은 이유다.
   wonjeongRegions: string[];
   isPublic: boolean;
   // CHANGED: 1a-v2 — 채널 포트폴리오·콘텐츠
