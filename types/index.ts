@@ -449,7 +449,7 @@ export interface CreatorProfile {
   // CHANGED: 2026-08-31 — 자기신고 아님. 정산 주소에서 파싱한 값을 그대로 싣는다(읽기 전용 표시용).
   //   못 뽑으면 '' → 화면에서 원정 블록 대신 "정산 주소를 등록해주세요" 안내가 뜬다.
   baseRegion: string;         // 기준 지역 (거주) — 정산 주소 파생. 확정 불가 시 ''
-  wonjeongRegions: string[];  // 원정 가능 지역 (+유류비 10만)
+  wonjeongRegions: string[];  // 원정 가능 지역 (+원거리 추가금 10만)
   // 공개 (CHANGED: 1a-v2 D1 — autoAcceptActive 제거. 무응답 자동확정이 이미 전원 기본값이라 토글이 불필요)
   isPublic: boolean;          // 프로필 공개 (가시성)
   // CHANGED: 1a-v2 — 채널 포트폴리오

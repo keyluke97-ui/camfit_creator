@@ -5,7 +5,7 @@
 // 실행: npx tsx tools/jimyeong/verify-contract.ts
 // 양쪽 레포가 같은 파일을 돌린다 — 한쪽이 필드를 지우거나 옵션을 바꾸면 반대쪽 CI/실행에서 잡힌다.
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { CHANNEL_CONCEPTS, UPLOAD_DEADLINE_DEFAULT_DAYS, OFFER_WRITABLE_FIELDS, OFFER_STATUS_PENDING, OFFER_STATUS_ACCEPTED, OFFER_STATUS_REJECTED, OFFER_REJECT_REASONS } from '../../lib/constants';
 
 const BASE_ID = 'appEGM6qarNr9M7HN';
@@ -66,6 +66,67 @@ const EXPECTED: Array<{ name: string; type: string; choices?: string[] }> = [
     { name: '채널콘셉트', type: 'multipleSelects' },
 ];
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// 폐기 용어 검사 (2026-08-31, 캠지기측 verify-contract.mjs와 동일 규칙)
+//
+// 카피는 스키마 계약이 아니라서 필드 검사로는 안 잡힌다. 그런데 **폐기한 용어가
+// 0건인지**는 잡을 수 있고, 그것만으로 재유입이 막힌다. 양쪽 레포가 같은 검사를 든다.
+// ─────────────────────────────────────────────────────────────────────────
+
+/** 더는 쓰지 않는 용어. 소스에 다시 나타나면 실패시킨다. */
+const RETIRED_TERMS: Array<{ term: string; use: string; since: string; why: string }> = [
+    {
+        term: '유류비', use: '원거리 추가금', since: '2026-08-31',
+        why: '영수증 내고 받는 실비로 읽힌다(실제는 거리로 정해진 고정액). 대안이던 "할증"은 내는 쪽 단어라 받는 쪽인 크리에이터 화면에 맞지 않는다',
+    },
+];
+
+/**
+ * 스캔 대상은 **소스만**이다.
+ * - `tools/`는 뺀다 — 이 파일 자체가 RETIRED_TERMS에 그 단어를 들고 있어 자기를 잡는다.
+ * - `specs/`·`docs/`도 뺀다 — 당시 무엇을 결정했는지의 기록이라, 고치면 이력이 사라진다.
+ *   대신 그 문서들엔 상단 개정 노트로 현행이 아님을 밝혀뒀다.
+ */
+const RETIRED_SCAN_DIRS = ['lib', 'components', 'app', 'types'];
+
+/** 의도적으로 옛 용어를 적어야 하는 줄(개정 이력 주석)에 붙이는 예외 마커 */
+const RETIRED_OK = 'RETIRED-OK';
+
+function sourceFiles(dir: string): string[] {
+    const out: string[] = [];
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        if (entry.name === 'node_modules' || entry.name.startsWith('.')) continue;
+        const full = `${dir}/${entry.name}`;
+        if (entry.isDirectory()) out.push(...sourceFiles(full));
+        else if (/\.(ts|tsx)$/.test(entry.name)) out.push(full);
+    }
+    return out;
+}
+
+/** @returns 실패 건수 */
+function checkRetiredTerms(): number {
+    let failed = 0;
+    const files = RETIRED_SCAN_DIRS.flatMap(sourceFiles);
+    for (const { term, use, since, why } of RETIRED_TERMS) {
+        const hits: string[] = [];
+        for (const file of files) {
+            readFileSync(file, 'utf8').split('\n').forEach((line, index) => {
+                if (line.includes(term) && !line.includes(RETIRED_OK)) hits.push(`${file}:${index + 1}`);
+            });
+        }
+        if (hits.length) {
+            console.log(`FAIL  [카피] 폐기 용어 재유입 '${term}' — '${use}'로 쓸 것 (${since})`);
+            console.log(`        이유: ${why}`);
+            hits.forEach((hit) => console.log(`        ${hit}`));
+            failed++;
+        } else {
+            console.log(`ok    [카피] 폐기 용어 0건 ('${term}' → '${use}', ${files.length}개 파일)`);
+        }
+    }
+    return failed;
+}
+
 function token(): string {
     const line = readFileSync('.env.local', 'utf8')
         .split('\n')
@@ -75,6 +136,11 @@ function token(): string {
 }
 
 async function main() {
+    // 🔴 Airtable 호출보다 **앞에** 둔다. 뒤에 두면 자격증명 없는 환경(pre-commit·CI·남의 머신)에서
+    //    token()이 throw해 카피 검사가 아예 안 돈다 — 검사가 없는 것과 같아진다.
+    //    이 검사는 네트워크도 키도 필요 없다. (캠지기측 verify-contract.mjs와 같은 순서)
+    let failed = checkRetiredTerms();
+
     const res = await fetch(`https://api.airtable.com/v0/meta/bases/${BASE_ID}/tables`, {
         headers: { Authorization: `Bearer ${token()}` },
     });
@@ -88,7 +154,6 @@ async function main() {
     if (!table) throw new Error(`테이블 ${TABLE_ID}를 찾을 수 없습니다.`);
 
     const actual = new Map(table.fields.map((f) => [f.name, f]));
-    let failed = 0;
 
     for (const want of EXPECTED) {
         const got = actual.get(want.name);
