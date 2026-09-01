@@ -467,7 +467,20 @@ export async function applyCampaign({
         const isCouponEvent = campaignRecord.fields['쿠폰이벤트희망'] === true;
 
         // CHANGED: 통합 — couponEvent 캠페인은 블로거(인스타/유튜브 미보유) 신청 차단 (이중 방어의 백엔드단)
-        if (isCouponEvent && channelTypes && !hasPartnerEligibleChannel(channelTypes)) {
+        // CHANGED: 2026-09-01 — 자격을 **DB에서 다시 읽는다.** JWT는 발급 후 7일간 유지되므로,
+        //   운영자가 `채널 종류`를 바로잡아도 그 사람이 들고 있는 토큰으로는 최대 일주일 더 신청이 된다.
+        //   자격 판정 기준은 토큰이 아니라 지금의 운영자 값이다.
+        let effectiveChannelTypes = channelTypes;
+        if (isCouponEvent && creatorId) {
+            try {
+                const creatorRecord = await creatorTable().find(creatorId);
+                effectiveChannelTypes = (creatorRecord.get('채널 종류') as string[]) || [];
+            } catch (error) {
+                // 조회 실패 시 JWT 값으로 진행 — 신청 자체를 막지는 않는다
+                console.error('Apply campaign: 채널 종류 재확인 실패, JWT 값으로 진행', error);
+            }
+        }
+        if (isCouponEvent && effectiveChannelTypes && !hasPartnerEligibleChannel(effectiveChannelTypes)) {
             throw new Error('BLOGGER_NOT_ELIGIBLE');
         }
 
@@ -1521,7 +1534,11 @@ export async function getCreatorProfile(creatorId: string): Promise<CreatorProfi
             isPublic: record.get('프로필 공개') === true,
             // CHANGED: 1a-v2 D1 — autoAcceptActive 매핑 제거(자동수락 토글 폐지)
             // CHANGED: 1a-v2 — 채널 포트폴리오·콘텐츠·심사 필드 매핑
-            channelTypes: (record.get('채널 종류') as string[]) || [],
+            // CHANGED: 2026-09-01 — 화면에는 자기신고를 보여준다. 아직 자기신고가 없는
+            //   기존 크리에이터는 운영자 값으로 폴백해야 프로필이 빈 채로 열리지 않는다.
+            //   (저장하면 그 값이 자기신고로 넘어간다. 운영자 값은 그대로 남는다.)
+            channelTypes: (record.get('채널 종류(자기신고)') as string[])
+                || (record.get('채널 종류') as string[]) || [],
             representativeChannel: (record.get('대표 채널') as string) || '',
             channels: readChannelDetails(record),
             representativeLink2: (record.get('대표 콘텐츠 링크 2') as string) || '',
@@ -1650,8 +1667,15 @@ export async function updateCreatorProfile(
             //   "확정된 거주지"처럼 읽히면 안 된다(원정 판정은 이미 앵커만 본다).
             // singleSelect: 빈 값이면 '' 대신 null로 클리어
             '기준 지역': anchorRegion || null,
-            // CHANGED: 1a-v2 — 채널 포트폴리오·콘텐츠 필드
-            '채널 종류': payload.channelTypes || [],
+            // CHANGED: 2026-09-01 — `채널 종류`(운영자 관리·접근 제어)를 **쓰지 않는다.**
+            //   이 필드는 쿠폰 협찬 자격 판정에 쓰인다(hasPartnerEligibleChannel).
+            //   자기신고가 덮어쓰면 블로거가 프로필에서 인스타를 체크하는 것만으로
+            //   쿠폰 협찬이 열린다 — 실제 제보로 확인됐다(캠퍼데브: 블로그 유저인데 인스타가 들어감).
+            //   심사로도 못 막는다. 반려해도 이 필드는 되돌아가지 않기 때문이다.
+            //   → 자기신고는 아래 전용 필드로. 자격은 운영자가 확인 후 직접 연다.
+            //   같은 실수를 이미 세 번 했다(채널 URL 341/347 · 운영자 지표 · 채널콘셉트).
+            //   네 번째를 사람 주의력으로 막지 않는다 — verify-contract가 검사한다.
+            '채널 종류(자기신고)': payload.channelTypes || [],
             '대표 채널': payload.representativeChannel || null,
             '대표 콘텐츠 링크 2': payload.representativeLink2 || '',
             '대표 콘텐츠 링크 3': payload.representativeLink3 || '',

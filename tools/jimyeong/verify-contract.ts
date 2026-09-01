@@ -6,7 +6,7 @@
 // 양쪽 레포가 같은 파일을 돌린다 — 한쪽이 필드를 지우거나 옵션을 바꾸면 반대쪽 CI/실행에서 잡힌다.
 
 import { readFileSync, readdirSync } from 'node:fs';
-import { CHANNEL_CONCEPTS, UPLOAD_DEADLINE_DEFAULT_DAYS, OFFER_WRITABLE_FIELDS, OFFER_STATUS_PENDING, OFFER_STATUS_ACCEPTED, OFFER_STATUS_REJECTED, OFFER_REJECT_REASONS } from '../../lib/constants';
+import { CHANNEL_TYPES, CHANNEL_CONCEPTS, UPLOAD_DEADLINE_DEFAULT_DAYS, OFFER_WRITABLE_FIELDS, OFFER_STATUS_PENDING, OFFER_STATUS_ACCEPTED, OFFER_STATUS_REJECTED, OFFER_REJECT_REASONS } from '../../lib/constants';
 
 const BASE_ID = 'appEGM6qarNr9M7HN';
 const TABLE_ID = 'tblkuPln7nquA3dLA'; // 크리에이터 명단
@@ -62,6 +62,8 @@ const EXPECTED: Array<{ name: string; type: string; choices?: string[] }> = [
     { name: '반려동물 동반', type: 'checkbox' },
     { name: '드론 촬영', type: 'checkbox' },
     { name: '채널콘셉트(자기신고)', type: 'multipleSelects', choices: CHANNEL_CONCEPTS },
+    // 2026-09-01 — 접근 제어 필드(`채널 종류`)를 자기신고가 덮어쓰던 결함을 고치며 분리
+    { name: '채널 종류(자기신고)', type: 'multipleSelects', choices: CHANNEL_TYPES },
     // 운영자 관리 필드 — 포털은 읽기만 한다. 쓰면 170명 영업 분류가 지워진다.
     { name: '채널콘셉트', type: 'multipleSelects' },
 ];
@@ -228,6 +230,25 @@ async function main() {
             failed++;
         } else {
             console.log(`ok    [지명제안] 거절 사유 3종`);
+        }
+
+        // 포털이 **써서는 안 되는** 운영자 필드 — updateCreatorProfile 본문을 직접 훑는다.
+        // `채널 종류`는 쿠폰 협찬 자격 판정(hasPartnerEligibleChannel)에 쓰이는 접근 제어 필드다.
+        // 자기신고가 이걸 덮어쓰면 블로거가 프로필에서 인스타를 체크하는 것만으로 자격이 열린다
+        // (2026-09-01 제보로 확인). 심사 반려로도 되돌아가지 않는다.
+        // 같은 실수를 이미 세 번 했다 — 채널 URL · 운영자 지표 · 채널콘셉트. 네 번째는 여기서 막는다.
+        {
+            const source = readFileSync('lib/airtable.ts', 'utf8');
+            const start = source.indexOf('export async function updateCreatorProfile');
+            const scope = start >= 0 ? source.slice(start) : '';
+            const forbiddenWrites = ["'채널 종류'", "'채널 URL'", "'구독자 수'", "'채널콘셉트'"];
+            const written = forbiddenWrites.filter((f) => scope.includes(`${f}:`));
+            if (written.length) {
+                console.log(`FAIL  [크리에이터] 운영자 관리 필드에 쓰기 — ${JSON.stringify(written)} (자기신고는 (자기신고) 필드로)`);
+                failed++;
+            } else {
+                console.log('ok    [크리에이터] 운영자 관리 필드 미기입 (채널 종류 · 채널 URL · 구독자 수 · 채널콘셉트)');
+            }
         }
 
         // 읽지 않기로 한 필드가 도메인 매핑에 들어갔는지 — lib/airtable.ts를 직접 훑는다.
