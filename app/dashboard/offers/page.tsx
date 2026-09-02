@@ -93,7 +93,22 @@ export default function OffersPage() {
             <header className="sticky top-0 z-10 bg-page/95 backdrop-blur border-b border-line">
                 <div className="max-w-md mx-auto px-4 h-14 flex items-center gap-2">
                     <button type="button" onClick={() => router.push('/dashboard')} className="text-ink2 text-lg px-1" aria-label="뒤로">‹</button>
-                    <h1 className="text-base font-bold text-ink">받은 제안</h1>
+                    {/* CHANGED (2026-09-02): 대시보드 '제안받기' 카드에서 들어오는 화면 — 진입 카드와 말이 이어지게 */}
+                    <h1 className="text-base font-bold text-ink">제안받기 · 받은 제안</h1>
+                    {/* CHANGED (2026-09-02): 프로필 링크를 빈 상태 밖으로 꺼내 상시 노출한다.
+                        대시보드의 '내 협찬 프로필' 배너가 2카드로 흡수되면서, 카드는 제안이 있으면
+                        수신함으로만 간다. 확정 제안은 목록에서 사라지지 않으므로(getCreatorOffers가
+                        `확정`도 읽는다) 협찬을 한 번이라도 성사시킨 사람은 프로필로 갈 길을
+                        영영 잃는다. 여기가 그 유일한 복구 경로다.
+                        px-2 py-2 = 터치 타깃 32px — text-xs 줄높이만으론 17px이라
+                        WCAG 2.5.8 최소 24px에 미달한다. 유일한 경로라 더 중요하다. */}
+                    <button
+                        type="button"
+                        onClick={() => router.push('/dashboard/portfolio')}
+                        className="ml-auto text-xs font-medium text-ink2 hover:text-ink transition-colors px-2 py-2"
+                    >
+                        내 프로필
+                    </button>
                 </div>
             </header>
 
@@ -123,7 +138,7 @@ export default function OffersPage() {
                             onClick={() => router.push('/dashboard/portfolio')}
                             className="mt-2 h-11 px-4 bg-brand text-black font-bold rounded-lg hover:bg-brand-hover transition-colors text-sm"
                         >
-                            내 협찬 프로필 보기
+                            내 프로필 보기
                         </button>
                     </div>
                 ) : (

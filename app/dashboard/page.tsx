@@ -18,9 +18,13 @@ import ContentEntryBanner from '@/components/ContentEntryBanner';
 import Mascot from '@/components/Mascot';
 import BrandIcon from '@/components/BrandIcon';
 import { readSeen, unseenIds } from '@/lib/offerSeen';
-import type { Application, Campaign, ContentUpload, TierLevel, ChannelType, CampaignSortKey } from '@/types';
+// CHANGED (2026-09-02): 협찬 2분기 진입 카드 — 프로필·제안 배너를 대체한다
+import SponsorshipTracks from '@/components/SponsorshipTracks';
+import type { ApplyTrackDestination, OfferTrackDestination } from '@/lib/sponsorshipTrackRules';
+import type { Application, Campaign, ContentUpload, TierLevel, ChannelType, CampaignSortKey, ReviewStatus } from '@/types';
 // CHANGED: 공통 상수를 constants.ts에서 import
-import { KAKAO_CHANNEL_URL } from '@/lib/constants';
+// CHANGED (2026-09-02): 회신 촉구는 '크리에이터확인중'인 건수에만 건다
+import { KAKAO_CHANNEL_URL, OFFER_STATUS_PENDING } from '@/lib/constants';
 // CHANGED: 캠페인 정렬 로직
 import { sortCampaigns, sortLabel, DEFAULT_SORT_KEY } from '@/lib/campaignSort';
 
@@ -59,11 +63,19 @@ function DashboardContent() {
     const [campaigns, setCampaigns] = useState<Campaign[]>([]);
     const [loading, setLoading] = useState(true);
     const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
-    // CHANGED (지명형 1b): 받은 제안 수. 0이면 진입 배너를 아예 그리지 않는다 —
-    // 제안이 없는 사람에게 빈 수신함으로 들어가는 문을 만들 이유가 없고,
-    // 이 배너가 곧 기능 오픈이라 제안이 실제로 생기기 전까지는 아무에게도 보이지 않아야 한다.
+    // CHANGED (2026-09-02): 받은 제안 수. 진입 배너가 없어졌으므로 노출 판단이 아니라
+    // 제안받기 카드(SponsorshipTracks)의 상태 소스다 — 0건이어도 카드는 늘 보인다.
     const [offerCount, setOfferCount] = useState(0);
     const [newOfferCount, setNewOfferCount] = useState(0);
+    // CHANGED (2026-09-02): 제안받기 카드의 상태 소스. 조회 실패 시 기본값('' + false)이
+    //   '미등록'으로 읽혀 등록 유도가 한 번 더 보일 뿐, 화면이 깨지거나 제안이 숨겨지지 않는다.
+    const [reviewStatus, setReviewStatus] = useState<ReviewStatus>('');
+    const [profileIsPublic, setProfileIsPublic] = useState(false);
+    // CHANGED (2026-09-02): 패칭이 끝났는지. 기본값이 하필 '미등록'과 같아서, 이게 없으면
+    //   매 진입마다 이미 승인·공개된 사람에게도 NEW 뱃지가 깜빡인다.
+    const [profileLoaded, setProfileLoaded] = useState(false);
+    // CHANGED (2026-09-02): offerCount에는 이미 수락한 `확정`도 섞여 있다. 회신 촉구는 이 값에만 건다.
+    const [pendingOfferCount, setPendingOfferCount] = useState(0);
     // CHANGED: userRecordId 상태 제거 — API에서 JWT로 사용자 식별
     const [isCheckinModalOpen, setIsCheckinModalOpen] = useState(false);
     // CHANGED: 입실일 미등록 건수 — CTA 뱃지용. 모달을 열어야만 알 수 있던 '남은 할 일'을
@@ -95,6 +107,20 @@ function DashboardContent() {
     const handleCloseContentView = () => {
         setShowContentView(false);
         window.history.replaceState(null, '', '/dashboard');
+    };
+
+    // CHANGED (2026-09-02): 신청하기 카드 — 정산 정보가 없으면 목록 자체가 없으므로 등록 폼으로 보낸다.
+    const handleApplyTrackClick = (destination: ApplyTrackDestination) => {
+        if (destination === 'settlement') {
+            router.push('/premium-register');
+            return;
+        }
+        document.getElementById('campaign-list')?.scrollIntoView({ behavior: 'smooth' });
+    };
+
+    // CHANGED (2026-09-02): 제안받기 카드 — 이동지는 상태 판정(sponsorshipTrackRules)이 정한다.
+    const handleOfferTrackClick = (destination: OfferTrackDestination) => {
+        router.push(destination === 'offers' ? '/dashboard/offers' : '/dashboard/portfolio');
     };
 
     // CHANGED: 입실일 미등록 건수 조회 — 모달과 같은 엔드포인트를 읽되 카운트만 쓴다.
@@ -169,6 +195,13 @@ function DashboardContent() {
         fetchUserInfo();
     }, []);
 
+    // CHANGED (2026-09-02): 신청하기 카드와 Stats Bar가 같은 숫자를 말해야 한다는 게
+    // 스펙 §3.2의 전제다. 표현이 갈라져 있으면 나중에 한쪽만 바뀐다.
+    const openCampaignCount = useMemo(
+        () => campaigns.filter(c => !c.isClosed).length,
+        [campaigns],
+    );
+
     // CHANGED: 지역별 캠페인 수 집계 (필터 시트의 개수 표시용 — Baymard 권장)
     const locationCounts = useMemo(() => {
         const counts = new Map<string, number>();
@@ -213,7 +246,7 @@ function DashboardContent() {
         }
     }, [userInfo]);
 
-    // CHANGED (지명형 1b): 받은 제안 수 — 배너 노출 판단용.
+    // CHANGED (지명형 1b): 받은 제안 수 — 제안받기 카드의 상태 소스.
     // 실패해도 조용히 0으로 둔다. 수신함은 부가 기능이라, 여기서 에러를 띄우면
     // 프리미엄 협찬을 쓰러 온 사람에게 상관없는 경고가 뜬다.
     useEffect(() => {
@@ -222,14 +255,60 @@ function DashboardContent() {
         (async () => {
             try {
                 const response = await fetch('/api/offers');
-                if (!response.ok) return;
+                if (!response.ok) {
+                    // CHANGED (2026-09-02): 무음으로 삼키지 않는다. 여기서 조용히 빠지면
+                    // 대기 제안이 있어도 카드가 '제안을 기다리는 중'이라 말하게 된다.
+                    console.error('Failed to fetch offers:', response.status);
+                    return;
+                }
                 const data = await response.json();
                 if (!alive) return;
-                const list: { id: string }[] = data.offers || [];
+                // CHANGED (2026-09-02): status를 함께 읽어 회신 대기 건수를 따로 센다
+                const list: { id: string; status: string }[] = data.offers || [];
+                const pending = list.filter((offer) => offer.status === OFFER_STATUS_PENDING);
                 setOfferCount(list.length);
-                setNewOfferCount(unseenIds(list.map((o) => o.id), readSeen()).length);
-            } catch {
-                // 무시 — 배너만 안 뜬다
+                setPendingOfferCount(pending.length);
+                // CHANGED (2026-09-02): '새 제안'은 회신 대기 중인 것만 센다. 전체 목록으로 세면
+                // 본인이 수락한 `확정` 건이 '새 제안'으로 잡혀, 뱃지('새 제안 3')와
+                // 문구('확정된 제안 3건 확인하기')가 서로 모순된다. 읽음 기록은 기기 로컬이라
+                // 다른 기기에서 열면 수락한 건도 전부 미열람으로 보인다.
+                setNewOfferCount(unseenIds(pending.map((o) => o.id), readSeen()).length);
+            } catch (error) {
+                // CHANGED (2026-09-02): 삼키지 않고 로깅한다(CLAUDE.md §3.4).
+                // 화면은 카드가 '제안 없음' 상태로 남을 뿐이라 사용자에겐 조용하다.
+                console.error('Failed to fetch offers', error);
+            }
+        })();
+        return () => { alive = false; };
+    }, [userInfo]);
+
+    // CHANGED (2026-09-02): 제안받기 카드 상태 — 심사상태·공개여부.
+    // 캠페인·제안 패칭과 병렬로 돈다. 실패해도 조용히 기본값을 유지한다 —
+    // 제안받기는 부가 경로라, 여기서 에러를 띄우면 프리미엄 협찬을 쓰러 온 사람에게
+    // 상관없는 경고가 뜬다 (offers 패칭과 같은 판단).
+    useEffect(() => {
+        if (!userInfo) return;
+        let alive = true;
+        (async () => {
+            try {
+                const response = await fetch('/api/creator/profile');
+                if (!response.ok) {
+                    // CHANGED (2026-09-02): 가장 현실적인 실패는 throw가 아니라 500 응답이라
+                    // catch에 안 걸린다. 폴백은 정상 동작하지만(미등록 표시) 아무도 모르게
+                    // 전원에게 NEW 뱃지가 뜨므로 로그는 남긴다(스펙 §4).
+                    console.error('Failed to fetch creator profile state:', response.status);
+                    return;
+                }
+                const data = await response.json();
+                if (!alive) return;
+                setReviewStatus((data.profile?.reviewStatus || '') as ReviewStatus);
+                setProfileIsPublic(Boolean(data.profile?.isPublic));
+            } catch (error) {
+                console.error('Failed to fetch creator profile state', error);
+            } finally {
+                // 실패해도 loaded로 둔다 — 스펙 §4의 폴백(미등록 표시)이 그 자체로 결론이다.
+                // 여기서 계속 '불러오는 중'에 머물면 화면이 영영 안 끝난 것처럼 보인다.
+                if (alive) setProfileLoaded(true);
             }
         })();
         return () => { alive = false; };
@@ -340,56 +419,26 @@ function DashboardContent() {
 
             {/* Main Content */}
             <main className="max-w-7xl mx-auto px-5 py-6">
+                {/* CHANGED (2026-09-02): 협찬 2분기 진입 — 받은 제안 배너 + 내 협찬 프로필 배너를 흡수했다 */}
+                {!showContentView && userInfo && (
+                    <SponsorshipTracks
+                        hasPremiumId={Boolean(userInfo.premiumId)}
+                        openCampaignCount={openCampaignCount}
+                        reviewStatus={reviewStatus}
+                        isPublic={profileIsPublic}
+                        offerCount={offerCount}
+                        pendingCount={pendingOfferCount}
+                        newOfferCount={newOfferCount}
+                        profileLoaded={profileLoaded}
+                        onApplyClick={handleApplyTrackClick}
+                        onOfferClick={handleOfferTrackClick}
+                    />
+                )}
+
                 {/* CHANGED (IA v3): 콘텐츠 진입 배너 — 헤더 아이콘 대신 메인 영역 상단 노출 */}
                 {!showContentView && userInfo && (
                     <div className="mb-4">
                         <ContentEntryBanner onClick={handleOpenContentView} />
-                    </div>
-                )}
-
-                {/* CHANGED (지명형 1b): 받은 제안 배너 — 제안이 1건 이상일 때만 나타난다 */}
-                {!showContentView && userInfo && offerCount > 0 && (
-                    <div className="mb-4">
-                        <button
-                            onClick={() => router.push('/dashboard/offers')}
-                            className="w-full flex items-center justify-between bg-brand-bg border border-brand/30 rounded-xl p-4 hover:border-brand transition-colors text-left"
-                        >
-                            <div className="flex items-center gap-2">
-                                {newOfferCount > 0 && (
-                                    <span className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded bg-brand text-black tracking-wide">
-                                        NEW
-                                    </span>
-                                )}
-                                <div>
-                                    <p className="text-sm font-bold text-ink">
-                                        받은 제안 {offerCount}건
-                                        {newOfferCount > 0 && <span className="text-brand-strong"> · 새 제안 {newOfferCount}건</span>}
-                                    </p>
-                                    <p className="text-xs text-ink2 mt-0.5">기한 안에 수락 또는 거절로 회신해주세요</p>
-                                </div>
-                            </div>
-                            <svg className="w-5 h-5 text-brand-strong" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg>
-                        </button>
-                    </div>
-                )}
-
-                {/* CHANGED (지명형 1a): 내 협찬 프로필 진입 배너 — 조건 걸고 공개하면 캠지기가 제안 */}
-                {!showContentView && userInfo && (
-                    <div className="mb-4">
-                        <button
-                            onClick={() => router.push('/dashboard/portfolio')}
-                            className="w-full flex items-center justify-between bg-card border border-line rounded-xl p-4 hover:border-brand transition-colors text-left"
-                        >
-                            <div>
-                                <p className="text-sm font-bold text-ink">내 협찬 프로필</p>
-                                <p className="text-xs text-ink3 mt-0.5">조건을 걸고 공개하면 캠지기가 제안해요</p>
-                            </div>
-                            <svg className="w-5 h-5 text-ink3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg>
-                        </button>
                     </div>
                 )}
 
@@ -439,6 +488,15 @@ function DashboardContent() {
                     </div>
                 )}
 
+                {/* CHANGED (2026-09-02): 신청하기 카드의 스크롤 목적지.
+                    ⚠️ `loading` 밖에 둔다 — 앵커 존재가 패칭 상태에 매달리면, 카드는 보이는데
+                       스크롤 목적지가 없는 구간이 생겨 탭이 조용히 no-op이 된다.
+                    ⚠️ scroll-mt는 sticky 헤더(상단행 + 협찬관리 버튼 ≈ 145px) 높이만큼 필요하다.
+                       부족하면 목적지가 헤더 뒤에 깔려 Stats Bar가 안 보인다. */}
+                {!showContentView && userInfo?.premiumId && (
+                    <div id="campaign-list" className="scroll-mt-40" />
+                )}
+
                 {!loading && !showContentView && userInfo?.premiumId && (
                     <>
                         {/* Stats Bar */}
@@ -451,7 +509,7 @@ function DashboardContent() {
                                 <div className="flex-1 min-w-[140px] bg-card border border-line rounded-xl p-4 flex flex-col justify-center">
                                     <span className="text-xs text-ink3 mb-1">신청 가능</span>
                                     <span className="text-xl font-bold text-brand-strong">
-                                        {campaigns.filter(c => !c.isClosed).length}개
+                                        {openCampaignCount}개
                                     </span>
                                 </div>
                             </div>
