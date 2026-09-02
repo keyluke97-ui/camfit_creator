@@ -5,7 +5,7 @@
 // ⚠️ 뱃지·문구·이동지는 lib/sponsorshipTrackRules.ts가 정한다. 여기엔 표현만 둔다.
 'use client';
 
-import { resolveApplyTrack, resolveOfferTrack } from '@/lib/sponsorshipTrackRules';
+import { resolveApplyTrack, resolveOfferTrack, OFFER_TRACK_LOADING } from '@/lib/sponsorshipTrackRules';
 import type { ApplyTrackDestination, OfferTrackDestination } from '@/lib/sponsorshipTrackRules';
 import type { ReviewStatus } from '@/types';
 
@@ -17,6 +17,8 @@ interface SponsorshipTracksProps {
     offerCount: number;
     pendingCount: number;
     newOfferCount: number;
+    /** 프로필 상태 패칭이 끝났는지. false면 '미등록'을 단정하지 않는다 */
+    profileLoaded: boolean;
     onApplyClick: (destination: ApplyTrackDestination) => void;
     onOfferClick: (destination: OfferTrackDestination) => void;
 }
@@ -29,11 +31,17 @@ export default function SponsorshipTracks({
     offerCount,
     pendingCount,
     newOfferCount,
+    profileLoaded,
     onApplyClick,
     onOfferClick,
 }: SponsorshipTracksProps) {
     const apply = resolveApplyTrack({ hasPremiumId, openCampaignCount });
-    const offer = resolveOfferTrack({ reviewStatus, isPublic, offerCount, pendingCount, newOfferCount });
+    // 프로필 상태를 모르는 동안에는 '미등록'을 단정하지 않는다(OFFER_TRACK_LOADING 주석 참고).
+    // 단 제안 건수는 별도 패칭이라 이미 알 수 있으므로, 제안이 있으면 그건 그대로 말해준다.
+    const hasOffers = offerCount > 0 || pendingCount > 0;
+    const offer = (!profileLoaded && !hasOffers)
+        ? OFFER_TRACK_LOADING
+        : resolveOfferTrack({ reviewStatus, isPublic, offerCount, pendingCount, newOfferCount });
     // 반려만 위험 톤. 나머지는 브랜드 그린을 유지해 '제안받기'가 늘 같은 자리로 읽히게 한다.
     const isRejected = offer.tone === 'danger';
 

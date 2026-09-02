@@ -71,6 +71,9 @@ function DashboardContent() {
     //   '미등록'으로 읽혀 등록 유도가 한 번 더 보일 뿐, 화면이 깨지거나 제안이 숨겨지지 않는다.
     const [reviewStatus, setReviewStatus] = useState<ReviewStatus>('');
     const [profileIsPublic, setProfileIsPublic] = useState(false);
+    // CHANGED (2026-09-02): 패칭이 끝났는지. 기본값이 하필 '미등록'과 같아서, 이게 없으면
+    //   매 진입마다 이미 승인·공개된 사람에게도 NEW 뱃지가 깜빡인다.
+    const [profileLoaded, setProfileLoaded] = useState(false);
     // CHANGED (2026-09-02): offerCount에는 이미 수락한 `확정`도 섞여 있다. 회신 촉구는 이 값에만 건다.
     const [pendingOfferCount, setPendingOfferCount] = useState(0);
     // CHANGED: userRecordId 상태 제거 — API에서 JWT로 사용자 식별
@@ -252,14 +255,24 @@ function DashboardContent() {
         (async () => {
             try {
                 const response = await fetch('/api/offers');
-                if (!response.ok) return;
+                if (!response.ok) {
+                    // CHANGED (2026-09-02): 무음으로 삼키지 않는다. 여기서 조용히 빠지면
+                    // 대기 제안이 있어도 카드가 '제안을 기다리는 중'이라 말하게 된다.
+                    console.error('Failed to fetch offers:', response.status);
+                    return;
+                }
                 const data = await response.json();
                 if (!alive) return;
                 // CHANGED (2026-09-02): status를 함께 읽어 회신 대기 건수를 따로 센다
                 const list: { id: string; status: string }[] = data.offers || [];
+                const pending = list.filter((offer) => offer.status === OFFER_STATUS_PENDING);
                 setOfferCount(list.length);
-                setPendingOfferCount(list.filter((offer) => offer.status === OFFER_STATUS_PENDING).length);
-                setNewOfferCount(unseenIds(list.map((o) => o.id), readSeen()).length);
+                setPendingOfferCount(pending.length);
+                // CHANGED (2026-09-02): '새 제안'은 회신 대기 중인 것만 센다. 전체 목록으로 세면
+                // 본인이 수락한 `확정` 건이 '새 제안'으로 잡혀, 뱃지('새 제안 3')와
+                // 문구('확정된 제안 3건 확인하기')가 서로 모순된다. 읽음 기록은 기기 로컬이라
+                // 다른 기기에서 열면 수락한 건도 전부 미열람으로 보인다.
+                setNewOfferCount(unseenIds(pending.map((o) => o.id), readSeen()).length);
             } catch (error) {
                 // CHANGED (2026-09-02): 삼키지 않고 로깅한다(CLAUDE.md §3.4).
                 // 화면은 카드가 '제안 없음' 상태로 남을 뿐이라 사용자에겐 조용하다.
@@ -292,6 +305,10 @@ function DashboardContent() {
                 setProfileIsPublic(Boolean(data.profile?.isPublic));
             } catch (error) {
                 console.error('Failed to fetch creator profile state', error);
+            } finally {
+                // 실패해도 loaded로 둔다 — 스펙 §4의 폴백(미등록 표시)이 그 자체로 결론이다.
+                // 여기서 계속 '불러오는 중'에 머물면 화면이 영영 안 끝난 것처럼 보인다.
+                if (alive) setProfileLoaded(true);
             }
         })();
         return () => { alive = false; };
@@ -412,6 +429,7 @@ function DashboardContent() {
                         offerCount={offerCount}
                         pendingCount={pendingOfferCount}
                         newOfferCount={newOfferCount}
+                        profileLoaded={profileLoaded}
                         onApplyClick={handleApplyTrackClick}
                         onOfferClick={handleOfferTrackClick}
                     />

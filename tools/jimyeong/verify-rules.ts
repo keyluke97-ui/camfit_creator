@@ -18,7 +18,7 @@ import {
 import { unseenIds } from '../../lib/offerSeen';
 import { VISIT_REGIONS, getWonjeongCandidates } from '../../lib/constants';
 import type { CreatorProfileUpdate } from '../../types';
-import { resolveApplyTrack, resolveOfferTrack } from '../../lib/sponsorshipTrackRules';
+import { resolveApplyTrack, resolveOfferTrack, OFFER_TRACK_LOADING } from '../../lib/sponsorshipTrackRules';
 
 let pass = 0;
 let fail = 0;
@@ -518,17 +518,32 @@ check('제안받기 2 — 비공개는 승인에서만 주장한다',
 
 // ⚠️ 반려만 제안보다 위다. 확정 제안은 목록에서 사라지지 않으므로(getCreatorOffers가
 //    `확정`도 읽는다), 제안을 앞세우면 "수정 필요"가 영구히 가려진다.
-check('제안받기 1 — 반려는 제안이 있어도 프로필 조치가 먼저',
-    resolveOfferTrack({ ...OFFER_BASE, reviewStatus: '반려', ...OFFERS_2 }),
+// 반려 게이트는 offerCount가 아니라 `pendingCount === 0`이다. 확정 제안은 목록에서
+// 사라지지 않으므로 offerCount로 거르면 "수정 필요"가 영구히 가려진다 — 그건 은폐다.
+check('제안받기 1 — 반려 + 확정만 보유면 프로필 조치가 먼저',
+    resolveOfferTrack({ ...OFFER_BASE, reviewStatus: '반려', offerCount: 2, pendingCount: 0 }),
     { state: 'REJECTED', badge: '수정 필요', message: '반려 사유를 확인하고 다시 공개해주세요', destination: 'profile', tone: 'danger' });
-// 영구 은폐 근거가 걸린 조합 — 확정 제안만 남아도 반려 안내가 계속 보여야 한다.
-check('제안받기 1 — 반려는 확정 제안만 있어도 프로필 조치가 먼저',
-    resolveOfferTrack({ ...OFFER_BASE, reviewStatus: '반려', offerCount: 2, pendingCount: 0 }).destination,
-    'profile');
-check('제안이 있으면 반려를 빼고 어떤 심사상태에서도 수신함 경로',
-    (['', '심사대기', '승인'] as const).map((st) =>
+// ⚠️ 반려여도 회신 대기 제안이 있으면 수신함이 앞선다. 기한이 2영업일이라 여기서 링크를
+//    가리면 그대로 만료된다. 대기 건을 회신하면 카드가 반려로 돌아온다(일시 양보).
+//    그 사이 반려 사유로 가는 길은 수신함 헤더의 '내 프로필'이 잇는다.
+check('제안받기 2 — 반려여도 회신 대기 제안이 있으면 수신함으로',
+    resolveOfferTrack({ ...OFFER_BASE, reviewStatus: '반려', ...OFFERS_2 }),
+    { state: 'HAS_OFFERS', badge: '', message: '받은 제안 2건 · 기한 안에 회신해주세요', destination: 'offers', tone: 'brand' });
+check('회신 대기 제안이 있으면 어떤 심사상태에서도 수신함 경로',
+    (['', '심사대기', '승인', '반려'] as const).map((st) =>
         resolveOfferTrack({ reviewStatus: st, isPublic: true, offerCount: 1, pendingCount: 1, newOfferCount: 0 }).destination),
-    ['offers', 'offers', 'offers']);
+    ['offers', 'offers', 'offers', 'offers']);
+// ⚠️ 어긋난 입력 방어 — 호출부가 전체 목록으로 newOfferCount를 세면(확정 건 포함)
+//    '새 제안 3'과 '확정된 제안 3건 확인하기'가 동시에 나가는 모순이 생긴다.
+//    pendingCount가 0이면 '새 제안'을 말하지 않는다.
+check('제안받기 2 — 대기 0인데 새 제안이 들어와도 뱃지를 안 붙인다',
+    resolveOfferTrack({ reviewStatus: '승인', isPublic: true, offerCount: 3, pendingCount: 0, newOfferCount: 3 }),
+    { state: 'HAS_OFFERS', badge: '', message: '확정된 제안 3건 확인하기', destination: 'offers', tone: 'brand' });
+
+// 로딩 상수 — 여기에 뱃지가 붙으면 등록한 사람에게 NEW가 깜빡이는 결함이 되돌아온다.
+check('로딩 상수는 아무것도 단정하지 않는다',
+    OFFER_TRACK_LOADING,
+    { state: 'LOADING', badge: '', message: '협찬 조건을 불러오는 중이에요', destination: 'profile', tone: 'brand' });
 
 // 폴백 — 제안이 없으면 알 수 없는 값도 미등록으로 떨어진다.
 check('제안받기 6 — 알 수 없는 심사상태는 미등록 폴백',

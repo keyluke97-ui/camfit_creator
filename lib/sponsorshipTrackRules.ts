@@ -39,6 +39,7 @@ export function resolveApplyTrack(input: {
 // ── 제안받기 (내부 용어: 지명형 협찬) ──
 
 export type OfferTrackState =
+    | 'LOADING'
     | 'UNREGISTERED'
     | 'UNDER_REVIEW'
     | 'REJECTED'
@@ -59,6 +60,23 @@ export interface OfferTrackView {
 }
 
 /**
+ * 프로필 상태를 아직 모를 때의 카드.
+ *
+ * ⚠️ 기본값(`reviewStatus: ''` + `isPublic: false`)이 하필 '미등록'과 같아서, 그냥 두면
+ *    프로필 패칭이 끝나기 전까지 이미 승인·공개된 사람에게도 NEW 뱃지와 등록 유도가 나간다.
+ *    매 대시보드 진입마다 반복되므로 NEW를 미등록에서만 띄워 소진을 막겠다는 설계가 무너진다.
+ *    **모르는 것을 아는 것처럼 말하지 않는다.** 제안 건수는 별도 패칭이라 이미 알 수 있으므로,
+ *    제안이 있으면 이 상수 대신 실제 판정(offersView)을 쓴다 — 화면에서 판단하는 부분이다.
+ */
+export const OFFER_TRACK_LOADING: OfferTrackView = {
+    state: 'LOADING',
+    badge: '',
+    message: '협찬 조건을 불러오는 중이에요',
+    destination: 'profile',
+    tone: 'brand',
+};
+
+/**
  * 제안이 있을 때의 카드(§3.2 표 2번).
  *
  * ⚠️ **회신 촉구는 pendingCount에만 건다.** offerCount에는 이미 수락한 `확정`도 섞여 있다
@@ -72,7 +90,12 @@ function offersView(
 ): OfferTrackView {
     return {
         state: opts.hidden ? 'HIDDEN_WITH_OFFERS' : 'HAS_OFFERS',
-        badge: opts.hidden ? '비공개' : (input.newOfferCount > 0 ? `새 제안 ${input.newOfferCount}` : ''),
+        // '새 제안'은 회신 대기 건이 있을 때만 말한다. pendingCount로 한 번 더 막는 이유:
+        // 호출부가 어긋난 값을 넘겨도(예: 전체 목록으로 센 newOfferCount) 뱃지 '새 제안 3'과
+        // 문구 '확정된 제안 3건 확인하기'가 동시에 나가는 모순을 구조적으로 못 만들게 한다.
+        badge: opts.hidden
+            ? '비공개'
+            : (input.pendingCount > 0 && input.newOfferCount > 0 ? `새 제안 ${input.newOfferCount}` : ''),
         message: input.pendingCount > 0
             ? `받은 제안 ${input.pendingCount}건 · 기한 안에 회신해주세요`
             : `확정된 제안 ${input.offerCount}건 확인하기`,
@@ -106,8 +129,12 @@ export function resolveOfferTrack(input: {
     pendingCount: number;
     newOfferCount: number;
 }): OfferTrackView {
-    // 1번 — 반려. 제안보다 위다.
-    if (input.reviewStatus === '반려') {
+    // 1번 — 반려. 단 **회신 대기 중인 제안이 없을 때만** 제안보다 위다.
+    //   `pendingCount`로 거르는 이유: 확정 제안은 목록에서 사라지지 않으므로 `offerCount`로
+    //   거르면 "수정 필요"가 영구히 가려진다. 대기 건이 있는 동안에만 수신함이 앞서고,
+    //   회신하면 카드가 반려로 돌아온다 — 은폐가 아니라 일시 양보다.
+    //   그 사이에도 반려 사유로 갈 길은 끊기지 않는다(수신함 헤더의 '내 프로필').
+    if (input.reviewStatus === '반려' && input.pendingCount === 0) {
         return {
             state: 'REJECTED',
             badge: '수정 필요',
