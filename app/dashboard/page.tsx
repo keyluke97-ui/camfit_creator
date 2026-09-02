@@ -192,7 +192,6 @@ function DashboardContent() {
         fetchUserInfo();
     }, []);
 
-    // CHANGED: 지역별 캠페인 수 집계 (필터 시트의 개수 표시용 — Baymard 권장)
     // CHANGED (2026-09-02): 신청하기 카드와 Stats Bar가 같은 숫자를 말해야 한다는 게
     // 스펙 §3.2의 전제다. 표현이 갈라져 있으면 나중에 한쪽만 바뀐다.
     const openCampaignCount = useMemo(
@@ -200,6 +199,7 @@ function DashboardContent() {
         [campaigns],
     );
 
+    // CHANGED: 지역별 캠페인 수 집계 (필터 시트의 개수 표시용 — Baymard 권장)
     const locationCounts = useMemo(() => {
         const counts = new Map<string, number>();
         for (const campaign of campaigns) {
