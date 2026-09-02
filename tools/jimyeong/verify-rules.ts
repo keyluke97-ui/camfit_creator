@@ -506,15 +506,25 @@ check('제안받기 2 — 알 수 없는 심사상태여도 제안이 있으면 
 
 // `비공개`는 승인 상태에서만 참이라고 말할 수 있다. 심사대기는 isPublic이 true이고
 // (공개 신청을 했으니), 폴백은 isPublic을 아예 모른다. 붙이면 거짓말이 된다.
-check('제안받기 2 — 비공개 뱃지는 승인에서만 붙는다',
-    (['', '심사대기'] as const).map((st) => resolveOfferTrack({ ...OFFER_BASE, reviewStatus: st, ...OFFERS_2, newOfferCount: 1 }).badge),
-    ['새 제안 1', '새 제안 1']);
+// OFFER_BASE는 isPublic: false다. 심사대기는 "공개 중지하기"로 실제 비공개가 될 수 있고
+// (PublishRequestCard → lib/airtable.ts가 심사대기 전이를 다루지 않는다), 폴백은 아예 모른다.
+// 두 경우 모두 state와 badge가 비공개를 주장하지 않아야 한다.
+check('제안받기 2 — 비공개는 승인에서만 주장한다',
+    (['', '심사대기'] as const).map((st) => {
+        const view = resolveOfferTrack({ ...OFFER_BASE, reviewStatus: st, ...OFFERS_2, newOfferCount: 1 });
+        return [view.state, view.badge];
+    }),
+    [['HAS_OFFERS', '새 제안 1'], ['HAS_OFFERS', '새 제안 1']]);
 
 // ⚠️ 반려만 제안보다 위다. 확정 제안은 목록에서 사라지지 않으므로(getCreatorOffers가
 //    `확정`도 읽는다), 제안을 앞세우면 "수정 필요"가 영구히 가려진다.
 check('제안받기 1 — 반려는 제안이 있어도 프로필 조치가 먼저',
     resolveOfferTrack({ ...OFFER_BASE, reviewStatus: '반려', ...OFFERS_2 }),
     { state: 'REJECTED', badge: '수정 필요', message: '반려 사유를 확인하고 다시 공개해주세요', destination: 'profile', tone: 'danger' });
+// 영구 은폐 근거가 걸린 조합 — 확정 제안만 남아도 반려 안내가 계속 보여야 한다.
+check('제안받기 1 — 반려는 확정 제안만 있어도 프로필 조치가 먼저',
+    resolveOfferTrack({ ...OFFER_BASE, reviewStatus: '반려', offerCount: 2, pendingCount: 0 }).destination,
+    'profile');
 check('제안이 있으면 반려를 빼고 어떤 심사상태에서도 수신함 경로',
     (['', '심사대기', '승인'] as const).map((st) =>
         resolveOfferTrack({ reviewStatus: st, isPublic: true, offerCount: 1, pendingCount: 1, newOfferCount: 0 }).destination),

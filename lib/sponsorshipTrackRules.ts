@@ -94,8 +94,10 @@ function offersView(
  *    이 조합은 크리에이터가 직접 만든다(제안을 받은 미등록자가 공개 신청을 하면
  *    lib/airtable.ts의 `'' | '반려' → '심사대기'` 전이가 일어난다).
  *
- * ⚠️ **`비공개` 뱃지는 `승인`일 때만 붙인다.** `심사대기`는 공개 신청을 한 상태라
- *    isPublic이 true이고, 폴백은 isPublic을 아예 모른다. 붙이면 거짓말이 된다.
+ * ⚠️ **`비공개` 뱃지는 `승인`일 때만 붙인다.** 폴백은 isPublic을 아예 모르고(기본값 false),
+ *    `심사대기`의 isPublic도 믿을 신호가 아니다 — PublishRequestCard의 "공개 중지하기"는
+ *    심사 상태와 무관하게 뜨고, 눌러도 심사대기는 유지된다(lib/airtable.ts의 심사 전이가
+ *    `심사대기`를 다루지 않는다). 확실한 건 `승인 && !isPublic` 하나뿐이다.
  */
 export function resolveOfferTrack(input: {
     reviewStatus: ReviewStatus;
@@ -104,6 +106,7 @@ export function resolveOfferTrack(input: {
     pendingCount: number;
     newOfferCount: number;
 }): OfferTrackView {
+    // 1번 — 반려. 제안보다 위다.
     if (input.reviewStatus === '반려') {
         return {
             state: 'REJECTED',
@@ -113,9 +116,11 @@ export function resolveOfferTrack(input: {
             tone: 'danger',
         };
     }
+    // 2번 — 제안 있음. 심사 상태·공개 여부보다 위다.
     if (input.offerCount > 0 || input.pendingCount > 0) {
         return offersView(input, { hidden: input.reviewStatus === '승인' && !input.isPublic });
     }
+    // 3번 — 심사대기
     if (input.reviewStatus === '심사대기') {
         return {
             state: 'UNDER_REVIEW',
@@ -125,6 +130,7 @@ export function resolveOfferTrack(input: {
             tone: 'brand',
         };
     }
+    // 4·5번 — 승인 (여기 오면 제안이 없다)
     if (input.reviewStatus === '승인') {
         if (!input.isPublic) {
             return {
