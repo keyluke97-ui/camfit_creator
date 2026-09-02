@@ -69,6 +69,8 @@ export default function SponsorshipTracks({
             {/* CHANGED: 반려 톤은 red-700. red-600은 bg-red-500/10(합성 #ffeaeb) 위에서
                          4.14:1로 AA(4.5) 미달이다. 레포 관행인 red-500은 3.30:1로 더 낮다.
                          테두리 없는 브랜드 톤과 높이를 맞추려고 border-transparent를 둔다. */}
+            {/* ⚠️ Tailwind v4에서 `border` 단독의 기본색은 currentColor다(v3의 gray-200에서 바뀜).
+                     OfferTrackTone에 톤을 추가하면 border-* 색도 반드시 함께 지정해라. */}
             <button
                 type="button"
                 onClick={() => onOfferClick(offer.destination)}
@@ -78,6 +80,9 @@ export default function SponsorshipTracks({
                         : 'bg-brand border-transparent hover:bg-brand-hover'
                 }`}
             >
+                {/* ⚠️ 이 flex 래퍼가 접근 가능한 이름의 띄어쓰기를 만든다. 자식 span들이
+                         flex item이라 blockify되어 "제안받기 새 제안 1 …"로 분리돼 읽힌다.
+                         평범한 inline span으로 바꾸면 "제안받기새 제안 1"로 붙는다. */}
                 <span className="flex items-center gap-1.5">
                     <span className={`text-[15px] font-bold ${isRejected ? 'text-red-700' : 'text-black'}`}>
                         제안받기
@@ -86,7 +91,7 @@ export default function SponsorshipTracks({
                         <span
                             className={`text-[10px] font-bold rounded px-1.5 py-0.5 tracking-wide ${
                                 isRejected
-                                    ? 'text-red-700 border border-red-500/60'
+                                    ? 'text-red-700 border border-red-500'
                                     : 'bg-black text-brand'
                             }`}
                         >
