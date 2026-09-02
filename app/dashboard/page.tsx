@@ -193,6 +193,13 @@ function DashboardContent() {
     }, []);
 
     // CHANGED: 지역별 캠페인 수 집계 (필터 시트의 개수 표시용 — Baymard 권장)
+    // CHANGED (2026-09-02): 신청하기 카드와 Stats Bar가 같은 숫자를 말해야 한다는 게
+    // 스펙 §3.2의 전제다. 표현이 갈라져 있으면 나중에 한쪽만 바뀐다.
+    const openCampaignCount = useMemo(
+        () => campaigns.filter(c => !c.isClosed).length,
+        [campaigns],
+    );
+
     const locationCounts = useMemo(() => {
         const counts = new Map<string, number>();
         for (const campaign of campaigns) {
@@ -253,8 +260,10 @@ function DashboardContent() {
                 setOfferCount(list.length);
                 setPendingOfferCount(list.filter((offer) => offer.status === OFFER_STATUS_PENDING).length);
                 setNewOfferCount(unseenIds(list.map((o) => o.id), readSeen()).length);
-            } catch {
-                // 무시 — 카드가 '제안 없음' 상태로 남을 뿐이다
+            } catch (error) {
+                // CHANGED (2026-09-02): 삼키지 않고 로깅한다(CLAUDE.md §3.4).
+                // 화면은 카드가 '제안 없음' 상태로 남을 뿐이라 사용자에겐 조용하다.
+                console.error('Failed to fetch offers', error);
             }
         })();
         return () => { alive = false; };
@@ -270,7 +279,13 @@ function DashboardContent() {
         (async () => {
             try {
                 const response = await fetch('/api/creator/profile');
-                if (!response.ok) return;
+                if (!response.ok) {
+                    // CHANGED (2026-09-02): 가장 현실적인 실패는 throw가 아니라 500 응답이라
+                    // catch에 안 걸린다. 폴백은 정상 동작하지만(미등록 표시) 아무도 모르게
+                    // 전원에게 NEW 뱃지가 뜨므로 로그는 남긴다(스펙 §4).
+                    console.error('Failed to fetch creator profile state:', response.status);
+                    return;
+                }
                 const data = await response.json();
                 if (!alive) return;
                 setReviewStatus((data.profile?.reviewStatus || '') as ReviewStatus);
@@ -391,7 +406,7 @@ function DashboardContent() {
                 {!showContentView && userInfo && (
                     <SponsorshipTracks
                         hasPremiumId={Boolean(userInfo.premiumId)}
-                        openCampaignCount={campaigns.filter(c => !c.isClosed).length}
+                        openCampaignCount={openCampaignCount}
                         reviewStatus={reviewStatus}
                         isPublic={profileIsPublic}
                         offerCount={offerCount}
@@ -455,10 +470,17 @@ function DashboardContent() {
                     </div>
                 )}
 
+                {/* CHANGED (2026-09-02): 신청하기 카드의 스크롤 목적지.
+                    ⚠️ `loading` 밖에 둔다 — 앵커 존재가 패칭 상태에 매달리면, 카드는 보이는데
+                       스크롤 목적지가 없는 구간이 생겨 탭이 조용히 no-op이 된다.
+                    ⚠️ scroll-mt는 sticky 헤더(상단행 + 협찬관리 버튼 ≈ 145px) 높이만큼 필요하다.
+                       부족하면 목적지가 헤더 뒤에 깔려 Stats Bar가 안 보인다. */}
+                {!showContentView && userInfo?.premiumId && (
+                    <div id="campaign-list" className="scroll-mt-40" />
+                )}
+
                 {!loading && !showContentView && userInfo?.premiumId && (
                     <>
-                        {/* CHANGED (2026-09-02): 신청하기 카드의 스크롤 목적지. 캠페인이 0개여도 앵커는 존재해야 한다 */}
-                        <div id="campaign-list" className="scroll-mt-4" />
                         {/* Stats Bar */}
                         {campaigns.length > 0 && (
                             <div className="flex gap-3 mb-4 overflow-x-auto pb-1 scrollbar-hide">
@@ -469,7 +491,7 @@ function DashboardContent() {
                                 <div className="flex-1 min-w-[140px] bg-card border border-line rounded-xl p-4 flex flex-col justify-center">
                                     <span className="text-xs text-ink3 mb-1">신청 가능</span>
                                     <span className="text-xl font-bold text-brand-strong">
-                                        {campaigns.filter(c => !c.isClosed).length}개
+                                        {openCampaignCount}개
                                     </span>
                                 </div>
                             </div>
