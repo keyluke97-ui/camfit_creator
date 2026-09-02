@@ -19,7 +19,8 @@ export default function PortfolioPage() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                         </svg>
                     </button>
-                    <h1 className="text-lg font-bold text-ink">내 협찬 프로필</h1>
+                    {/* CHANGED (2026-09-02): 대시보드 '제안받기' 카드에서 들어오는 화면 — 진입 카드와 말이 이어지게 */}
+                    <h1 className="text-lg font-bold text-ink">제안받기 · 내 프로필</h1>
                 </div>
             </header>
             <main className="max-w-md mx-auto px-5 py-6">
