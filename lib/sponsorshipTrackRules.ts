@@ -9,10 +9,12 @@ import type { ReviewStatus } from '@/types';
 // ── 신청하기 (프리미엄 협찬) ──
 
 export type ApplyTrackState = 'NEEDS_SETTLEMENT' | 'OPEN';
+export type ApplyTrackDestination = 'campaigns' | 'settlement';
 
 export interface ApplyTrackView {
     state: ApplyTrackState;
     message: string;
+    destination: ApplyTrackDestination;
 }
 
 /**
@@ -25,9 +27,13 @@ export function resolveApplyTrack(input: {
     openCampaignCount: number;
 }): ApplyTrackView {
     if (!input.hasPremiumId) {
-        return { state: 'NEEDS_SETTLEMENT', message: '정산 정보 등록 필요' };
+        return { state: 'NEEDS_SETTLEMENT', message: '정산 정보 등록 필요', destination: 'settlement' };
     }
-    return { state: 'OPEN', message: `열린 캠페인에 지원 · 신청 가능 ${input.openCampaignCount}개` };
+    return {
+        state: 'OPEN',
+        message: `열린 캠페인에 지원 · 신청 가능 ${input.openCampaignCount}개`,
+        destination: 'campaigns',
+    };
 }
 
 // ── 제안받기 (내부 용어: 지명형 협찬) ──
@@ -37,28 +43,39 @@ export type OfferTrackState =
     | 'UNDER_REVIEW'
     | 'REJECTED'
     | 'HIDDEN'
+    | 'HIDDEN_WITH_OFFERS'
     | 'HAS_OFFERS'
     | 'WAITING';
 
 export type OfferTrackDestination = 'profile' | 'offers';
+export type OfferTrackTone = 'brand' | 'danger';
 
 export interface OfferTrackView {
     state: OfferTrackState;
     badge: string;                        // '' 이면 뱃지 없음
     message: string;
     destination: OfferTrackDestination;
-    tone: 'brand' | 'danger';
+    tone: OfferTrackTone;
 }
 
 /**
  * 스펙 §3.2 표를 위에서부터 평가해 처음 참이 되는 하나만 적용한다.
- * `승인` 아래는 isPublic → offerCount 순으로 갈라진다 —
- * 승인은 났지만 본인이 비공개로 돌려둔 사람에게 "제안을 기다리는 중"이라고 하면 거짓말이 된다.
+ *
+ * ⚠️ **제안이 있으면 공개 여부보다 먼저 수신함으로 보낸다.** `!isPublic`을 먼저 보면
+ *    제안을 받아둔 채 프로필을 비공개로 돌린 사람이 대기 중인 제안을 화면에서 잃는다.
+ *    받은 제안 배너를 없앤 뒤로 /dashboard/offers로 가는 링크는 이 카드 하나뿐이고,
+ *    회신 기한은 2영업일이라 그대로 만료된다. 비공개라는 사실은 뱃지가 대신 말한다.
+ *
+ * ⚠️ **회신 촉구는 pendingCount에만 건다.** offerCount에는 이미 수락한 `확정`도 섞여 있다
+ *    (getCreatorOffers가 `크리에이터확인중`+`확정`을 함께 읽는다 — 수락한 제안의
+ *    쿠폰 코드를 보여줘야 해서 의도적). 거기에 촉구를 걸면 할 일이 없는 사람에게
+ *    "기한 안에 회신해주세요"가 나간다.
  */
 export function resolveOfferTrack(input: {
     reviewStatus: ReviewStatus;
     isPublic: boolean;
     offerCount: number;
+    pendingCount: number;
     newOfferCount: number;
 }): OfferTrackView {
     if (input.reviewStatus === '심사대기') {
@@ -80,21 +97,25 @@ export function resolveOfferTrack(input: {
         };
     }
     if (input.reviewStatus === '승인') {
+        if (input.offerCount > 0) {
+            return {
+                state: input.isPublic ? 'HAS_OFFERS' : 'HIDDEN_WITH_OFFERS',
+                badge: !input.isPublic
+                    ? '비공개'
+                    : (input.newOfferCount > 0 ? `새 제안 ${input.newOfferCount}` : ''),
+                message: input.pendingCount > 0
+                    ? `받은 제안 ${input.pendingCount}건 · 기한 안에 회신해주세요`
+                    : `확정된 제안 ${input.offerCount}건 확인하기`,
+                destination: 'offers',
+                tone: 'brand',
+            };
+        }
         if (!input.isPublic) {
             return {
                 state: 'HIDDEN',
                 badge: '비공개',
                 message: '공개로 바꾸면 제안을 받을 수 있어요',
                 destination: 'profile',
-                tone: 'brand',
-            };
-        }
-        if (input.offerCount > 0) {
-            return {
-                state: 'HAS_OFFERS',
-                badge: input.newOfferCount > 0 ? `새 제안 ${input.newOfferCount}` : '',
-                message: `받은 제안 ${input.offerCount}건 · 기한 안에 회신해주세요`,
-                destination: 'offers',
                 tone: 'brand',
             };
         }

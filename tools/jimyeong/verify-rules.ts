@@ -432,39 +432,62 @@ check('모르는 코드는 일반 문구', wonjeongMessage('ZZZ'), WONJEONG_MESS
 // 스펙 §3.2. 문구가 바뀌면 여기가 먼저 깨져야 한다 — 크리에이터에게 나가는 말이다.
 check('신청하기 — 정산정보 미등록',
     resolveApplyTrack({ hasPremiumId: false, openCampaignCount: 0 }),
-    { state: 'NEEDS_SETTLEMENT', message: '정산 정보 등록 필요' });
+    { state: 'NEEDS_SETTLEMENT', message: '정산 정보 등록 필요', destination: 'settlement' });
 check('신청하기 — 열린 캠페인',
     resolveApplyTrack({ hasPremiumId: true, openCampaignCount: 12 }),
-    { state: 'OPEN', message: '열린 캠페인에 지원 · 신청 가능 12개' });
+    { state: 'OPEN', message: '열린 캠페인에 지원 · 신청 가능 12개', destination: 'campaigns' });
 check('신청하기 — 열린 캠페인 0개도 개수를 말한다',
     resolveApplyTrack({ hasPremiumId: true, openCampaignCount: 0 }),
-    { state: 'OPEN', message: '열린 캠페인에 지원 · 신청 가능 0개' });
+    { state: 'OPEN', message: '열린 캠페인에 지원 · 신청 가능 0개', destination: 'campaigns' });
 
-const OFFER_BASE = { reviewStatus: '' as const, isPublic: false, offerCount: 0, newOfferCount: 0 };
+const OFFER_BASE = {
+    reviewStatus: '' as const, isPublic: false,
+    offerCount: 0, pendingCount: 0, newOfferCount: 0,
+};
+const APPROVED_PUBLIC = { reviewStatus: '승인' as const, isPublic: true };
 
-check('제안받기 1 — 미등록이면 NEW',
+check('제안받기 6 — 미등록이면 NEW',
     resolveOfferTrack(OFFER_BASE),
     { state: 'UNREGISTERED', badge: 'NEW', message: '내가 정한 금액부터 제안이 시작됩니다', destination: 'profile', tone: 'brand' });
-check('제안받기 2 — 심사대기',
+check('제안받기 1 — 심사대기',
     resolveOfferTrack({ ...OFFER_BASE, reviewStatus: '심사대기' }),
     { state: 'UNDER_REVIEW', badge: '심사 중', message: '공개 신청 확인 중이에요', destination: 'profile', tone: 'brand' });
-check('제안받기 3 — 반려는 위험 톤',
+check('제안받기 2 — 반려는 위험 톤',
     resolveOfferTrack({ ...OFFER_BASE, reviewStatus: '반려' }),
     { state: 'REJECTED', badge: '수정 필요', message: '반려 사유를 확인하고 다시 공개해주세요', destination: 'profile', tone: 'danger' });
-check('제안받기 4 — 승인났지만 비공개',
-    resolveOfferTrack({ ...OFFER_BASE, reviewStatus: '승인', isPublic: false }),
+check('제안받기 4 — 승인·비공개·제안 없음',
+    resolveOfferTrack({ ...OFFER_BASE, reviewStatus: '승인' }),
     { state: 'HIDDEN', badge: '비공개', message: '공개로 바꾸면 제안을 받을 수 있어요', destination: 'profile', tone: 'brand' });
-check('제안받기 5 — 제안 있고 새 제안도 있음',
-    resolveOfferTrack({ reviewStatus: '승인', isPublic: true, offerCount: 3, newOfferCount: 1 }),
-    { state: 'HAS_OFFERS', badge: '새 제안 1', message: '받은 제안 3건 · 기한 안에 회신해주세요', destination: 'offers', tone: 'brand' });
-check('제안받기 5 — 제안은 있으나 다 읽었으면 뱃지 없음',
-    resolveOfferTrack({ reviewStatus: '승인', isPublic: true, offerCount: 3, newOfferCount: 0 }),
-    { state: 'HAS_OFFERS', badge: '', message: '받은 제안 3건 · 기한 안에 회신해주세요', destination: 'offers', tone: 'brand' });
-check('제안받기 6 — 공개했고 제안 대기',
-    resolveOfferTrack({ reviewStatus: '승인', isPublic: true, offerCount: 0, newOfferCount: 0 }),
+check('제안받기 5 — 공개했고 제안 대기',
+    resolveOfferTrack({ ...OFFER_BASE, ...APPROVED_PUBLIC }),
     { state: 'WAITING', badge: '', message: '캠지기가 볼 수 있어요 · 제안을 기다리는 중', destination: 'profile', tone: 'brand' });
 
-// 폴백 — 프로필 조회 실패 시 알 수 없는 값이 들어와도 1번(미등록)으로 떨어져야 한다.
+// 3번 행 — 제안이 있으면 공개 여부와 무관하게 수신함으로 보낸다.
+check('제안받기 3 — 대기 제안 + 안 읽은 제안',
+    resolveOfferTrack({ ...APPROVED_PUBLIC, offerCount: 3, pendingCount: 3, newOfferCount: 1 }),
+    { state: 'HAS_OFFERS', badge: '새 제안 1', message: '받은 제안 3건 · 기한 안에 회신해주세요', destination: 'offers', tone: 'brand' });
+check('제안받기 3 — 다 읽었으면 뱃지 없음',
+    resolveOfferTrack({ ...APPROVED_PUBLIC, offerCount: 3, pendingCount: 3, newOfferCount: 0 }),
+    { state: 'HAS_OFFERS', badge: '', message: '받은 제안 3건 · 기한 안에 회신해주세요', destination: 'offers', tone: 'brand' });
+
+// 회신 촉구는 pendingCount에만 건다. offerCount에는 이미 수락한 `확정`도 섞여 있어서
+// (getCreatorOffers가 `크리에이터확인중`+`확정`을 함께 읽는다), 거기 걸면 할 일이
+// 없는 사람에게 "기한 안에 회신해주세요"가 나간다.
+check('제안받기 3 — 전부 수락했으면 회신을 재촉하지 않는다',
+    resolveOfferTrack({ ...APPROVED_PUBLIC, offerCount: 3, pendingCount: 0, newOfferCount: 0 }),
+    { state: 'HAS_OFFERS', badge: '', message: '확정된 제안 3건 확인하기', destination: 'offers', tone: 'brand' });
+check('제안받기 3 — 대기 1 + 확정 2면 대기 수만 재촉한다',
+    resolveOfferTrack({ ...APPROVED_PUBLIC, offerCount: 3, pendingCount: 1, newOfferCount: 0 }).message,
+    '받은 제안 1건 · 기한 안에 회신해주세요');
+
+// ⚠️ 이 케이스가 이 표의 핵심이다. `!isPublic`을 `offerCount > 0`보다 먼저 평가하면
+//    비공개로 돌린 사람이 대기 중인 제안을 화면에서 잃는다. 배너 제거 후
+//    /dashboard/offers로 가는 링크는 이 카드 하나뿐이고 회신 기한은 2영업일이다.
+check('제안받기 3 — 비공개여도 제안이 있으면 수신함으로 보낸다',
+    resolveOfferTrack({ reviewStatus: '승인', isPublic: false, offerCount: 2, pendingCount: 2, newOfferCount: 2 }),
+    { state: 'HIDDEN_WITH_OFFERS', badge: '비공개', message: '받은 제안 2건 · 기한 안에 회신해주세요', destination: 'offers', tone: 'brand' });
+
+// 폴백 — 프로필 조회 실패 시 알 수 없는 값이 들어와도 6번(미등록)으로 떨어져야 한다.
 // 화면이 비거나 제안이 숨겨지는 것보다 등록 유도가 한 번 더 보이는 편이 안전하다(스펙 §3.2).
 check('제안받기 — 알 수 없는 심사상태는 미등록 폴백',
     resolveOfferTrack({ ...OFFER_BASE, reviewStatus: '알수없음' as never }).state,
@@ -474,6 +497,11 @@ check('제안받기 — 알 수 없는 심사상태는 미등록 폴백',
 check('NEW 뱃지는 미등록에서만',
     (['심사대기', '반려', '승인'] as const).map((s) => resolveOfferTrack({ ...OFFER_BASE, reviewStatus: s }).badge === 'NEW'),
     [false, false, false]);
+
+// 제안이 있으면 어떤 공개 상태에서도 수신함으로 갈 길이 남아야 한다.
+check('제안이 있으면 항상 수신함 경로',
+    [true, false].map((pub) => resolveOfferTrack({ reviewStatus: '승인', isPublic: pub, offerCount: 1, pendingCount: 1, newOfferCount: 0 }).destination),
+    ['offers', 'offers']);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);
