@@ -430,6 +430,7 @@ check('모르는 코드는 일반 문구', wonjeongMessage('ZZZ'), WONJEONG_MESS
 
 // ── 협찬 2분기 진입 카드 (2026-09-02) ──
 // 스펙 §3.2. 문구가 바뀌면 여기가 먼저 깨져야 한다 — 크리에이터에게 나가는 말이다.
+// 라벨의 번호는 스펙 §3.2 표의 행 번호다. 표를 재번호하면 여기도 같이 고친다.
 check('신청하기 — 정산정보 미등록',
     resolveApplyTrack({ hasPremiumId: false, openCampaignCount: 0 }),
     { state: 'NEEDS_SETTLEMENT', message: '정산 정보 등록 필요', destination: 'settlement' });
@@ -444,78 +445,89 @@ const OFFER_BASE = {
     reviewStatus: '' as const, isPublic: false,
     offerCount: 0, pendingCount: 0, newOfferCount: 0,
 };
-const APPROVED_PUBLIC = { reviewStatus: '승인' as const, isPublic: true };
+const OFFERS_2 = { offerCount: 2, pendingCount: 2 };
 
-check('제안받기 6 — 미등록이면 NEW',
-    resolveOfferTrack(OFFER_BASE),
-    { state: 'UNREGISTERED', badge: 'NEW', message: '내가 정한 금액부터 제안이 시작됩니다', destination: 'profile', tone: 'brand' });
-check('제안받기 1 — 심사대기',
-    resolveOfferTrack({ ...OFFER_BASE, reviewStatus: '심사대기' }),
-    { state: 'UNDER_REVIEW', badge: '심사 중', message: '공개 신청 확인 중이에요', destination: 'profile', tone: 'brand' });
-check('제안받기 2 — 반려는 위험 톤',
+// ── 제안이 없을 때 (§3.2 표 1·3·4·5·6번) ──
+check('제안받기 1 — 반려는 위험 톤',
     resolveOfferTrack({ ...OFFER_BASE, reviewStatus: '반려' }),
     { state: 'REJECTED', badge: '수정 필요', message: '반려 사유를 확인하고 다시 공개해주세요', destination: 'profile', tone: 'danger' });
-check('제안받기 4 — 승인·비공개·제안 없음',
+check('제안받기 3 — 심사대기',
+    resolveOfferTrack({ ...OFFER_BASE, reviewStatus: '심사대기', isPublic: true }),
+    { state: 'UNDER_REVIEW', badge: '심사 중', message: '공개 신청 확인 중이에요', destination: 'profile', tone: 'brand' });
+check('제안받기 4 — 승인·비공개',
     resolveOfferTrack({ ...OFFER_BASE, reviewStatus: '승인' }),
     { state: 'HIDDEN', badge: '비공개', message: '공개로 바꾸면 제안을 받을 수 있어요', destination: 'profile', tone: 'brand' });
 check('제안받기 5 — 공개했고 제안 대기',
-    resolveOfferTrack({ ...OFFER_BASE, ...APPROVED_PUBLIC }),
+    resolveOfferTrack({ ...OFFER_BASE, reviewStatus: '승인', isPublic: true }),
     { state: 'WAITING', badge: '', message: '캠지기가 볼 수 있어요 · 제안을 기다리는 중', destination: 'profile', tone: 'brand' });
+check('제안받기 6 — 미등록이면 NEW',
+    resolveOfferTrack(OFFER_BASE),
+    { state: 'UNREGISTERED', badge: 'NEW', message: '내가 정한 금액부터 제안이 시작됩니다', destination: 'profile', tone: 'brand' });
 
-// 3번 행 — 제안이 있으면 공개 여부와 무관하게 수신함으로 보낸다.
-check('제안받기 3 — 대기 제안 + 안 읽은 제안',
-    resolveOfferTrack({ ...APPROVED_PUBLIC, offerCount: 3, pendingCount: 3, newOfferCount: 1 }),
+// ── 2번 행: 제안이 있을 때 ──
+check('제안받기 2 — 대기 제안 + 안 읽은 제안',
+    resolveOfferTrack({ reviewStatus: '승인', isPublic: true, offerCount: 3, pendingCount: 3, newOfferCount: 1 }),
     { state: 'HAS_OFFERS', badge: '새 제안 1', message: '받은 제안 3건 · 기한 안에 회신해주세요', destination: 'offers', tone: 'brand' });
-check('제안받기 3 — 다 읽었으면 뱃지 없음',
-    resolveOfferTrack({ ...APPROVED_PUBLIC, offerCount: 3, pendingCount: 3, newOfferCount: 0 }),
+check('제안받기 2 — 다 읽었으면 뱃지 없음',
+    resolveOfferTrack({ reviewStatus: '승인', isPublic: true, offerCount: 3, pendingCount: 3, newOfferCount: 0 }),
     { state: 'HAS_OFFERS', badge: '', message: '받은 제안 3건 · 기한 안에 회신해주세요', destination: 'offers', tone: 'brand' });
 
 // 회신 촉구는 pendingCount에만 건다. offerCount에는 이미 수락한 `확정`도 섞여 있어서
 // (getCreatorOffers가 `크리에이터확인중`+`확정`을 함께 읽는다), 거기 걸면 할 일이
 // 없는 사람에게 "기한 안에 회신해주세요"가 나간다.
-check('제안받기 3 — 전부 수락했으면 회신을 재촉하지 않는다',
-    resolveOfferTrack({ ...APPROVED_PUBLIC, offerCount: 3, pendingCount: 0, newOfferCount: 0 }),
+check('제안받기 2 — 전부 수락했으면 회신을 재촉하지 않는다',
+    resolveOfferTrack({ reviewStatus: '승인', isPublic: true, offerCount: 3, pendingCount: 0, newOfferCount: 0 }),
     { state: 'HAS_OFFERS', badge: '', message: '확정된 제안 3건 확인하기', destination: 'offers', tone: 'brand' });
-check('제안받기 3 — 대기 1 + 확정 2면 대기 수만 재촉한다',
-    resolveOfferTrack({ ...APPROVED_PUBLIC, offerCount: 3, pendingCount: 1, newOfferCount: 0 }).message,
+check('제안받기 2 — 대기 1 + 확정 2면 대기 수만 재촉한다',
+    resolveOfferTrack({ reviewStatus: '승인', isPublic: true, offerCount: 3, pendingCount: 1, newOfferCount: 0 }).message,
     '받은 제안 1건 · 기한 안에 회신해주세요');
+check('제안받기 2 — 폴백에서 전부 확정',
+    resolveOfferTrack({ ...OFFER_BASE, offerCount: 3, pendingCount: 0 }),
+    { state: 'HAS_OFFERS', badge: '', message: '확정된 제안 3건 확인하기', destination: 'offers', tone: 'brand' });
 
-// ⚠️ 이 케이스가 이 표의 핵심이다. `!isPublic`을 `offerCount > 0`보다 먼저 평가하면
-//    비공개로 돌린 사람이 대기 중인 제안을 화면에서 잃는다. 배너 제거 후
-//    /dashboard/offers로 가는 링크는 이 카드 하나뿐이고 회신 기한은 2영업일이다.
-check('제안받기 3 — 비공개여도 제안이 있으면 수신함으로 보낸다',
-    resolveOfferTrack({ reviewStatus: '승인', isPublic: false, offerCount: 2, pendingCount: 2, newOfferCount: 2 }),
+// ⚠️ 아래 4건이 이 표의 핵심 불변식이다 — 제안이 있으면 수신함 링크를 잃지 않는다.
+//    배너 제거 후 /dashboard/offers로 가는 링크는 이 카드 하나뿐이고 회신 기한은 2영업일이다.
+check('제안받기 2 — 비공개여도 제안이 있으면 수신함으로',
+    resolveOfferTrack({ reviewStatus: '승인', isPublic: false, ...OFFERS_2, newOfferCount: 2 }),
     { state: 'HIDDEN_WITH_OFFERS', badge: '비공개', message: '받은 제안 2건 · 기한 안에 회신해주세요', destination: 'offers', tone: 'brand' });
+// 심사대기 × 제안 보유는 크리에이터가 직접 만든다: 운영자가 미등록자에게 제안 → 카드가
+// 수신함으로 유도 → 크리에이터가 프로필 등록 후 공개 신청 → lib/airtable.ts의
+// '' | '반려' → '심사대기' 전이. 여기서 링크를 가리면 우리가 시킨 행동이 제안을 만료시킨다.
+check('제안받기 2 — 심사대기여도 제안이 있으면 수신함으로',
+    resolveOfferTrack({ ...OFFER_BASE, reviewStatus: '심사대기', isPublic: true, ...OFFERS_2 }),
+    { state: 'HAS_OFFERS', badge: '', message: '받은 제안 2건 · 기한 안에 회신해주세요', destination: 'offers', tone: 'brand' });
+// 프로필 조회가 실패하면 승인·공개인 사람도 reviewStatus가 ''로 보인다(§3.3).
+check('제안받기 2 — 심사상태를 몰라도 제안이 있으면 수신함으로',
+    resolveOfferTrack({ ...OFFER_BASE, ...OFFERS_2 }),
+    { state: 'HAS_OFFERS', badge: '', message: '받은 제안 2건 · 기한 안에 회신해주세요', destination: 'offers', tone: 'brand' });
+check('제안받기 2 — 알 수 없는 심사상태여도 제안이 있으면 수신함으로',
+    resolveOfferTrack({ ...OFFER_BASE, reviewStatus: '알수없음' as never, ...OFFERS_2 }).destination,
+    'offers');
 
-// 폴백 — 프로필 조회 실패 시 알 수 없는 값이 들어와도 6번(미등록)으로 떨어져야 한다.
-// 화면이 비거나 제안이 숨겨지는 것보다 등록 유도가 한 번 더 보이는 편이 안전하다(스펙 §3.2).
-check('제안받기 — 알 수 없는 심사상태는 미등록 폴백',
+// `비공개`는 승인 상태에서만 참이라고 말할 수 있다. 심사대기는 isPublic이 true이고
+// (공개 신청을 했으니), 폴백은 isPublic을 아예 모른다. 붙이면 거짓말이 된다.
+check('제안받기 2 — 비공개 뱃지는 승인에서만 붙는다',
+    (['', '심사대기'] as const).map((st) => resolveOfferTrack({ ...OFFER_BASE, reviewStatus: st, ...OFFERS_2, newOfferCount: 1 }).badge),
+    ['새 제안 1', '새 제안 1']);
+
+// ⚠️ 반려만 제안보다 위다. 확정 제안은 목록에서 사라지지 않으므로(getCreatorOffers가
+//    `확정`도 읽는다), 제안을 앞세우면 "수정 필요"가 영구히 가려진다.
+check('제안받기 1 — 반려는 제안이 있어도 프로필 조치가 먼저',
+    resolveOfferTrack({ ...OFFER_BASE, reviewStatus: '반려', ...OFFERS_2 }),
+    { state: 'REJECTED', badge: '수정 필요', message: '반려 사유를 확인하고 다시 공개해주세요', destination: 'profile', tone: 'danger' });
+check('제안이 있으면 반려를 빼고 어떤 심사상태에서도 수신함 경로',
+    (['', '심사대기', '승인'] as const).map((st) =>
+        resolveOfferTrack({ reviewStatus: st, isPublic: true, offerCount: 1, pendingCount: 1, newOfferCount: 0 }).destination),
+    ['offers', 'offers', 'offers']);
+
+// 폴백 — 제안이 없으면 알 수 없는 값도 미등록으로 떨어진다.
+check('제안받기 6 — 알 수 없는 심사상태는 미등록 폴백',
     resolveOfferTrack({ ...OFFER_BASE, reviewStatus: '알수없음' as never }).state,
     'UNREGISTERED');
-
 // NEW 뱃지는 미등록에서만. 등록 후에도 뜨면 뱃지가 소진되어 유도 기능을 잃는다.
 check('NEW 뱃지는 미등록에서만',
-    (['심사대기', '반려', '승인'] as const).map((s) => resolveOfferTrack({ ...OFFER_BASE, reviewStatus: s }).badge === 'NEW'),
+    (['심사대기', '반려', '승인'] as const).map((st) => resolveOfferTrack({ ...OFFER_BASE, reviewStatus: st }).badge === 'NEW'),
     [false, false, false]);
-
-// 제안이 있으면 어떤 공개 상태에서도 수신함으로 갈 길이 남아야 한다.
-check('제안이 있으면 항상 수신함 경로',
-    [true, false].map((pub) => resolveOfferTrack({ reviewStatus: '승인', isPublic: pub, offerCount: 1, pendingCount: 1, newOfferCount: 0 }).destination),
-    ['offers', 'offers']);
-
-// ⚠️ 6번 행 — 프로필 조회가 실패하면 승인·공개인 사람도 reviewStatus가 ''로 보인다(§3.3).
-//    이 케이스가 없으면 폴백 경로로 3번과 똑같은 피해가 재발한다.
-check('제안받기 6 — 심사상태를 몰라도 제안이 있으면 수신함으로',
-    resolveOfferTrack({ ...OFFER_BASE, offerCount: 2, pendingCount: 2 }),
-    { state: 'HAS_OFFERS', badge: '', message: '받은 제안 2건 · 기한 안에 회신해주세요', destination: 'offers', tone: 'brand' });
-// 폴백은 isPublic을 모른다. `비공개`를 붙이면 공개 중인 사람에게 거짓말이 된다.
-check('제안받기 6 — 폴백은 가시성을 주장하지 않는다',
-    resolveOfferTrack({ ...OFFER_BASE, offerCount: 1, pendingCount: 0, newOfferCount: 1 }).badge,
-    '새 제안 1');
-// 심사대기·반려는 제안이 있어도 각자 문구를 유지한다 (운영자 되돌림에서만 생기는 조합).
-check('심사대기·반려는 제안이 있어도 프로필 조치가 먼저',
-    (['심사대기', '반려'] as const).map((st) => resolveOfferTrack({ ...OFFER_BASE, reviewStatus: st, offerCount: 2, pendingCount: 2 }).destination),
-    ['profile', 'profile']);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);
