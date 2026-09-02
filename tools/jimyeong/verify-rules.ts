@@ -503,5 +503,19 @@ check('제안이 있으면 항상 수신함 경로',
     [true, false].map((pub) => resolveOfferTrack({ reviewStatus: '승인', isPublic: pub, offerCount: 1, pendingCount: 1, newOfferCount: 0 }).destination),
     ['offers', 'offers']);
 
+// ⚠️ 6번 행 — 프로필 조회가 실패하면 승인·공개인 사람도 reviewStatus가 ''로 보인다(§3.3).
+//    이 케이스가 없으면 폴백 경로로 3번과 똑같은 피해가 재발한다.
+check('제안받기 6 — 심사상태를 몰라도 제안이 있으면 수신함으로',
+    resolveOfferTrack({ ...OFFER_BASE, offerCount: 2, pendingCount: 2 }),
+    { state: 'HAS_OFFERS', badge: '', message: '받은 제안 2건 · 기한 안에 회신해주세요', destination: 'offers', tone: 'brand' });
+// 폴백은 isPublic을 모른다. `비공개`를 붙이면 공개 중인 사람에게 거짓말이 된다.
+check('제안받기 6 — 폴백은 가시성을 주장하지 않는다',
+    resolveOfferTrack({ ...OFFER_BASE, offerCount: 1, pendingCount: 0, newOfferCount: 1 }).badge,
+    '새 제안 1');
+// 심사대기·반려는 제안이 있어도 각자 문구를 유지한다 (운영자 되돌림에서만 생기는 조합).
+check('심사대기·반려는 제안이 있어도 프로필 조치가 먼저',
+    (['심사대기', '반려'] as const).map((st) => resolveOfferTrack({ ...OFFER_BASE, reviewStatus: st, offerCount: 2, pendingCount: 2 }).destination),
+    ['profile', 'profile']);
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

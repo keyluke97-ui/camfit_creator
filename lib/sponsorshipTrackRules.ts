@@ -59,17 +59,45 @@ export interface OfferTrackView {
 }
 
 /**
- * 스펙 §3.2 표를 위에서부터 평가해 처음 참이 되는 하나만 적용한다.
+ * 제안이 있을 때의 카드(§3.2 표 3번·6번). 두 행이 같은 뱃지·문구 규칙을 쓰므로 한 곳에 둔다.
  *
- * ⚠️ **제안이 있으면 공개 여부보다 먼저 수신함으로 보낸다.** `!isPublic`을 먼저 보면
- *    제안을 받아둔 채 프로필을 비공개로 돌린 사람이 대기 중인 제안을 화면에서 잃는다.
- *    받은 제안 배너를 없앤 뒤로 /dashboard/offers로 가는 링크는 이 카드 하나뿐이고,
- *    회신 기한은 2영업일이라 그대로 만료된다. 비공개라는 사실은 뱃지가 대신 말한다.
+ * `hidden`을 인자로 받는 이유: 6번(심사상태 불명 폴백)은 `isPublic`을 모른다.
+ * 그때 `비공개` 뱃지를 붙이면 공개 중인 사람에게 거짓말이 되므로 `false`를 넘겨
+ * **가시성을 주장하지 않는다.**
  *
  * ⚠️ **회신 촉구는 pendingCount에만 건다.** offerCount에는 이미 수락한 `확정`도 섞여 있다
  *    (getCreatorOffers가 `크리에이터확인중`+`확정`을 함께 읽는다 — 수락한 제안의
  *    쿠폰 코드를 보여줘야 해서 의도적). 거기에 촉구를 걸면 할 일이 없는 사람에게
  *    "기한 안에 회신해주세요"가 나간다.
+ */
+function offersView(
+    input: { offerCount: number; pendingCount: number; newOfferCount: number },
+    hidden: boolean,
+): OfferTrackView {
+    return {
+        state: hidden ? 'HIDDEN_WITH_OFFERS' : 'HAS_OFFERS',
+        badge: hidden ? '비공개' : (input.newOfferCount > 0 ? `새 제안 ${input.newOfferCount}` : ''),
+        message: input.pendingCount > 0
+            ? `받은 제안 ${input.pendingCount}건 · 기한 안에 회신해주세요`
+            : `확정된 제안 ${input.offerCount}건 확인하기`,
+        destination: 'offers',
+        tone: 'brand',
+    };
+}
+
+/**
+ * 스펙 §3.2 표를 위에서부터 평가해 처음 참이 되는 하나만 적용한다.
+ *
+ * ⚠️ **제안이 있으면 수신함 링크를 잃지 않는다.** 받은 제안 배너를 없앤 뒤로
+ *    /dashboard/offers로 가는 링크는 이 카드 하나뿐이고, 회신 기한은 2영업일이라
+ *    링크가 사라지면 그대로 만료된다. 그래서 두 곳에서 이 게이트를 통과시킨다 —
+ *    `승인`에서 `!isPublic`보다 먼저(3번), 그리고 심사상태 불명 폴백에서(6번).
+ *    폴백까지 막는 이유는 §3.3이 프로필 조회 실패를 조용히 넘기기 때문이다.
+ *    그때 승인·공개 상태인 사람도 `reviewStatus`가 ''로 보인다.
+ *
+ * ⚠️ **`심사대기`·`반려`는 제안이 있어도 각자 문구를 유지한다.** 두 상태 × 제안 보유는
+ *    운영자가 심사상태를 되돌릴 때만 생기고(크리에이터 조작으로는 안 생긴다 —
+ *    승인 후 프로필 수정은 `지표 재검토 필요` 플래그만 켠다), 그 경우엔 프로필 조치가 먼저다.
  */
 export function resolveOfferTrack(input: {
     reviewStatus: ReviewStatus;
@@ -96,19 +124,10 @@ export function resolveOfferTrack(input: {
             tone: 'danger',
         };
     }
+    const hasOffers = input.offerCount > 0 || input.pendingCount > 0;
     if (input.reviewStatus === '승인') {
-        if (input.offerCount > 0) {
-            return {
-                state: input.isPublic ? 'HAS_OFFERS' : 'HIDDEN_WITH_OFFERS',
-                badge: !input.isPublic
-                    ? '비공개'
-                    : (input.newOfferCount > 0 ? `새 제안 ${input.newOfferCount}` : ''),
-                message: input.pendingCount > 0
-                    ? `받은 제안 ${input.pendingCount}건 · 기한 안에 회신해주세요`
-                    : `확정된 제안 ${input.offerCount}건 확인하기`,
-                destination: 'offers',
-                tone: 'brand',
-            };
+        if (hasOffers) {
+            return offersView(input, !input.isPublic);
         }
         if (!input.isPublic) {
             return {
@@ -128,6 +147,10 @@ export function resolveOfferTrack(input: {
         };
     }
     // '' (아직 공개 신청 전) + 알 수 없는 값. 프로필 조회 실패 폴백도 여기로 떨어진다.
+    // 제안이 있으면 수신함 경로를 살린다(6번). 가시성은 모르므로 주장하지 않는다.
+    if (hasOffers) {
+        return offersView(input, false);
+    }
     // NEW 뱃지가 붙는 유일한 상태 — 한 번 등록하면 사라지므로 뱃지가 소진되지 않는다.
     return {
         state: 'UNREGISTERED',
