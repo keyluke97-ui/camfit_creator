@@ -18,6 +18,7 @@ import {
 import { unseenIds } from '../../lib/offerSeen';
 import { VISIT_REGIONS, getWonjeongCandidates } from '../../lib/constants';
 import type { CreatorProfileUpdate } from '../../types';
+import { resolveApplyTrack, resolveOfferTrack } from '../../lib/sponsorshipTrackRules';
 
 let pass = 0;
 let fail = 0;
@@ -426,6 +427,53 @@ check('폼 정리 결과는 서버를 통과한다',
 // 메시지 — 위반마다 다른 문장이 나와야 "왜 막혔는지"가 전달된다
 check('위반마다 다른 문장', new Set(Object.values(WONJEONG_MESSAGES)).size, 4);
 check('모르는 코드는 일반 문구', wonjeongMessage('ZZZ'), WONJEONG_MESSAGES.WONJEONG_OUT_OF_RANGE);
+
+// ── 협찬 2분기 진입 카드 (2026-09-02) ──
+// 스펙 §3.2. 문구가 바뀌면 여기가 먼저 깨져야 한다 — 크리에이터에게 나가는 말이다.
+check('신청하기 — 정산정보 미등록',
+    resolveApplyTrack({ hasPremiumId: false, openCampaignCount: 0 }),
+    { state: 'NEEDS_SETTLEMENT', message: '정산 정보 등록 필요' });
+check('신청하기 — 열린 캠페인',
+    resolveApplyTrack({ hasPremiumId: true, openCampaignCount: 12 }),
+    { state: 'OPEN', message: '열린 캠페인에 지원 · 신청 가능 12개' });
+check('신청하기 — 열린 캠페인 0개도 개수를 말한다',
+    resolveApplyTrack({ hasPremiumId: true, openCampaignCount: 0 }),
+    { state: 'OPEN', message: '열린 캠페인에 지원 · 신청 가능 0개' });
+
+const OFFER_BASE = { reviewStatus: '' as const, isPublic: false, offerCount: 0, newOfferCount: 0 };
+
+check('제안받기 1 — 미등록이면 NEW',
+    resolveOfferTrack(OFFER_BASE),
+    { state: 'UNREGISTERED', badge: 'NEW', message: '내가 정한 금액부터 제안이 시작됩니다', destination: 'profile', tone: 'brand' });
+check('제안받기 2 — 심사대기',
+    resolveOfferTrack({ ...OFFER_BASE, reviewStatus: '심사대기' }),
+    { state: 'UNDER_REVIEW', badge: '심사 중', message: '공개 신청 확인 중이에요', destination: 'profile', tone: 'brand' });
+check('제안받기 3 — 반려는 위험 톤',
+    resolveOfferTrack({ ...OFFER_BASE, reviewStatus: '반려' }),
+    { state: 'REJECTED', badge: '수정 필요', message: '반려 사유를 확인하고 다시 공개해주세요', destination: 'profile', tone: 'danger' });
+check('제안받기 4 — 승인났지만 비공개',
+    resolveOfferTrack({ ...OFFER_BASE, reviewStatus: '승인', isPublic: false }),
+    { state: 'HIDDEN', badge: '비공개', message: '공개로 바꾸면 제안을 받을 수 있어요', destination: 'profile', tone: 'brand' });
+check('제안받기 5 — 제안 있고 새 제안도 있음',
+    resolveOfferTrack({ reviewStatus: '승인', isPublic: true, offerCount: 3, newOfferCount: 1 }),
+    { state: 'HAS_OFFERS', badge: '새 제안 1', message: '받은 제안 3건 · 기한 안에 회신해주세요', destination: 'offers', tone: 'brand' });
+check('제안받기 5 — 제안은 있으나 다 읽었으면 뱃지 없음',
+    resolveOfferTrack({ reviewStatus: '승인', isPublic: true, offerCount: 3, newOfferCount: 0 }),
+    { state: 'HAS_OFFERS', badge: '', message: '받은 제안 3건 · 기한 안에 회신해주세요', destination: 'offers', tone: 'brand' });
+check('제안받기 6 — 공개했고 제안 대기',
+    resolveOfferTrack({ reviewStatus: '승인', isPublic: true, offerCount: 0, newOfferCount: 0 }),
+    { state: 'WAITING', badge: '', message: '캠지기가 볼 수 있어요 · 제안을 기다리는 중', destination: 'profile', tone: 'brand' });
+
+// 폴백 — 프로필 조회 실패 시 알 수 없는 값이 들어와도 1번(미등록)으로 떨어져야 한다.
+// 화면이 비거나 제안이 숨겨지는 것보다 등록 유도가 한 번 더 보이는 편이 안전하다(스펙 §3.2).
+check('제안받기 — 알 수 없는 심사상태는 미등록 폴백',
+    resolveOfferTrack({ ...OFFER_BASE, reviewStatus: '알수없음' as never }).state,
+    'UNREGISTERED');
+
+// NEW 뱃지는 미등록에서만. 등록 후에도 뜨면 뱃지가 소진되어 유도 기능을 잃는다.
+check('NEW 뱃지는 미등록에서만',
+    (['심사대기', '반려', '승인'] as const).map((s) => resolveOfferTrack({ ...OFFER_BASE, reviewStatus: s }).badge === 'NEW'),
+    [false, false, false]);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);
