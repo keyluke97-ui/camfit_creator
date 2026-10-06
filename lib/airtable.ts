@@ -262,8 +262,9 @@ export async function authenticateCreator(
 export async function getCampaigns(tier: TierLevel): Promise<Campaign[]> {
     try {
         // 입금내역 확인된 캠페인만 조회
+        // CHANGED: 미운영(Select) 캠페인 제외 — 환불 등으로 모집을 멈출 때 금액·인원 원본을 건드리지 않고 숨기기 위함
         const records = await campaignTable().select({
-            filterByFormula: '{입금내역 확인}'
+            filterByFormula: "AND({입금내역 확인}, {Select} != '미운영')"
         }).all();
         const tierFields = getTierFields(tier);
 
@@ -454,6 +455,11 @@ export async function applyCampaign({
         const couponCode = campaignRecord.fields['쿠폰코드'];
         if (!couponCode) {
             throw new Error('COUPON_NOT_FOUND');
+        }
+
+        // CHANGED: 미운영 캠페인 신청 차단 — 목록 숨김만으로는 캐시된 화면·직접 API 호출을 못 막는다 (이중 방어)
+        if (campaignRecord.fields['Select'] === '미운영') {
+            throw new Error('CAMPAIGN_FULL');
         }
 
         // CHANGED: 신청 전 잔여 인원 사전 체크 (1차 방어)
