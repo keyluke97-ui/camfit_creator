@@ -83,7 +83,8 @@ export async function POST(req: NextRequest) {
         // 에러 코드에 따른 메시지 처리
         if (message === 'ALREADY_APPLIED') {
             return NextResponse.json(
-                { error: '이미 신청한 캠페인입니다.' },
+                // CHANGED: 판정 단위가 캠페인 → 캠핑장으로 바뀌어 문구도 맞춤
+                { error: '이미 신청한 캠핑장이에요. 같은 캠핑장에는 한 번만 신청할 수 있어요.' },
                 { status: 409 }
             );
         }
