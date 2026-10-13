@@ -144,6 +144,10 @@ export interface AirtableCampaignRecord {
     '배포 완료된 쿠폰'?: string;
     // CHANGED: 운영 상태 (single select, 현재 옵션 '미운영' 하나) — 미운영이면 포털 목록·신청에서 제외
     'Select'?: string;
+    // CHANGED: 신청 시 입금 가드 — 목록 필터와 같은 조건 (checkbox)
+    '입금내역 확인'?: boolean;
+    // CHANGED: 같은 캠핑장 중복 신청 판정 키 (캠지기 입력 텍스트, 하이픈 포함 가능 → 숫자만 비교)
+    '사업자 번호'?: string;
   };
 }
 

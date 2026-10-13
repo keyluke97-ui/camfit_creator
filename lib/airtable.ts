@@ -376,21 +376,68 @@ export async function getChannelNames(): Promise<string[]> {
 }
 
 /**
- * 중복 신청 확인
+ * 같은 캠핑장 중복 신청 확인 — 1단계: 내 진행 중 신청의 캠페인 ID 목록
+ *
+ * CHANGED: 기존 가드는 `{링크필드} = 'recXXX'` 수식이라 항상 0건이었다(§4 핵심 규칙 5 — 링크 필드는
+ * 표시값으로 평가된다). 그래서 중복 신청 가드가 한 번도 동작하지 않았다(실측 2026-10-13).
+ * 판정 단위도 "같은 캠페인" → "같은 캠핑장"으로 넓힌다 — 한 캠핑장이 1차/2차로 캠페인을 다시 열어도
+ * 이미 신청한 크리에이터는 다시 받지 않는다(운영 결정 2026-10-13).
+ *
+ * - 후보는 신청 레코드의 `크리에이터 채널명`(텍스트, 포털이 신청 시 기록)으로 좁히고,
+ *   소유권은 링크 필드의 레코드 ID 배열로 다시 확인한다 — 채널명 부분일치·동명이인 방어.
+ * - 취소(`예약 취소/변경` = 취소)한 신청은 뺀다 — 방문하지 않았으니 다시 신청 가능.
+ * - 캠페인 조회와 병렬로 돌리려고 캠페인 레코드 없이 동작하게 분리했다(신청 버튼 지연 최소화).
  */
-export async function checkDuplicateApplication(
+export async function getActiveCampaignIdsOfCreator(
     userRecordId: string,
-    campaignId: string
-): Promise<boolean> {
+    channelName: string
+): Promise<string[]> {
     try {
-        // CHANGED: Formula Injection 방어
-        const formula = `AND({크리에이터 채널명(프리미엄 협찬 신청)} = '${escapeAirtableValue(userRecordId)}', {숙소 이름 (유료 오퍼)} = '${escapeAirtableValue(campaignId)}')`;
-        const records = await applicationTable()
-            .select({ filterByFormula: formula, maxRecords: 1 })
-            .firstPage();
-        return records.length > 0;
+        const applications = await applicationTable().select({
+            filterByFormula: `TRIM({크리에이터 채널명}) = '${escapeAirtableValue(channelName.trim())}'`,
+            fields: ['크리에이터 채널명(프리미엄 협찬 신청)', '숙소 이름 (유료 오퍼)', '예약 취소/변경'],
+        }).all();
+
+        return applications
+            .filter((application) => {
+                const creatorIds = (application.get('크리에이터 채널명(프리미엄 협찬 신청)') as string[] | undefined) || [];
+                return creatorIds.includes(userRecordId) && application.get('예약 취소/변경') !== '취소';
+            })
+            .flatMap((application) => (application.get('숙소 이름 (유료 오퍼)') as string[] | undefined) || []);
     } catch (error) {
-        console.error('Check duplicate application error:', error);
+        console.error('Get active campaign ids of creator error:', error);
+        throw error;
+    }
+}
+
+/**
+ * 같은 캠핑장 중복 신청 확인 — 2단계: 신청하려는 캠페인이 그 목록과 같은 캠핑장인지
+ *
+ * - 캠핑장 식별: 캠페인 `사업자 번호`(숫자만 비교). 이름은 "소프"/"소프 캠핑장"처럼 흔들려서 못 쓴다.
+ *   번호가 비어 있으면 같은 캠페인만 본다.
+ * - 진행 중 신청이 없는 크리에이터(대부분)는 추가 조회 없이 바로 끝난다.
+ */
+export async function isSameCampgroundAsAny(
+    campaignRecord: AirtableCampaignRecord,
+    activeCampaignIds: string[]
+): Promise<boolean> {
+    if (activeCampaignIds.length === 0) return false;
+    if (activeCampaignIds.includes(campaignRecord.id)) return true;
+
+    const businessNumber = (campaignRecord.fields['사업자 번호'] || '').replace(/[^0-9]/g, '');
+    if (!businessNumber) return false;
+
+    try {
+        const idFormula = `OR(${activeCampaignIds.map((id) => `RECORD_ID() = '${escapeAirtableValue(id)}'`).join(', ')})`;
+        const campaigns = await campaignTable().select({
+            filterByFormula: idFormula,
+            fields: ['사업자 번호'],
+        }).all();
+        return campaigns.some(
+            (record) => String(record.get('사업자 번호') || '').replace(/[^0-9]/g, '') === businessNumber
+        );
+    } catch (error) {
+        console.error('Check same campground error:', error);
         throw error;
     }
 }
@@ -444,14 +491,13 @@ export async function applyCampaign({
     let createdApplicationId: string | null = null;
 
     try {
-        // 1. 중복 신청 확인
-        const isDuplicate = await checkDuplicateApplication(userRecordId, campaignId);
-        if (isDuplicate) {
-            throw new Error('ALREADY_APPLIED');
-        }
-
-        // 2. 쿠폰 코드 조회 + 잔여 인원 사전 체크
-        const campaignRecord = await campaignTable().find(campaignId) as unknown as AirtableCampaignRecord;
+        // 1. 쿠폰 코드 조회 + 잔여 인원 사전 체크
+        // CHANGED: 캠페인 조회와 "내 진행 중 신청" 조회를 병렬로 — 중복 판정 때문에 신청 버튼이 느려지지 않게
+        const [campaignRecordRaw, myActiveCampaignIds] = await Promise.all([
+            campaignTable().find(campaignId),
+            getActiveCampaignIdsOfCreator(userRecordId, channelName),
+        ]);
+        const campaignRecord = campaignRecordRaw as unknown as AirtableCampaignRecord;
         const couponCode = campaignRecord.fields['쿠폰코드'];
         if (!couponCode) {
             throw new Error('COUPON_NOT_FOUND');
@@ -460,6 +506,19 @@ export async function applyCampaign({
         // CHANGED: 미운영 캠페인 신청 차단 — 목록 숨김만으로는 캐시된 화면·직접 API 호출을 못 막는다 (이중 방어)
         if (campaignRecord.fields['Select'] === '미운영') {
             throw new Error('CAMPAIGN_FULL');
+        }
+
+        // CHANGED: 입금 미확인 캠페인 신청 차단 — 목록 필터와 같은 조건을 신청 시점에도 본다.
+        // 이미 불러온 레코드의 값이라 추가 조회 없음.
+        if (!campaignRecord.fields['입금내역 확인']) {
+            throw new Error('CAMPAIGN_FULL');
+        }
+
+        // 2. 같은 캠핑장 중복 신청 확인
+        // CHANGED: 기존 가드는 항상 0건이라 무효였다 — 캠핑장 단위로 다시 구현
+        const isDuplicate = await isSameCampgroundAsAny(campaignRecord, myActiveCampaignIds);
+        if (isDuplicate) {
+            throw new Error('ALREADY_APPLIED');
         }
 
         // CHANGED: 신청 전 잔여 인원 사전 체크 (1차 방어)
