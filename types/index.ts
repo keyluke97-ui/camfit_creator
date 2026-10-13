@@ -142,6 +142,8 @@ export interface AirtableCampaignRecord {
     '팔로워 쿠폰 코드'?: string;
     // CHANGED: 분배된 코드 이력 누적 (Long text, race 검증 소스)
     '배포 완료된 쿠폰'?: string;
+    // CHANGED: 운영 상태 (single select, 현재 옵션 '미운영' 하나) — 미운영이면 포털 목록·신청에서 제외
+    'Select'?: string;
   };
 }
 
