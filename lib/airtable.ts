@@ -876,7 +876,9 @@ export async function updateApplicationCheckin(
  */
 export async function updateApplicationStatus(
     recordId: string,
-    status: '변경' | '취소'
+    status: '변경' | '취소',
+    // CHANGED: 크리에이터가 고른 취소 사유 — 정산 시 "누가 왜 빠졌는지" 추적 (2026-10). 취소 주체는 '본인' 고정.
+    cancelReason?: string
 ): Promise<boolean> {
     try {
         // CHANGED: 반납 대상 파악 — 취소일 때만. '변경'은 협찬이 유지되므로 쿠폰도 그대로 둔다.
@@ -898,6 +900,11 @@ export async function updateApplicationStatus(
             '입실 사이트': null,
         };
         if (shouldReturnCoupon) updates['팔로워 쿠폰 코드'] = null;
+        if (status === '취소') {
+            // CHANGED: 포털 경유 취소는 언제나 크리에이터 본인. 사유는 구 클라이언트 호환을 위해 선택값.
+            updates['취소 주체'] = '본인';
+            if (cancelReason) updates['취소 사유'] = cancelReason;
+        }
 
         await applicationTable().update([
             { id: recordId, fields: updates as unknown as Partial<FieldSet> }

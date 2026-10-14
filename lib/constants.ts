@@ -338,3 +338,15 @@ export const OFFER_WRITABLE_FIELDS: string[] = [
 
 /** 거절 사유 3택 — Airtable `거절 사유` singleSelect와 동일 */
 export const OFFER_REJECT_REASONS: string[] = ['일정', '금액', '기타'];
+
+/**
+ * 프리미엄 신청 취소 사유 — 크리에이터가 직접 고르는 항목 (2026-10 정산 개편 체크리스트 11번)
+ * value = Airtable '유료 오퍼 신청 건'.'취소 사유'(single select) 옵션명과 정확히 같아야 한다.
+ * '노쇼'·'운영 정정'은 운영자 전용이라 여기 없다. 서버(/api/applications/status)도 이 목록으로 검증한다.
+ */
+export const CREATOR_CANCEL_REASONS: { value: string; label: string }[] = [
+    { value: '크리에이터 일정', label: '개인 일정이 생겼어요' },
+    { value: '사고·부상', label: '다치거나 아파서 못 가요' },
+    { value: '캠지기 사정', label: '캠핑장 사정으로 못 가게 됐어요' },
+    { value: '기타', label: '기타' },
+];

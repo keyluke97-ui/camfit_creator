@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import type { Application } from '@/types';
 // CHANGED: 협찬 조건 복사 텍스트는 통합 빌더(couponText)로 일원화 — 기존 쿠폰 헬퍼 import 제거
 import { buildSponsorshipSummary } from '@/lib/couponText';
+// CHANGED: 취소 사유 선택지 — 서버 검증과 같은 목록 공유
+import { CREATOR_CANCEL_REASONS } from '@/lib/constants';
 // CHANGED: 통합 — 쿠폰 박스 + 완료 목록 추출 (파일 크기 컨벤션 준수)
 import { CheckinCouponBox, CompletedAppsList, DeadlineBadge, MyCouponBox, ReservationCouponDone } from './CheckinSections';
 // CHANGED: 캠냥이 마스코트 + 오브젝트 아이콘
@@ -42,6 +44,8 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
     const [selectedApp, setSelectedApp] = useState<Application | null>(null);
     const [actionType, setActionType] = useState<ActionType>(null);
     const [confirmInput, setConfirmInput] = useState('');
+    // CHANGED: 취소 사유 (취소일 때만 필수) — 정산 시 "누가 왜 빠졌는지" 기록용
+    const [cancelReason, setCancelReason] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
     const [couponInfo, setCouponInfo] = useState<{ code: string } | null>(null);
 
@@ -170,6 +174,7 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
         setSelectedApp(app);
         setActionType(action);
         setConfirmInput('');
+        setCancelReason(''); // CHANGED: 이전에 고른 사유가 다른 신청 건에 남지 않게
         setStep(2);
     };
 
@@ -177,6 +182,7 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
     const handleConfirmAction = async () => {
         if (confirmInput !== '이해') return;
         if (!selectedApp || !actionType) return;
+        if (actionType === 'cancel' && !cancelReason) return; // CHANGED: 취소는 사유 선택 필수
 
         // CHANGED: 동기적 잠금으로 더블클릭 차단
         if (isConfirmingRef.current) return;
@@ -190,7 +196,9 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     recordId: selectedApp.id,
-                    status: actionType === 'change' ? '변경' : '취소'
+                    status: actionType === 'change' ? '변경' : '취소',
+                    // CHANGED: 취소 사유 전송 (변경일 때는 보내지 않음)
+                    ...(actionType === 'cancel' ? { cancelReason } : {})
                 })
             });
 
@@ -500,6 +508,33 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
                                 )}
                             </div>
 
+                            {/* CHANGED: 취소 사유 선택 (필수) — 정산·운영에서 미방문 사유 추적 */}
+                            {actionType === 'cancel' && (
+                                <div>
+                                    <p className="block text-sm font-medium text-ink mb-2">취소하시는 이유를 알려주세요.</p>
+                                    <div className="grid grid-cols-1 gap-2" role="radiogroup" aria-label="취소 사유">
+                                        {CREATOR_CANCEL_REASONS.map((reason) => {
+                                            const isSelected = cancelReason === reason.value;
+                                            return (
+                                                <button
+                                                    key={reason.value}
+                                                    type="button"
+                                                    role="radio"
+                                                    aria-checked={isSelected}
+                                                    onClick={() => setCancelReason(reason.value)}
+                                                    className={`h-11 px-4 text-left text-sm rounded-lg border transition-colors ${isSelected
+                                                        ? 'bg-brand-bg border-brand text-brand-strong font-bold'
+                                                        : 'bg-card border-line text-ink hover:border-strong'
+                                                        }`}
+                                                >
+                                                    {reason.label}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+
                             <div>
                                 <label className="block text-sm font-medium text-ink mb-2">
                                     위 내용을 이해하셨다면 <span className="text-brand-strong">'이해'</span>를 입력해주세요.
@@ -565,7 +600,7 @@ export default function CheckinModal({ isOpen, onClose }: CheckinModalProps) {
                         </button>
                         <button
                             onClick={handleConfirmAction}
-                            disabled={confirmInput !== '이해' || isProcessing}
+                            disabled={confirmInput !== '이해' || isProcessing || (actionType === 'cancel' && !cancelReason)}
                             className={`flex-[2] h-12 font-bold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${actionType === 'cancel'
                                 ? 'bg-red-500 text-white hover:bg-red-600'
                                 : 'bg-brand text-black hover:bg-brand-hover'
