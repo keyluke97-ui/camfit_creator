@@ -118,20 +118,25 @@ const offerTable = () => (_offerTable ??= getTable('AIRTABLE_OFFER_TABLE_ID'));
  */
 export function getTierFields(tier: TierLevel) {
     const fieldMap = {
+        // CHANGED: refund — 부분 환불 자리 수(2026-10). 모집 인원은 원본 유지, 신청 가능 인원 수식이 이미 차감한다.
+        //          표시용 total(모집 진행 바)은 모집 인원 − 환불 인원으로 써야 환불분이 "채워진 자리"로 안 보인다.
         '3': { // Icon
             price: '⭐️ 협찬 제안 금액',
             total: '⭐️ 모집 희망 인원',
-            available: '⭐️ 신청 가능 인원'
+            available: '⭐️ 신청 가능 인원',
+            refund: '⭐️ 환불 인원'
         },
         '2': { // Partner
             price: '✔️ 협찬 제안 금액',
             total: '✔️ 모집 인원',
-            available: '✔️ 신청 가능 인원'
+            available: '✔️ 신청 가능 인원',
+            refund: '✔️ 환불 인원'
         },
         '1': { // Rising
             price: '🔥 협찬 제안 금액',
             total: '🔥 모집 인원',
-            available: '🔥 신청 가능 인원'
+            available: '🔥 신청 가능 인원',
+            refund: '🔥 환불 인원'
         }
     };
 
@@ -261,10 +266,11 @@ export async function authenticateCreator(
  */
 export async function getCampaigns(tier: TierLevel): Promise<Campaign[]> {
     try {
-        // 입금내역 확인된 캠페인만 조회
-        // CHANGED: 미운영(Select) 캠페인 제외 — 환불 등으로 모집을 멈출 때 금액·인원 원본을 건드리지 않고 숨기기 위함
+        // CHANGED: 노출 판정을 Airtable '포털 노출' 수식 하나로 일원화 (2026-10 입금 체크박스 개편).
+        //   포털 노출 = 입금 + 모집 시작일 도래(KST) + 미운영 아님 + (쿠폰이벤트면 발행 전체성공).
+        //   이후 노출 규칙이 바뀌면 코드가 아니라 Airtable 수식만 고친다. 신청 가드(applyCampaign)도 같은 필드를 본다.
         const records = await campaignTable().select({
-            filterByFormula: "AND({입금내역 확인}, {Select} != '미운영')"
+            filterByFormula: '{포털 노출} = 1'
         }).all();
         const tierFields = getTierFields(tier);
 
@@ -273,7 +279,10 @@ export async function getCampaigns(tier: TierLevel): Promise<Campaign[]> {
             const fields = rec.fields;
 
             const price = fields[tierFields.price as keyof typeof fields] as number || 0;
-            const totalCount = fields[tierFields.total as keyof typeof fields] as number || 0;
+            // CHANGED: 환불 인원을 뺀 실제 모집 규모 — 진행 바가 환불분을 "채워짐"으로 그리지 않게
+            const totalCount = Math.max(0,
+                (fields[tierFields.total as keyof typeof fields] as number || 0) -
+                (fields[tierFields.refund as keyof typeof fields] as number || 0));
             const availableCount = fields[tierFields.available as keyof typeof fields] as number || 0;
 
             // CHANGED: 제공 가능한 사이트 종류 매핑 추가
@@ -503,14 +512,10 @@ export async function applyCampaign({
             throw new Error('COUPON_NOT_FOUND');
         }
 
-        // CHANGED: 미운영 캠페인 신청 차단 — 목록 숨김만으로는 캐시된 화면·직접 API 호출을 못 막는다 (이중 방어)
-        if (campaignRecord.fields['Select'] === '미운영') {
-            throw new Error('CAMPAIGN_FULL');
-        }
-
-        // CHANGED: 입금 미확인 캠페인 신청 차단 — 목록 필터와 같은 조건을 신청 시점에도 본다.
-        // 이미 불러온 레코드의 값이라 추가 조회 없음.
-        if (!campaignRecord.fields['입금내역 확인']) {
+        // CHANGED: 미노출 캠페인 신청 차단 — 목록 필터와 같은 '포털 노출' 하나로 판정 (미운영·입금 미확인·
+        //          모집 시작 전·쿠폰 미발행 전부 포함). 목록 숨김만으로는 캐시된 화면·직접 API 호출을 못 막는다.
+        //          이미 불러온 레코드의 값이라 추가 조회 없음.
+        if (campaignRecord.fields['포털 노출'] !== 1) {
             throw new Error('CAMPAIGN_FULL');
         }
 
@@ -2363,12 +2368,16 @@ function campaignAirtableUrl(recordId: string): string {
  */
 export async function getAdminOverview(leadDays = 30, graceDays = 14): Promise<AdminOverview> {
     const [campaignRecords, applicationRecords, premiumRecords, offerRecords, creatorRecords, uploadRecords] = await Promise.all([
+        // CHANGED(2026-10): 의도적으로 '포털 노출'이 아니라 입금 기준 — 어드민은 노출이 꺼진 유료 캠페인
+        //   (미운영·모집 시작 전·쿠폰 발행 실패)까지 보고 환불·쿠폰·기한을 챙겨야 한다.
         campaignTable().select({
             filterByFormula: '{입금내역 확인}',
             fields: [
                 '숙소 이름을 적어주세요.', '콘텐츠 제작 기한 (날짜)',
                 '⭐️ 신청 가능 인원', '✔️ 신청 가능 인원', '🔥 신청 가능 인원',
                 '⭐️ 모집 희망 인원', '✔️ 모집 인원', '🔥 모집 인원',
+                // CHANGED: 부분 환불 자리 — 모집 규모 표시에서 뺀다
+                '⭐️ 환불 인원', '✔️ 환불 인원', '🔥 환불 인원',
                 '기본 제작 개월수', '추가 기간 연장', '쿠폰이벤트희망',
                 '크리에이터 방문 가능 종료일', '환불 요청일', '환불 요청 금액',
                 '팔로워 쿠폰 코드', '쿠폰코드',
@@ -2510,10 +2519,14 @@ export async function getAdminOverview(leadDays = 30, graceDays = 14): Promise<A
             daysLeft,
             status: daysLeft < 0 ? 'dead' : daysLeft <= leadDays ? 'dying' : 'healthy',
             totalAvailable: available,
+            // CHANGED: 환불 인원 차감 — 환불한 자리를 "채워진 자리"로 세지 않게
             totalRecruit:
                 ((c.get('⭐️ 모집 희망 인원') as number) || 0) +
                 ((c.get('✔️ 모집 인원') as number) || 0) +
-                ((c.get('🔥 모집 인원') as number) || 0),
+                ((c.get('🔥 모집 인원') as number) || 0) -
+                ((c.get('⭐️ 환불 인원') as number) || 0) -
+                ((c.get('✔️ 환불 인원') as number) || 0) -
+                ((c.get('🔥 환불 인원') as number) || 0),
             applications: campaignApplications,
             baseMonths: (c.get('기본 제작 개월수') as number) || 0,
             extensionMonths,

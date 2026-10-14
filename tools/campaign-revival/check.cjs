@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * "죽은/죽어가는 공고" 체크 (읽기 전용) — SOP-프리미엄협찬-죽은캠페인-소생 Step 1
- * 지금 노출 중(입금내역 확인)이고 잔여 자리가 있는데, 콘텐츠 제작 기한이 너무 가까워서
+ * 지금 노출 중(포털 노출 = 1)이고 잔여 자리가 있는데, 콘텐츠 제작 기한이 너무 가까워서
  * 크리에이터가 사실상 신청할 수 없는 공고를 뽑는다.
  * 가정: 인플루언서 일정은 ~1달 선점 → 기한이 오늘+30일 이내면 신규 신청 실질 불가.
  *
@@ -40,7 +40,8 @@ async function fetchAll() {
         const url = new URL(`https://api.airtable.com/v0/${BASE}/${T_CAMP}`);
         FIELDS.forEach((f) => url.searchParams.append('fields[]', f));
         url.searchParams.set('pageSize', '100');
-        url.searchParams.set('filterByFormula', '{입금내역 확인}');
+        // CHANGED: 노출 판정 단일 소스 — 포털 목록과 같은 '포털 노출' 수식 (2026-10)
+        url.searchParams.set('filterByFormula', '{포털 노출} = 1');
         if (offset) url.searchParams.set('offset', offset);
         const res = await fetch(url, { headers: { Authorization: `Bearer ${TOKEN}` } });
         if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
