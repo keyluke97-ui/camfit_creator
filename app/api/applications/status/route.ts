@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { jwtVerify } from 'jose';
 import { updateApplicationStatus, verifyApplicationOwnership } from '@/lib/airtable';
+import { CREATOR_CANCEL_REASONS } from '@/lib/constants';
 
 // CHANGED: 폴백 값 제거 — 환경변수 미설정 시 서버 시작 단계에서 에러 발생하도록
 if (!process.env.NEXTAUTH_SECRET) {
@@ -27,11 +28,17 @@ export async function PATCH(request: Request) {
 
         // 2. 요청 데이터 확인
         const body = await request.json();
-        const { recordId, status } = body;
+        const { recordId, status, cancelReason } = body;
 
         if (!recordId || !status || (status !== '변경' && status !== '취소')) {
             // CHANGED: '잘못된 요청입니다' → 사용자 행동 지시 톤
             return NextResponse.json({ error: '요청 내용을 확인해주세요.' }, { status: 400 });
+        }
+
+        // CHANGED: 취소 사유는 크리에이터용 목록 값만 허용 (Airtable single select에 엉뚱한 값이 생기지 않게).
+        //          사유 없는 취소는 구 화면(캐시된 번들) 호환을 위해 허용.
+        if (cancelReason !== undefined && !CREATOR_CANCEL_REASONS.some((reason) => reason.value === cancelReason)) {
+            return NextResponse.json({ error: '취소 사유를 다시 선택해주세요.' }, { status: 400 });
         }
 
         // CHANGED: 본인 신청 건만 변경·취소 가능 (IDOR 차단)
@@ -40,7 +47,7 @@ export async function PATCH(request: Request) {
         }
 
         // 3. Airtable 상태 업데이트 호출
-        await updateApplicationStatus(recordId, status);
+        await updateApplicationStatus(recordId, status, status === '취소' ? cancelReason : undefined);
 
         return NextResponse.json({ success: true });
     } catch (error) { // CHANGED: any 제거 — 로깅만 하므로 unknown으로 충분
