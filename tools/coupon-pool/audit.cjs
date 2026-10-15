@@ -54,7 +54,7 @@ const pad = (s, n) => String(s).padEnd(n);
                 '총 신청 가능 인원',
                 '팔로워 쿠폰 코드', '배포 완료된 쿠폰',
                 '유료 오퍼 신청 인플루언서',
-                '입금내역 확인',
+                '포털 노출', // CHANGED: live 판정을 포털 목록과 같은 수식으로 (2026-10)
             ],
         })
         .all();
@@ -70,7 +70,7 @@ const pad = (s, n) => String(s).padEnd(n);
         const pool = lines(f['팔로워 쿠폰 코드']);
         const dispensed = lines(f['배포 완료된 쿠폰']);
         const liveApps = liveAppCountByCampaign[r.id] || 0; // CHANGED: 취소건 제외 집계 사용
-        const live = f['입금내역 확인'] === true; // 포털 노출(=지금 신청 가능) 여부
+        const live = f['포털 노출'] === 1; // CHANGED: 포털 노출(=지금 신청 가능) 여부 — 입금 체크 단독 판정은 미운영·쿠폰 미발행을 놓친다
 
         const stranded = Math.max(0, new Set(dispensed).size - liveApps); // 붕 뜬(미반납) 코드 추정
         const poolShort = pool.length < open;                            // 자리는 있는데 코드 부족

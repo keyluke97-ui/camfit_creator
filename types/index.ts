@@ -148,6 +148,12 @@ export interface AirtableCampaignRecord {
     '입금내역 확인'?: boolean;
     // CHANGED: 같은 캠핑장 중복 신청 판정 키 (캠지기 입력 텍스트, 하이픈 포함 가능 → 숫자만 비교)
     '사업자 번호'?: string;
+    // CHANGED: 포털 노출 판정 단일 소스 (formula, 1/0) — 입금·모집 시작일·미운영·쿠폰 발행을 Airtable이 계산
+    '포털 노출'?: number;
+    // CHANGED: 부분 환불 자리 수 (number) — 신청 가능 인원 수식이 차감, 표시용 total에서도 뺀다
+    '⭐️ 환불 인원'?: number;
+    '✔️ 환불 인원'?: number;
+    '🔥 환불 인원'?: number;
   };
 }
 
