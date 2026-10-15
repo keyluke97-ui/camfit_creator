@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { jwtVerify } from 'jose';
-import { updateApplicationStatus } from '@/lib/airtable';
+import { updateApplicationStatus, verifyApplicationOwnership } from '@/lib/airtable';
 
 // CHANGED: 폴백 값 제거 — 환경변수 미설정 시 서버 시작 단계에서 에러 발생하도록
 if (!process.env.NEXTAUTH_SECRET) {
@@ -18,7 +18,12 @@ export async function PATCH(request: Request) {
         if (!token) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
-        await jwtVerify(token, JWT_SECRET);
+        // CHANGED: 소유권 확인용으로 payload 사용 — 구 JWT는 payload.id에 premiumId가 있음
+        const { payload } = await jwtVerify(token, JWT_SECRET);
+        const premiumId = (payload.premiumId || payload.id) as string | undefined;
+        if (!premiumId) {
+            return NextResponse.json({ error: '프리미엄 협찬 등록이 필요합니다.' }, { status: 403 });
+        }
 
         // 2. 요청 데이터 확인
         const body = await request.json();
@@ -29,11 +34,16 @@ export async function PATCH(request: Request) {
             return NextResponse.json({ error: '요청 내용을 확인해주세요.' }, { status: 400 });
         }
 
+        // CHANGED: 본인 신청 건만 변경·취소 가능 (IDOR 차단)
+        if (!(await verifyApplicationOwnership(recordId, premiumId))) {
+            return NextResponse.json({ error: '본인 신청 건만 변경할 수 있습니다.' }, { status: 403 });
+        }
+
         // 3. Airtable 상태 업데이트 호출
         await updateApplicationStatus(recordId, status);
 
         return NextResponse.json({ success: true });
-    } catch (error: any) {
+    } catch (error) { // CHANGED: any 제거 — 로깅만 하므로 unknown으로 충분
         console.error('Update status error:', error);
         return NextResponse.json(
             // CHANGED: 500 에러에 행동 안내 접미 통일

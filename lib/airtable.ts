@@ -798,6 +798,29 @@ export async function getUserApplications(channelName: string): Promise<Applicat
 }
 
 /**
+ * 프리미엄 신청 레코드 소유권 확인
+ *
+ * CHANGED: 체크인 수정·취소 API가 JWT 유효성만 보고 recordId 소유자는 확인하지 않았다(IDOR).
+ * 로그인한 크리에이터면 남의 신청 레코드 ID로 체크인을 바꾸거나 취소할 수 있었다.
+ * 파트너 쪽 verifyPartnerApplicationOwnership과 같은 방식 — 링크 필드의 레코드 ID 배열로 판정
+ * (§4 핵심 규칙 5: 채널명 표시값 매칭은 부분일치·동명 계정으로 IDOR이 된다).
+ * 조회 실패·레코드 없음은 소유 아님으로 본다(fail-closed).
+ */
+export async function verifyApplicationOwnership(
+    recordId: string,
+    premiumId: string
+): Promise<boolean> {
+    try {
+        const record = await applicationTable().find(recordId);
+        const creatorIds = (record.get('크리에이터 채널명(프리미엄 협찬 신청)') as string[] | undefined) || [];
+        return creatorIds.includes(premiumId);
+    } catch (error) {
+        console.error('Verify application ownership error:', error);
+        return false;
+    }
+}
+
+/**
  * 입실 정보 업데이트 (Check-in)
  */
 export async function updateApplicationCheckin(
