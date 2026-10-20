@@ -2083,6 +2083,15 @@ export async function submitContentUpload(payload: ContentSubmitPayload): Promis
             fields['프리미엄 협찬을 신청했나요?'] = [payload.premiumRegistrationRecordId];
         }
 
+        // CHANGED: 안심취소 리워드(트랙 A 파일럿) — ⚠️ 아래 필드는 Airtable에 아직 없음. 머지 전 필드 생성 필수 (없으면 전달 자체가 실패)
+        if (payload.safeCancelReward) {
+            fields['안심취소 리워드 참여'] = true;
+            fields['안심취소 체크리스트 확인'] = true; // API에서 전 항목 체크를 검증한 뒤에만 도달
+            fields['안심취소 오픈소스 영상 사용'] = payload.safeCancelReward.usedOpenSourceClip;
+            fields['안심취소 2차 활용 동의'] = payload.safeCancelReward.repostConsent;
+            fields['안심취소 리워드 상태'] = '제출됨';
+        }
+
         const record = await contentUploadTable().create(fields as unknown as Partial<FieldSet>);
         return { recordId: record.id };
     } catch (error) {

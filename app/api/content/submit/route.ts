@@ -3,7 +3,9 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { jwtVerify } from 'jose';
 import { submitContentUpload } from '@/lib/airtable';
-import type { ContentSubmitPayload, SponsorshipType } from '@/types';
+import type { ContentSubmitPayload, SponsorshipType, SafeCancelRewardSubmission } from '@/types';
+// CHANGED: 안심취소 리워드(트랙 A 파일럿) 설정값 — 클라이언트와 같은 검증 기준
+import { SAFE_CANCEL_CHECKLIST, isInstagramReelUrl } from '@/lib/safeCancelReward';
 
 if (!process.env.NEXTAUTH_SECRET) {
     throw new Error('NEXTAUTH_SECRET 환경변수가 설정되지 않았습니다.');
@@ -11,6 +13,33 @@ if (!process.env.NEXTAUTH_SECRET) {
 const JWT_SECRET = new TextEncoder().encode(process.env.NEXTAUTH_SECRET);
 
 const VALID_SPONSORSHIP_TYPES: SponsorshipType[] = ['캠핑장 예약', '프리미엄 협찬'];
+
+// CHANGED: 안심취소 리워드 페이로드 검증 — 실패 시 에러 메시지, 통과 시 정규화된 값
+function parseSafeCancelReward(raw: unknown, contentLink: string): { value?: SafeCancelRewardSubmission; error?: string } {
+    if (raw === undefined || raw === null) return {};
+    if (typeof raw !== 'object') return { error: '안심취소 리워드 정보가 올바르지 않습니다.' };
+    const input = raw as { checklist?: Record<string, unknown>; usedOpenSourceClip?: unknown; repostConsent?: unknown };
+
+    if (!isInstagramReelUrl(contentLink)) {
+        return { error: '안심취소 리워드는 인스타그램 릴스 링크만 참여할 수 있습니다.' };
+    }
+    const checklist = Object.fromEntries(
+        SAFE_CANCEL_CHECKLIST.map((item) => [item.key, input.checklist?.[item.key] === true])
+    );
+    if (Object.values(checklist).some((checked) => !checked)) {
+        return { error: '안심취소 리워드 참여 조건을 모두 확인해주세요.' };
+    }
+    if (typeof input.usedOpenSourceClip !== 'boolean') {
+        return { error: '오픈소스 영상 사용 여부를 선택해주세요.' };
+    }
+    return {
+        value: {
+            checklist,
+            usedOpenSourceClip: input.usedOpenSourceClip,
+            repostConsent: input.repostConsent === true,
+        },
+    };
+}
 
 export async function POST(request: Request) {
     try {
@@ -66,6 +95,13 @@ export async function POST(request: Request) {
             );
         }
 
+        // CHANGED: 안심취소 리워드 참여 검증
+        // TODO(안심취소): 1인 월 횟수 · 월 전체 상한(선착순) 체크 — 기준 월(업로드일/제출일)과 차단·경고 방식 확정 후 추가
+        const safeCancel = parseSafeCancelReward(body.safeCancelReward, contentLink);
+        if (safeCancel.error) {
+            return NextResponse.json({ error: safeCancel.error }, { status: 400 });
+        }
+
         const submitPayload: ContentSubmitPayload = {
             creatorListRecordId: creatorId,
             sponsorshipType,
@@ -81,6 +117,7 @@ export async function POST(request: Request) {
             // CHANGED: 채널명 + 제출 경로 필드 추가
             channelName,
             submissionSource: '크리에이터 포털 통해서 진행',
+            safeCancelReward: safeCancel.value,
         };
 
         const result = await submitContentUpload(submitPayload);

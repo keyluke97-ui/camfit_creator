@@ -323,6 +323,15 @@ export interface ContentSubmitPayload {
     // CHANGED: 채널명 + 제출 경로 필드 추가
     channelName?: string;                 // 인플루언서 컨텐츠 업로드 프라이머리 필드(채널명) 채우기
     submissionSource?: string;            // 제출 경로 표시 (포털: "크리에이터 포털 통해서 진행")
+    // CHANGED: 안심취소 리워드(트랙 A 파일럿) 참여 — 토글 ON일 때만 존재
+    safeCancelReward?: SafeCancelRewardSubmission;
+}
+
+// CHANGED: 안심취소 리워드 1차 전달 정보 — 인사이트 캡처는 7일 뒤 2단계 제출
+export interface SafeCancelRewardSubmission {
+    checklist: Record<string, boolean>;   // lib/safeCancelReward.ts SAFE_CANCEL_CHECKLIST의 key → 체크 여부
+    usedOpenSourceClip: boolean;          // 캠핏 오픈소스 영상 소스 사용 여부
+    repostConsent: boolean;               // 캠핏 공식 계정 리포스트(2차 활용) 동의 — 선택
 }
 
 // CHANGED: 콘텐츠 업로드 조회 도메인 타입

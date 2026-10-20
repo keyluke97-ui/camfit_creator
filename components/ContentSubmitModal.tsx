@@ -3,9 +3,13 @@
 
 import { useState, useEffect, useRef } from 'react';
 import type { SponsorshipType, ChannelType } from '@/types';
+// CHANGED: 안심취소 리워드(트랙 A 파일럿) 설정값
+import { SAFE_CANCEL_CHECKLIST, isInstagramReelUrl } from '@/lib/safeCancelReward';
+import type { SafeCancelChecklistKey } from '@/lib/safeCancelReward';
 // CHANGED: 캠냥이 마스코트 + 오브젝트 아이콘
 import Mascot from './Mascot';
 import BrandIcon from './BrandIcon';
+import SafeCancelRewardSection from './SafeCancelRewardSection';
 
 interface ContentSubmitModalProps {
     isOpen: boolean;
@@ -25,6 +29,11 @@ interface SelectOption {
 }
 
 type Step = 'form' | 'success';
+
+// CHANGED: 안심취소 리워드 체크리스트 초기값 (전부 미체크)
+const EMPTY_SAFE_CANCEL_CHECKLIST = Object.fromEntries(
+    SAFE_CANCEL_CHECKLIST.map((item) => [item.key, false])
+) as Record<SafeCancelChecklistKey, boolean>;
 
 export default function ContentSubmitModal({
     isOpen,
@@ -53,6 +62,12 @@ export default function ContentSubmitModal({
     const [selectedCampaign, setSelectedCampaign] = useState<SelectOption | null>(null);
     const [isCampaignDropdownOpen, setIsCampaignDropdownOpen] = useState(false);
 
+    // CHANGED: 안심취소 리워드 참여 필드
+    const [safeCancelEnabled, setSafeCancelEnabled] = useState(false);
+    const [safeCancelChecklist, setSafeCancelChecklist] = useState(EMPTY_SAFE_CANCEL_CHECKLIST);
+    const [usedOpenSourceClip, setUsedOpenSourceClip] = useState<boolean | null>(null);
+    const [repostConsent, setRepostConsent] = useState(false);
+
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const isSubmittingRef = useRef(false);
@@ -76,6 +91,10 @@ export default function ContentSubmitModal({
             setCampaignSearch('');
             setCampaignOptions([]);
             setSelectedCampaign(null);
+            setSafeCancelEnabled(false); // CHANGED: 안심취소 리워드 리셋
+            setSafeCancelChecklist(EMPTY_SAFE_CANCEL_CHECKLIST);
+            setUsedOpenSourceClip(null);
+            setRepostConsent(false);
             setError('');
             isSubmittingRef.current = false;
         }
@@ -165,6 +184,21 @@ export default function ContentSubmitModal({
             setError('프리미엄 협찬 캠핑장을 선택해주세요.');
             return;
         }
+        // CHANGED: 안심취소 리워드 참여 시 릴스 링크 · 체크리스트 · 오픈소스 여부 검증
+        if (safeCancelEnabled) {
+            if (!isInstagramReelUrl(contentLink)) {
+                setError('안심취소 리워드는 인스타그램 릴스 링크만 참여할 수 있어요.');
+                return;
+            }
+            if (SAFE_CANCEL_CHECKLIST.some((item) => !safeCancelChecklist[item.key])) {
+                setError('안심취소 리워드 「올리기 전 체크」를 모두 확인해주세요.');
+                return;
+            }
+            if (usedOpenSourceClip === null) {
+                setError('캠핏 오픈소스 영상 사용 여부를 선택해주세요.');
+                return;
+            }
+        }
 
         isSubmittingRef.current = true;
         setIsLoading(true);
@@ -183,6 +217,10 @@ export default function ContentSubmitModal({
                     camfitLoungeUrl: camfitLoungeUrl || undefined,
                     officialCollabRequest: officialCollabRequest && collabConfirmed, // CHANGED: 서브 확인까지 체크해야 true
                     premiumCampaignRecordId: selectedCampaign?.id,
+                    // CHANGED: 안심취소 리워드 — 토글 ON일 때만 전송
+                    safeCancelReward: safeCancelEnabled
+                        ? { checklist: safeCancelChecklist, usedOpenSourceClip, repostConsent }
+                        : undefined,
                 })
             });
 
@@ -540,6 +578,22 @@ export default function ContentSubmitModal({
                                     </div>
                                 )}
                             </div>
+                        )}
+
+                        {/* CHANGED: 안심취소 리워드 참여 — 협찬 종류 선택 후 표시 */}
+                        {sponsorshipType && (
+                            <SafeCancelRewardSection
+                                enabled={safeCancelEnabled}
+                                onToggle={setSafeCancelEnabled}
+                                checklist={safeCancelChecklist}
+                                onChecklistChange={(key, checked) =>
+                                    setSafeCancelChecklist((prev) => ({ ...prev, [key]: checked }))
+                                }
+                                usedOpenSourceClip={usedOpenSourceClip}
+                                onOpenSourceChange={setUsedOpenSourceClip}
+                                repostConsent={repostConsent}
+                                onRepostConsentChange={setRepostConsent}
+                            />
                         )}
 
                         {/* 에러 메시지 */}
