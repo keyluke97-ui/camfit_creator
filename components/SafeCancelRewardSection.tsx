@@ -7,7 +7,8 @@ import {
     SAFE_CANCEL_CHECKLIST,
     SAFE_CANCEL_CAPTION_TEXT,
     SAFE_CANCEL_GUIDE_URL,
-    SAFE_CANCEL_MONTHLY_REWARDED_PER_CREATOR,
+    SAFE_CANCEL_REPOST_CONSENT_HINT,
+    SAFE_CANCEL_SELECTION_NOTICES,
     SAFE_CANCEL_PARTICIPATION_TYPES,
     SAFE_CANCEL_PAYOUT_DAY_OF_NEXT_MONTH,
     formatSafeCancelRewardSummary,
@@ -96,8 +97,9 @@ export default function SafeCancelRewardSection({
                     <div className="space-y-1 text-xs text-ink2 leading-relaxed">
                         <p className="font-bold text-ink">{formatSafeCancelRewardSummary()}</p>
                         <p>· 위 콘텐츠 링크에 <strong className="text-ink">인스타그램 릴스 링크</strong>를 넣어주세요</p>
-                        <p>· 여러 개 전달할 수 있지만, 리워드는 그달 전달한 콘텐츠 중 <strong className="text-ink">반응이 가장 높은 {SAFE_CANCEL_MONTHLY_REWARDED_PER_CREATOR}개</strong>로 확인해요</p>
-                        <p>· 좋아요 · 댓글 · 공유 수로 반응을 확인해요. <strong className="text-ink">숨김 처리하면 정성상 대상에서 제외</strong>돼요</p>
+                        {SAFE_CANCEL_SELECTION_NOTICES.map((notice) => (
+                            <p key={notice}>· {notice}</p>
+                        ))}
                         <p>· 검수 후 콘텐츠 전달일 기준 <strong className="text-ink">익월 {SAFE_CANCEL_PAYOUT_DAY_OF_NEXT_MONTH}일</strong> 캠핏 포인트로 지급</p>
                         {SAFE_CANCEL_GUIDE_URL && (
                             <a
@@ -106,7 +108,7 @@ export default function SafeCancelRewardSection({
                                 rel="noopener noreferrer"
                                 className="inline-block pt-1 font-medium text-brand-strong underline underline-offset-2"
                             >
-                                크리에이터 가이드 보기
+                                상세 가이드 바로가기
                             </a>
                         )}
                     </div>
@@ -114,7 +116,7 @@ export default function SafeCancelRewardSection({
                     {/* 캡션 고정 문구 복사 */}
                     <div className="bg-card border border-line rounded-lg p-3">
                         <p className="text-[11px] text-ink3 mb-1.5">캡션 고정 문구</p>
-                        <p className="text-xs text-ink leading-relaxed mb-2">{SAFE_CANCEL_CAPTION_TEXT}</p>
+                        <p className="text-xs text-ink leading-relaxed mb-2 whitespace-pre-line">{SAFE_CANCEL_CAPTION_TEXT}</p>
                         <button
                             type="button"
                             onClick={handleCopyCaption}
@@ -124,28 +126,33 @@ export default function SafeCancelRewardSection({
                         </button>
                     </div>
 
-                    {/* 참여 조건 체크리스트 — 전부 체크해야 전달 가능 */}
-                    <div>
-                        <p className="text-xs font-bold text-ink mb-2">
-                            올리기 전 체크 <span className="text-red-500">*</span>
-                        </p>
-                        <div className="space-y-2.5">
-                            {SAFE_CANCEL_CHECKLIST.map((item) => (
-                                <button
-                                    key={item.key}
-                                    type="button"
-                                    onClick={() => onChecklistChange(item.key, !checklist[item.key])}
-                                    className="w-full flex items-start gap-2.5 text-left"
-                                >
-                                    <CheckBox checked={checklist[item.key]} />
-                                    <span className="text-xs leading-relaxed">
-                                        <span className={checklist[item.key] ? 'text-brand-strong font-medium' : 'text-ink'}>{item.label}</span>
-                                        {item.hint && <span className="block text-[11px] text-ink3">{item.hint}</span>}
-                                    </span>
-                                </button>
-                            ))}
+                    {/* 필수 체크 — 올리기 전 체크 + 참여 동의, 전부 체크해야 전달 가능 */}
+                    {([
+                        { kind: 'check', title: '올리기 전 체크' },
+                        { kind: 'consent', title: '참여 동의' },
+                    ] as const).map((group) => (
+                        <div key={group.kind}>
+                            <p className="text-xs font-bold text-ink mb-2">
+                                {group.title} <span className="text-red-500">*</span>
+                            </p>
+                            <div className="space-y-2.5">
+                                {SAFE_CANCEL_CHECKLIST.filter((item) => item.kind === group.kind).map((item) => (
+                                    <button
+                                        key={item.key}
+                                        type="button"
+                                        onClick={() => onChecklistChange(item.key, !checklist[item.key])}
+                                        className="w-full flex items-start gap-2.5 text-left"
+                                    >
+                                        <CheckBox checked={checklist[item.key]} />
+                                        <span className="text-xs leading-relaxed">
+                                            <span className={checklist[item.key] ? 'text-brand-strong font-medium' : 'text-ink'}>{item.label}</span>
+                                            {item.hint && <span className="block text-[11px] text-ink3">{item.hint}</span>}
+                                        </span>
+                                    </button>
+                                ))}
+                            </div>
                         </div>
-                    </div>
+                    ))}
 
                     {/* 참여 유형 — 자기 신고값, 확정 등급은 검수에서 운영이 정함 */}
                     <div>
@@ -181,8 +188,8 @@ export default function SafeCancelRewardSection({
                     >
                         <CheckBox checked={repostConsent} />
                         <span className="text-xs leading-relaxed text-ink">
-                            캠핏 공식 계정 리포스트(2차 활용)에 동의해요
-                            <span className="block text-[11px] text-ink3">선택 항목이에요. 동의하지 않아도 리워드에는 영향 없어요</span>
+                            캠핏 공식 채널 · 광고 소재 활용(2차 활용)에 동의해요 (선택)
+                            <span className="block text-[11px] text-ink3">{SAFE_CANCEL_REPOST_CONSENT_HINT} 동의하지 않아도 리워드에는 영향 없어요.</span>
                         </span>
                     </button>
                 </div>

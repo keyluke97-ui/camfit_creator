@@ -191,7 +191,7 @@ export default function ContentSubmitModal({
                 return;
             }
             if (SAFE_CANCEL_CHECKLIST.some((item) => !safeCancelChecklist[item.key])) {
-                setError('안심취소 리워드 「올리기 전 체크」를 모두 확인해주세요.');
+                setError('안심취소 리워드 「올리기 전 체크」와 「참여 동의」를 모두 확인해주세요.');
                 return;
             }
             if (participationType === null) {

@@ -18,9 +18,20 @@ export const SAFE_CANCEL_MONTHLY_REWARDED_PER_CREATOR = 1;
 // 지급일 — 콘텐츠 저장일 기준 익월 N일
 export const SAFE_CANCEL_PAYOUT_DAY_OF_NEXT_MONTH = 10;
 
-// 캡션 고정 문구 (크리에이터 가이드 「올리기 전 체크」와 동일)
+// 캡션 고정 문구 (크리에이터 가이드 「올리기 전 체크」와 동일) — 표시광고 지침상 광고 표시는 맨 앞
 export const SAFE_CANCEL_CAPTION_TEXT =
-    '안심취소 캠핑장 예약 시 취소수수료 최대 100% 캠핏 포인트 지급 (적용 조건 · 지급 시점은 캠핏 앱 확인) #안심취소 #광고';
+    '[광고] 캠핑장 협찬 · 캠핏 포인트 제공\n안심취소 캠핑장 예약 시 취소수수료 최대 100% 캠핏 포인트 지급 (적용 조건 · 지급 시점은 캠핏 앱 확인) #안심취소';
+
+// 리워드 선정 · 부정참여 안내 — 선정은 반응 + 퀄리티 정성 판단이라 수치 기준은 공개하지 않음
+export const SAFE_CANCEL_SELECTION_NOTICES = [
+    '여러 개 전달할 수 있어요. 리워드는 그달 전달한 콘텐츠 중 공감되고 재밌는 1개를 골라 지급해요.',
+    '매달 가장 공감되고 재밌는 콘텐츠는 정성상으로 선정해요. 숨김 처리한 콘텐츠는 정성상 대상에서 제외돼요.',
+    '부정한 방법으로 참여한 콘텐츠는 리워드 대상에서 제외되고, 지급된 포인트는 회수될 수 있어요.',
+] as const;
+
+// 2차 활용 동의(선택) 안내
+export const SAFE_CANCEL_REPOST_CONSENT_HINT =
+    '캠핏 공식 채널 · 광고 소재로 활용할 수 있어요. 영상에 나오는 다른 사람의 동의는 크리에이터가 확인해요. 인스타그램 기본 음원은 광고에 쓸 수 없어 음원을 바꿔 활용할 수 있어요.';
 
 // 크리에이터 가이드 링크 — 공개 전이면 null (모달에서 숨김)
 export const SAFE_CANCEL_GUIDE_URL: string | null = null;
@@ -38,11 +49,13 @@ export function isSafeCancelParticipationType(value: unknown): value is SafeCanc
     return SAFE_CANCEL_PARTICIPATION_TYPES.some((type) => type.value === value);
 }
 
-// 참여 조건 체크리스트 — 가이드 항목 중 「리워드 참여 체크」는 토글이 대신하므로 3개
+// 필수 체크 — kind 'check' = 올리기 전 체크(가이드와 동일 3개), 'consent' = 참여 동의. 전부 체크해야 전달 가능
+// 가이드 항목 중 「리워드 참여 체크」는 토글이 대신함
 export const SAFE_CANCEL_CHECKLIST = [
-    { key: 'isSafeCancelCampsite', label: '안심취소 캠핑장 협찬이다', hint: '모르면 담당자 확인' },
-    { key: 'usedRequiredPhrases', label: '"최대", "안심취소 캠핑장이면"을 넣었다', hint: '"무조건 · 다 돌려받아요 · 현금 환불"은 금지' },
-    { key: 'addedCaptionAndTags', label: '캡션 문구와 #안심취소 #광고를 붙였다', hint: '' },
+    { key: 'isSafeCancelCampsite', kind: 'check', label: '안심취소 캠핑장 협찬이다', hint: '모르면 담당자 확인' },
+    { key: 'usedRequiredPhrases', kind: 'check', label: '"최대", "안심취소 캠핑장이면"을 넣었다', hint: '"무조건 · 다 돌려받아요 · 현금 환불"은 금지' },
+    { key: 'addedCaptionAndTags', kind: 'check', label: '캡션 맨 앞에 [광고] 문구와 #안심취소를 붙였다', hint: '' },
+    { key: 'agreedRevisionRequest', kind: 'consent', label: '안심취소 표현이 사실과 다르거나 안심취소 정책이 바뀌면 캠핏이 수정 · 삭제를 요청할 수 있고, 요청에 협조해요.', hint: '' },
 ] as const;
 
 export type SafeCancelChecklistKey = (typeof SAFE_CANCEL_CHECKLIST)[number]['key'];
