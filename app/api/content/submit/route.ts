@@ -2,10 +2,16 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { jwtVerify } from 'jose';
-import { submitContentUpload } from '@/lib/airtable';
+import { submitContentUpload, countSafeCancelRewardsThisMonth } from '@/lib/airtable';
 import type { ContentSubmitPayload, SponsorshipType, SafeCancelRewardSubmission } from '@/types';
 // CHANGED: 안심취소 리워드(트랙 A 파일럿) 설정값 — 클라이언트와 같은 검증 기준
-import { SAFE_CANCEL_CHECKLIST, isInstagramReelUrl, isSafeCancelParticipationType } from '@/lib/safeCancelReward';
+import {
+    SAFE_CANCEL_CHECKLIST,
+    SAFE_CANCEL_MONTHLY_LIMIT_PER_CREATOR,
+    SAFE_CANCEL_MONTHLY_LIMIT_MESSAGE,
+    isInstagramReelUrl,
+    isSafeCancelParticipationType,
+} from '@/lib/safeCancelReward';
 
 if (!process.env.NEXTAUTH_SECRET) {
     throw new Error('NEXTAUTH_SECRET 환경변수가 설정되지 않았습니다.');
@@ -95,11 +101,16 @@ export async function POST(request: Request) {
             );
         }
 
-        // CHANGED: 안심취소 리워드 참여 검증
-        // TODO(안심취소): 1인 월 횟수 · 월 전체 상한(선착순) 체크 — 기준 월(업로드일/제출일)과 차단·경고 방식 확정 후 추가
+        // CHANGED: 안심취소 리워드 참여 검증 + 1인 월 1회(전달일 기준) 차단. 토글 OFF 일반 전달은 조회하지 않음
         const safeCancel = parseSafeCancelReward(body.safeCancelReward, contentLink);
         if (safeCancel.error) {
             return NextResponse.json({ error: safeCancel.error }, { status: 400 });
+        }
+        if (safeCancel.value) {
+            const usedThisMonth = await countSafeCancelRewardsThisMonth(creatorId);
+            if (usedThisMonth >= SAFE_CANCEL_MONTHLY_LIMIT_PER_CREATOR) {
+                return NextResponse.json({ error: SAFE_CANCEL_MONTHLY_LIMIT_MESSAGE }, { status: 409 });
+            }
         }
 
         const submitPayload: ContentSubmitPayload = {

@@ -11,11 +11,11 @@ export const SAFE_CANCEL_GRADE_POINTS: { basic: number | null; source: number | 
     merit: null,
 };
 
-// 크리에이터 1인당 월 참여 횟수
+// 크리에이터 1인당 월 참여 횟수 — 콘텐츠 전달일(KST) 기준 월. 월 전체 인원 상한은 없음
 export const SAFE_CANCEL_MONTHLY_LIMIT_PER_CREATOR = 1;
 
-// 월 전체 참여 상한 (가안 20명, 선착순)
-export const SAFE_CANCEL_MONTHLY_TOTAL_CAP = 20;
+// 월 1회 초과 시 안내
+export const SAFE_CANCEL_MONTHLY_LIMIT_MESSAGE = '이번 달 안심취소 리워드는 이미 참여했어요. 다음 달에 다시 참여해주세요.';
 
 // 지급일 — 콘텐츠 저장일 기준 익월 N일
 export const SAFE_CANCEL_PAYOUT_DAY_OF_NEXT_MONTH = 10;
