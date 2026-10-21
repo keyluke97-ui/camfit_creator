@@ -327,10 +327,10 @@ export interface ContentSubmitPayload {
     safeCancelReward?: SafeCancelRewardSubmission;
 }
 
-// CHANGED: 안심취소 리워드 1차 전달 정보 — 인사이트 캡처는 7일 뒤 2단계 제출
+// CHANGED: 안심취소 리워드 전달 정보 (등급 선택형 — 인사이트 제출 없음)
 export interface SafeCancelRewardSubmission {
     checklist: Record<string, boolean>;   // lib/safeCancelReward.ts SAFE_CANCEL_CHECKLIST의 key → 체크 여부
-    usedOpenSourceClip: boolean;          // 캠핏 오픈소스 영상 소스 사용 여부
+    participationType: string;            // 참여 유형 자기 신고값 (lib/safeCancelReward.ts SAFE_CANCEL_PARTICIPATION_TYPES)
     repostConsent: boolean;               // 캠핏 공식 계정 리포스트(2차 활용) 동의 — 선택
 }
 

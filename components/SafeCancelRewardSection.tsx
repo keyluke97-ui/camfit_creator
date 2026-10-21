@@ -7,19 +7,20 @@ import {
     SAFE_CANCEL_CHECKLIST,
     SAFE_CANCEL_CAPTION_TEXT,
     SAFE_CANCEL_GUIDE_URL,
-    SAFE_CANCEL_INSIGHT_DAY,
-    SAFE_CANCEL_SUBMIT_DEADLINE_DAYS,
+    SAFE_CANCEL_MONTHLY_LIMIT_PER_CREATOR,
+    SAFE_CANCEL_PARTICIPATION_TYPES,
+    SAFE_CANCEL_PAYOUT_DAY_OF_NEXT_MONTH,
     formatSafeCancelRewardSummary,
 } from '@/lib/safeCancelReward';
-import type { SafeCancelChecklistKey } from '@/lib/safeCancelReward';
+import type { SafeCancelChecklistKey, SafeCancelParticipationType } from '@/lib/safeCancelReward';
 
 interface SafeCancelRewardSectionProps {
     enabled: boolean;
     onToggle: (next: boolean) => void;
     checklist: Record<SafeCancelChecklistKey, boolean>;
     onChecklistChange: (key: SafeCancelChecklistKey, checked: boolean) => void;
-    usedOpenSourceClip: boolean | null;
-    onOpenSourceChange: (value: boolean) => void;
+    participationType: SafeCancelParticipationType | null;
+    onParticipationTypeChange: (value: SafeCancelParticipationType) => void;
     repostConsent: boolean;
     onRepostConsentChange: (value: boolean) => void;
 }
@@ -43,8 +44,8 @@ export default function SafeCancelRewardSection({
     onToggle,
     checklist,
     onChecklistChange,
-    usedOpenSourceClip,
-    onOpenSourceChange,
+    participationType,
+    onParticipationTypeChange,
     repostConsent,
     onRepostConsentChange,
 }: SafeCancelRewardSectionProps) {
@@ -95,8 +96,8 @@ export default function SafeCancelRewardSection({
                     <div className="space-y-1 text-xs text-ink2 leading-relaxed">
                         <p className="font-bold text-ink">{formatSafeCancelRewardSummary()}</p>
                         <p>· 위 콘텐츠 링크에 <strong className="text-ink">인스타그램 릴스 링크</strong>를 넣어주세요</p>
-                        <p>· 업로드 {SAFE_CANCEL_INSIGHT_DAY}일 뒤 「내 콘텐츠」에서 인사이트 캡처를 추가로 내주세요 (업로드 후 {SAFE_CANCEL_SUBMIT_DEADLINE_DAYS}일 안)</p>
-                        <p>· 검수 완료 후 월말 일괄 지급</p>
+                        <p>· 1인 월 {SAFE_CANCEL_MONTHLY_LIMIT_PER_CREATOR}회 참여할 수 있어요</p>
+                        <p>· 검수 후 콘텐츠 전달일 기준 <strong className="text-ink">익월 {SAFE_CANCEL_PAYOUT_DAY_OF_NEXT_MONTH}일</strong> 캠핏 포인트로 지급</p>
                         {SAFE_CANCEL_GUIDE_URL && (
                             <a
                                 href={SAFE_CANCEL_GUIDE_URL}
@@ -145,22 +146,27 @@ export default function SafeCancelRewardSection({
                         </div>
                     </div>
 
-                    {/* 오픈소스 영상 소스 사용 여부 */}
+                    {/* 참여 유형 — 자기 신고값, 확정 등급은 검수에서 운영이 정함 */}
                     <div>
                         <p className="text-xs font-bold text-ink mb-2">
-                            캠핏 오픈소스 영상을 사용했나요? <span className="text-red-500">*</span>
+                            참여 유형 <span className="text-red-500">*</span>
                         </p>
-                        <div className="flex gap-2">
-                            {([true, false] as const).map((value) => (
+                        <div className="space-y-2">
+                            {SAFE_CANCEL_PARTICIPATION_TYPES.map((type) => (
                                 <button
-                                    key={String(value)}
+                                    key={type.value}
                                     type="button"
-                                    onClick={() => onOpenSourceChange(value)}
-                                    className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-colors ${
-                                        usedOpenSourceClip === value ? 'bg-brand text-black' : 'bg-subtle text-ink3 hover:text-ink'
+                                    onClick={() => onParticipationTypeChange(type.value)}
+                                    className={`w-full text-left px-3 py-2.5 rounded-lg border transition-colors ${
+                                        participationType === type.value
+                                            ? 'bg-brand-bg border-brand/40'
+                                            : 'bg-card border-line hover:border-strong'
                                     }`}
                                 >
-                                    {value ? '예' : '아니오'}
+                                    <span className={`block text-xs font-semibold ${participationType === type.value ? 'text-brand-strong' : 'text-ink'}`}>
+                                        {type.label}
+                                    </span>
+                                    <span className="block text-[11px] text-ink3">{type.hint}</span>
                                 </button>
                             ))}
                         </div>

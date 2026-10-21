@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from 'react';
 import type { SponsorshipType, ChannelType } from '@/types';
 // CHANGED: 안심취소 리워드(트랙 A 파일럿) 설정값
 import { SAFE_CANCEL_CHECKLIST, isInstagramReelUrl } from '@/lib/safeCancelReward';
-import type { SafeCancelChecklistKey } from '@/lib/safeCancelReward';
+import type { SafeCancelChecklistKey, SafeCancelParticipationType } from '@/lib/safeCancelReward';
 // CHANGED: 캠냥이 마스코트 + 오브젝트 아이콘
 import Mascot from './Mascot';
 import BrandIcon from './BrandIcon';
@@ -65,7 +65,7 @@ export default function ContentSubmitModal({
     // CHANGED: 안심취소 리워드 참여 필드
     const [safeCancelEnabled, setSafeCancelEnabled] = useState(false);
     const [safeCancelChecklist, setSafeCancelChecklist] = useState(EMPTY_SAFE_CANCEL_CHECKLIST);
-    const [usedOpenSourceClip, setUsedOpenSourceClip] = useState<boolean | null>(null);
+    const [participationType, setParticipationType] = useState<SafeCancelParticipationType | null>(null);
     const [repostConsent, setRepostConsent] = useState(false);
 
     const [isLoading, setIsLoading] = useState(false);
@@ -93,7 +93,7 @@ export default function ContentSubmitModal({
             setSelectedCampaign(null);
             setSafeCancelEnabled(false); // CHANGED: 안심취소 리워드 리셋
             setSafeCancelChecklist(EMPTY_SAFE_CANCEL_CHECKLIST);
-            setUsedOpenSourceClip(null);
+            setParticipationType(null);
             setRepostConsent(false);
             setError('');
             isSubmittingRef.current = false;
@@ -194,8 +194,8 @@ export default function ContentSubmitModal({
                 setError('안심취소 리워드 「올리기 전 체크」를 모두 확인해주세요.');
                 return;
             }
-            if (usedOpenSourceClip === null) {
-                setError('캠핏 오픈소스 영상 사용 여부를 선택해주세요.');
+            if (participationType === null) {
+                setError('안심취소 리워드 참여 유형을 선택해주세요.');
                 return;
             }
         }
@@ -219,7 +219,7 @@ export default function ContentSubmitModal({
                     premiumCampaignRecordId: selectedCampaign?.id,
                     // CHANGED: 안심취소 리워드 — 토글 ON일 때만 전송
                     safeCancelReward: safeCancelEnabled
-                        ? { checklist: safeCancelChecklist, usedOpenSourceClip, repostConsent }
+                        ? { checklist: safeCancelChecklist, participationType, repostConsent }
                         : undefined,
                 })
             });
@@ -589,8 +589,8 @@ export default function ContentSubmitModal({
                                 onChecklistChange={(key, checked) =>
                                     setSafeCancelChecklist((prev) => ({ ...prev, [key]: checked }))
                                 }
-                                usedOpenSourceClip={usedOpenSourceClip}
-                                onOpenSourceChange={setUsedOpenSourceClip}
+                                participationType={participationType}
+                                onParticipationTypeChange={setParticipationType}
                                 repostConsent={repostConsent}
                                 onRepostConsentChange={setRepostConsent}
                             />
