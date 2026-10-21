@@ -2112,29 +2112,6 @@ export async function submitContentUpload(payload: ContentSubmitPayload): Promis
     }
 }
 
-// CHANGED: 안심취소 리워드 — 이번 달(KST, 전달일 기준) 이 크리에이터의 리워드 참여 건수
-// Link 필드는 수식으로 레코드 ID를 못 거르므로, 수식은 이번 달 참여 건만 좁히고 소유 판정은 {크리에이터 명단} ID 배열로 한다.
-// 조회 실패는 throw — 0건으로 위장되면 월 1회 제한이 조용히 풀린다.
-export async function countSafeCancelRewardsThisMonth(creatorListRecordId: string): Promise<number> {
-    try {
-        const monthKst = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit' })
-            .format(new Date()); // 'YYYY-MM'
-        const formula = `AND({${SAFE_CANCEL_FIELDS.participating}}, DATETIME_FORMAT(SET_TIMEZONE(CREATED_TIME(), 'Asia/Seoul'), 'YYYY-MM') = '${monthKst}')`;
-
-        const records = await contentUploadTable()
-            .select({ filterByFormula: formula, fields: ['크리에이터 명단'] })
-            .all();
-
-        return records.filter((record) => {
-            const linkedIds = record.get('크리에이터 명단');
-            return Array.isArray(linkedIds) && linkedIds.includes(creatorListRecordId);
-        }).length;
-    } catch (error) {
-        console.error('Count safe cancel rewards error:', error);
-        throw error;
-    }
-}
-
 // 내 콘텐츠 조회 — {크리에이터 명단} 링크 기반 매칭만 사용. {채널명} 텍스트 필드는 오타가 많아 신뢰 불가 (사용 금지).
 // 링크가 비어있는 레거시 레코드는 실제 비활동 크리에이터이므로 복구 불필요.
 export async function getCreatorContentUploads(channelName: string): Promise<ContentUpload[]> {

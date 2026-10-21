@@ -7,7 +7,7 @@ import {
     SAFE_CANCEL_CHECKLIST,
     SAFE_CANCEL_CAPTION_TEXT,
     SAFE_CANCEL_GUIDE_URL,
-    SAFE_CANCEL_MONTHLY_LIMIT_PER_CREATOR,
+    SAFE_CANCEL_MONTHLY_REWARDED_PER_CREATOR,
     SAFE_CANCEL_PARTICIPATION_TYPES,
     SAFE_CANCEL_PAYOUT_DAY_OF_NEXT_MONTH,
     formatSafeCancelRewardSummary,
@@ -96,7 +96,8 @@ export default function SafeCancelRewardSection({
                     <div className="space-y-1 text-xs text-ink2 leading-relaxed">
                         <p className="font-bold text-ink">{formatSafeCancelRewardSummary()}</p>
                         <p>· 위 콘텐츠 링크에 <strong className="text-ink">인스타그램 릴스 링크</strong>를 넣어주세요</p>
-                        <p>· 1인 월 {SAFE_CANCEL_MONTHLY_LIMIT_PER_CREATOR}회 참여할 수 있어요</p>
+                        <p>· 여러 개 전달할 수 있지만, 리워드는 그달 전달한 콘텐츠 중 <strong className="text-ink">반응이 가장 높은 {SAFE_CANCEL_MONTHLY_REWARDED_PER_CREATOR}개</strong>로 확인해요</p>
+                        <p>· 좋아요 · 댓글 · 공유 수로 반응을 확인해요. <strong className="text-ink">숨김 처리하면 정성상 대상에서 제외</strong>돼요</p>
                         <p>· 검수 후 콘텐츠 전달일 기준 <strong className="text-ink">익월 {SAFE_CANCEL_PAYOUT_DAY_OF_NEXT_MONTH}일</strong> 캠핏 포인트로 지급</p>
                         {SAFE_CANCEL_GUIDE_URL && (
                             <a

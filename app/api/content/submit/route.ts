@@ -2,13 +2,11 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { jwtVerify } from 'jose';
-import { submitContentUpload, countSafeCancelRewardsThisMonth } from '@/lib/airtable';
+import { submitContentUpload } from '@/lib/airtable';
 import type { ContentSubmitPayload, SponsorshipType, SafeCancelRewardSubmission } from '@/types';
 // CHANGED: 안심취소 리워드(트랙 A 파일럿) 설정값 — 클라이언트와 같은 검증 기준
 import {
     SAFE_CANCEL_CHECKLIST,
-    SAFE_CANCEL_MONTHLY_LIMIT_PER_CREATOR,
-    SAFE_CANCEL_MONTHLY_LIMIT_MESSAGE,
     isInstagramReelUrl,
     isSafeCancelParticipationType,
 } from '@/lib/safeCancelReward';
@@ -101,16 +99,10 @@ export async function POST(request: Request) {
             );
         }
 
-        // CHANGED: 안심취소 리워드 참여 검증 + 1인 월 1회(전달일 기준) 차단. 토글 OFF 일반 전달은 조회하지 않음
+        // CHANGED: 안심취소 리워드 참여 검증 — 같은 달 여러 건 전달 허용 (인당 1건 선정은 검수에서)
         const safeCancel = parseSafeCancelReward(body.safeCancelReward, contentLink);
         if (safeCancel.error) {
             return NextResponse.json({ error: safeCancel.error }, { status: 400 });
-        }
-        if (safeCancel.value) {
-            const usedThisMonth = await countSafeCancelRewardsThisMonth(creatorId);
-            if (usedThisMonth >= SAFE_CANCEL_MONTHLY_LIMIT_PER_CREATOR) {
-                return NextResponse.json({ error: SAFE_CANCEL_MONTHLY_LIMIT_MESSAGE }, { status: 409 });
-            }
         }
 
         const submitPayload: ContentSubmitPayload = {
