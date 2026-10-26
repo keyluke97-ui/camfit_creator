@@ -50,16 +50,27 @@ export default function SafeCancelRewardSection({
     repostConsent,
     onRepostConsentChange,
 }: SafeCancelRewardSectionProps) {
-    const [isCaptionCopied, setIsCaptionCopied] = useState(false);
+    const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
 
+    // CHANGED: 인스타 앱 내 브라우저 등 Clipboard API가 막힌 환경 대비 — ApplicationModal과 같은 textarea 폴백, 둘 다 실패하면 직접 복사 안내
     const handleCopyCaption = async () => {
+        let isCopied = false;
         try {
             await navigator.clipboard.writeText(SAFE_CANCEL_CAPTION_TEXT);
-            setIsCaptionCopied(true);
-            setTimeout(() => setIsCaptionCopied(false), 2000);
+            isCopied = true;
         } catch (error) {
-            console.error('Caption copy failed:', error);
+            console.error('Caption copy via Clipboard API failed, trying fallback:', error);
+            const textarea = document.createElement('textarea');
+            textarea.value = SAFE_CANCEL_CAPTION_TEXT;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            isCopied = document.execCommand('copy');
+            document.body.removeChild(textarea);
         }
+        setCopyState(isCopied ? 'copied' : 'failed');
+        if (isCopied) setTimeout(() => setCopyState('idle'), 2000);
     };
 
     return (
@@ -122,8 +133,13 @@ export default function SafeCancelRewardSection({
                             onClick={handleCopyCaption}
                             className="w-full h-9 text-xs font-semibold bg-subtle text-ink rounded-lg hover:bg-subtle transition-colors"
                         >
-                            {isCaptionCopied ? '복사됐어요' : '문구 복사하기'}
+                            {copyState === 'copied' ? '복사됐어요' : '문구 복사하기'}
                         </button>
+                        {copyState === 'failed' && (
+                            <p className="mt-1.5 text-[11px] text-red-500 text-center">
+                                복사가 안 됐어요. 위 문구를 길게 눌러 직접 복사해 주세요.
+                            </p>
+                        )}
                     </div>
 
                     {/* 필수 체크 — 올리기 전 체크 + 참여 동의, 전부 체크해야 전달 가능 */}

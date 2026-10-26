@@ -104,8 +104,6 @@ export default function OfferDetailModal({
                         {isAccepted ? (
                             <div className="bg-subtle border border-line rounded-lg p-4 flex flex-col gap-2">
                                 <p className="text-sm font-bold text-ink">수락하신 제안이에요</p>
-                                {/* CHANGED: 안심취소 리워드 「촬영 전에 꼭 지켜주세요」 — 매칭 확정(촬영 전) 시점. 적용 여부를 알 수 없어 조건 문구로 */}
-                                {SAFE_CANCEL_BANNER_ENABLED && <SafeCancelShootingRules isConditional />}
                                 {offer.creatorCouponCode ? (
                                     <>
                                         <p className="text-xs text-ink2">아래 쿠폰으로 직접 예약해주세요.</p>
@@ -130,6 +128,13 @@ export default function OfferDetailModal({
                                     </>
                                 ) : (
                                     <p className="text-xs text-ink2">쿠폰이 발행되는 중이에요. 잠시 후 다시 확인해주세요.</p>
+                                )}
+                                {/* CHANGED: 안심취소 리워드 「촬영 전에 꼭 지켜주세요」 — 매칭 확정(촬영 전) 시점. 적용 여부를 알 수 없어 조건 문구로.
+                                    쿠폰 예약이 이 화면의 1순위라 쿠폰 아래에 둔다 */}
+                                {SAFE_CANCEL_BANNER_ENABLED && (
+                                    <div className="mt-2">
+                                        <SafeCancelShootingRules isConditional />
+                                    </div>
                                 )}
                             </div>
                         ) : isExpired ? (

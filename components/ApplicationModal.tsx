@@ -399,10 +399,6 @@ export default function ApplicationModal({ isOpen, onClose, campaign, channelTyp
                                 <p className="text-brand-strong text-sm">이 쿠폰을 캠핏에 등록하고 예약하면 끝나요</p>
                             </div>
 
-                            {/* CHANGED: 캠핑장의 안심취소 적용 여부를 포털 데이터로 알 수 없어 조건 문구로 노출. 릴스 전용이라 인스타 채널 보유자만 */}
-                            {SAFE_CANCEL_BANNER_ENABLED && channelTypes?.includes('인스타') && (
-                                <SafeCancelShootingRules isConditional />
-                            )}
 
                             <div className="bg-subtle border border-brand p-6 rounded-xl space-y-4">
                                 <div>
@@ -525,6 +521,12 @@ export default function ApplicationModal({ isOpen, onClose, campaign, channelTyp
                                     </button>
                                 )}
                             </div>
+
+                            {/* CHANGED: 캠핑장의 안심취소 적용 여부를 포털 데이터로 알 수 없어 조건 문구로 노출. 릴스 전용이라 인스타 채널 보유자만.
+                                쿠폰 등록이 이 화면의 1순위라 쿠폰 영역 아래에 둔다 */}
+                            {SAFE_CANCEL_BANNER_ENABLED && channelTypes?.includes('인스타') && (
+                                <SafeCancelShootingRules isConditional />
+                            )}
                         </div>
                     )}
                 </div>

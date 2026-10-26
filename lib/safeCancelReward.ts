@@ -1,6 +1,8 @@
 // 안심취소 리워드 (트랙 A 파일럿) 설정값 — 금액·횟수·문구는 여기서만 바꾼다.
 // 클라이언트(전달 모달)와 서버(제출 API 검증)가 함께 쓰므로 서버 전용 모듈을 import하지 않는다.
 
+import type { SafeCancelRewardSubmission } from '@/types';
+
 // 리워드 확정 여부 — false면 등급별 포인트 대신 「금액은 추후 안내」로 노출
 export const SAFE_CANCEL_REWARD_CONFIRMED = false;
 
@@ -93,4 +95,31 @@ export function formatSafeCancelRewardSummary(): string {
     const { basic, source } = SAFE_CANCEL_GRADE_POINTS;
     if (!SAFE_CANCEL_REWARD_CONFIRMED || basic === null || source === null) return '금액은 추후 안내';
     return `기본 ${basic.toLocaleString('ko-KR')}P · 소스 활용 ${source.toLocaleString('ko-KR')}P`;
+}
+
+// 제출 API의 안심취소 리워드 페이로드 검증 — 실패 시 에러 메시지, 통과 시 정규화된 값 (순수 함수라 단위 검증 가능)
+export function parseSafeCancelReward(raw: unknown, contentLink: string): { value?: SafeCancelRewardSubmission; error?: string } {
+    if (raw === undefined || raw === null) return {};
+    if (typeof raw !== 'object') return { error: '안심취소 리워드 정보가 올바르지 않습니다.' };
+    const input = raw as { checklist?: Record<string, unknown>; participationType?: unknown; repostConsent?: unknown };
+
+    if (!isInstagramReelUrl(contentLink)) {
+        return { error: '안심취소 리워드는 인스타그램 릴스 링크만 참여할 수 있습니다.' };
+    }
+    const checklist = Object.fromEntries(
+        SAFE_CANCEL_CHECKLIST.map((item) => [item.key, input.checklist?.[item.key] === true])
+    );
+    if (Object.values(checklist).some((checked) => !checked)) {
+        return { error: '안심취소 리워드 참여 조건을 모두 확인해주세요.' };
+    }
+    if (!isSafeCancelParticipationType(input.participationType)) {
+        return { error: '안심취소 리워드 참여 유형을 선택해주세요.' };
+    }
+    return {
+        value: {
+            checklist,
+            participationType: input.participationType,
+            repostConsent: input.repostConsent === true,
+        },
+    };
 }
