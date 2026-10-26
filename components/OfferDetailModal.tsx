@@ -6,6 +6,9 @@ import { formatRemaining } from '@/lib/offerRules';
 import { OFFER_STATUS_ACCEPTED, buildCouponDeepLink, formatDiscount, COUPON_APPLY_DAYS_CONFIG } from '@/lib/constants';
 import type { Offer, CouponApplyDays } from '@/types';
 import OfferRejectForm from './OfferRejectForm';
+// CHANGED: 안심취소 리워드 「촬영 전에 꼭 지켜주세요」
+import SafeCancelShootingRules from './SafeCancelShootingRules';
+import { SAFE_CANCEL_BANNER_ENABLED } from '@/lib/safeCancelReward';
 
 interface OfferDetailModalProps {
     offer: Offer | null;
@@ -101,6 +104,8 @@ export default function OfferDetailModal({
                         {isAccepted ? (
                             <div className="bg-subtle border border-line rounded-lg p-4 flex flex-col gap-2">
                                 <p className="text-sm font-bold text-ink">수락하신 제안이에요</p>
+                                {/* CHANGED: 안심취소 리워드 「촬영 전에 꼭 지켜주세요」 — 매칭 확정(촬영 전) 시점. 적용 여부를 알 수 없어 조건 문구로 */}
+                                {SAFE_CANCEL_BANNER_ENABLED && <SafeCancelShootingRules isConditional />}
                                 {offer.creatorCouponCode ? (
                                     <>
                                         <p className="text-xs text-ink2">아래 쿠폰으로 직접 예약해주세요.</p>

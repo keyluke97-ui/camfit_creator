@@ -36,6 +36,27 @@ export const SAFE_CANCEL_REPOST_CONSENT_HINT =
 // 크리에이터 가이드 링크 — 공개 전이면 null (모달에서 숨김)
 export const SAFE_CANCEL_GUIDE_URL: string | null = null;
 
+// 대시보드 상단 리워드 배너 노출 여부 — 파일럿 종료 시 false로 내림 (인스타 채널 보유 크리에이터에게만 노출)
+export const SAFE_CANCEL_BANNER_ENABLED = true;
+
+// 「촬영 전에 꼭 지켜주세요」 — 크리에이터 가이드 맨 위 박스와 글자까지 동일하게 유지
+export const SAFE_CANCEL_SHOOTING_RULES_TITLE = '촬영 전에 꼭 지켜주세요';
+export const SAFE_CANCEL_SHOOTING_RULES = [
+    {
+        rule: '안심취소 캠핑장 협찬에서만 안심취소를 소개해요',
+        detail: '대상인지 모르면 촬영 전에 담당자에게 확인해 주세요',
+    },
+    {
+        rule: '말할 때 "최대"와 "안심취소 캠핑장이면"을 꼭 넣어요',
+        detail: '"무조건 · 다 돌려받아요 · 현금 환불"은 쓰지 않아요. 돌려받는 건 현금이 아니라 캠핏 포인트예요',
+    },
+    {
+        rule: '캡션 맨 앞에 [광고] 문구를 붙여요',
+        detail: '콘텐츠 전달 화면의 캡션을 그대로 복사하면 돼요',
+    },
+] as const;
+export const SAFE_CANCEL_SHOOTING_RULES_FOOTNOTE = '안심취소 내용이 사실과 다르게 올라가면 수정이나 삭제를 요청드릴 수 있어요.';
+
 // 참여 유형 — 크리에이터 자기 신고값. 확정 등급은 검수에서 운영이 따로 기록
 export const SAFE_CANCEL_PARTICIPATION_TYPES = [
     { value: '기본', label: '기본', hint: '캡션 문구 · 해시태그만' },

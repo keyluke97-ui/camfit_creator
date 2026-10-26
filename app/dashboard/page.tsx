@@ -14,6 +14,9 @@ import ContentCardCompact from '@/components/ContentCardCompact';
 import ContentSubmitModal from '@/components/ContentSubmitModal';
 // CHANGED (IA v3): 콘텐츠 진입 배너 — 헤더 아이콘 대신 메인 영역 배너로 승격
 import ContentEntryBanner from '@/components/ContentEntryBanner';
+// CHANGED: 안심취소 리워드(트랙 A 파일럿) 대시보드 상단 배너
+import SafeCancelDashboardBanner from '@/components/SafeCancelDashboardBanner';
+import { SAFE_CANCEL_BANNER_ENABLED } from '@/lib/safeCancelReward';
 // CHANGED: 캠냥이 마스코트 (빈 상태) + 오브젝트 아이콘
 import Mascot from '@/components/Mascot';
 import BrandIcon from '@/components/BrandIcon';
@@ -419,6 +422,13 @@ function DashboardContent() {
 
             {/* Main Content */}
             <main className="max-w-7xl mx-auto px-5 py-6">
+                {/* CHANGED: 안심취소 리워드 배너 — 릴스 전용이라 인스타 채널 보유자에게만, 파일럿 기간에만 */}
+                {!showContentView && SAFE_CANCEL_BANNER_ENABLED && userInfo?.channelTypes?.includes('인스타') && (
+                    <div className="mb-4">
+                        <SafeCancelDashboardBanner />
+                    </div>
+                )}
+
                 {/* CHANGED (2026-09-02): 협찬 2분기 진입 — 받은 제안 배너 + 내 협찬 프로필 배너를 흡수했다 */}
                 {!showContentView && userInfo && (
                     <SponsorshipTracks
