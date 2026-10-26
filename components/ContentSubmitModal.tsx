@@ -243,6 +243,11 @@ export default function ContentSubmitModal({
         }
     };
 
+    // CHANGED: 안심취소 리워드 토글 ON인데 체크 · 참여 동의 · 참여 유형이 다 안 채워졌으면 전달 버튼 비활성
+    const isSafeCancelIncomplete = safeCancelEnabled && (
+        SAFE_CANCEL_CHECKLIST.some((item) => !safeCancelChecklist[item.key]) || participationType === null
+    );
+
     if (!isOpen) return null;
 
     return (
@@ -603,10 +608,17 @@ export default function ContentSubmitModal({
                             </div>
                         )}
 
+                        {/* CHANGED: 비활성 이유 안내 — 버튼만 흐려지면 무엇이 빠졌는지 알 수 없다 */}
+                        {isSafeCancelIncomplete && (
+                            <p className="mb-2 text-[11px] text-ink3 text-center">
+                                안심취소 리워드 「올리기 전 체크」 · 「참여 동의」 · 「참여 유형」을 모두 채우면 전달할 수 있어요
+                            </p>
+                        )}
+
                         {/* 제출 버튼 */}
                         <button
                             onClick={handleSubmit}
-                            disabled={isLoading || !sponsorshipType}
+                            disabled={isLoading || !sponsorshipType || isSafeCancelIncomplete}
                             className="w-full h-12 bg-brand text-black font-bold text-base rounded-xl hover:bg-brand-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                         >
                             {isLoading ? (
