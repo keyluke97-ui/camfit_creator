@@ -13,9 +13,6 @@ import { CouponEventSummary, FollowerCouponCallout } from './ApplicationCouponSe
 import ContentRequirements from './ContentRequirements';
 // CHANGED: 캠냥이 마스코트 + 오브젝트 아이콘
 import Mascot from './Mascot';
-// CHANGED: 안심취소 리워드 「촬영 전에 꼭 지켜주세요」 — 협찬 확정 시점(촬영 전) 노출
-import SafeCancelShootingRules from './SafeCancelShootingRules';
-import { SAFE_CANCEL_BANNER_ENABLED } from '@/lib/safeCancelReward';
 import BrandIcon from './BrandIcon';
 
 interface ApplicationModalProps {
@@ -399,7 +396,6 @@ export default function ApplicationModal({ isOpen, onClose, campaign, channelTyp
                                 <p className="text-brand-strong text-sm">이 쿠폰을 캠핏에 등록하고 예약하면 끝나요</p>
                             </div>
 
-
                             <div className="bg-subtle border border-brand p-6 rounded-xl space-y-4">
                                 <div>
                                     <p className="text-ink2 text-sm mb-2">내 예약 쿠폰 코드</p>
@@ -521,12 +517,6 @@ export default function ApplicationModal({ isOpen, onClose, campaign, channelTyp
                                     </button>
                                 )}
                             </div>
-
-                            {/* CHANGED: 캠핑장의 안심취소 적용 여부를 포털 데이터로 알 수 없어 조건 문구로 노출. 릴스 전용이라 인스타 채널 보유자만.
-                                쿠폰 등록이 이 화면의 1순위라 쿠폰 영역 아래에 둔다 */}
-                            {SAFE_CANCEL_BANNER_ENABLED && channelTypes?.includes('인스타') && (
-                                <SafeCancelShootingRules isConditional />
-                            )}
                         </div>
                     )}
                 </div>

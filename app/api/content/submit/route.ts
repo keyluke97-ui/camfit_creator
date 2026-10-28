@@ -69,7 +69,7 @@ export async function POST(request: Request) {
         }
 
         // CHANGED: 안심취소 리워드 참여 검증 — 같은 달 여러 건 전달 허용 (인당 1건 선정은 검수에서)
-        const safeCancel = parseSafeCancelReward(body.safeCancelReward, contentLink);
+        const safeCancel = parseSafeCancelReward(body.safeCancelReward);
         if (safeCancel.error) {
             return NextResponse.json({ error: safeCancel.error }, { status: 400 });
         }

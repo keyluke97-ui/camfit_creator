@@ -1,6 +1,7 @@
 // 안심취소 리워드 「촬영 전에 꼭 지켜주세요」 박스 — 대시보드 배너 · 협찬 확정 화면 공용
-// 문구는 lib/safeCancelReward.ts 설정값만 사용 (크리에이터 가이드 맨 위 박스와 동일)
+// 문구는 lib/safeCancelReward.ts 설정값만 사용 (크리에이터 가이드 v93 기준)
 import {
+    SAFE_CANCEL_80_LIST_URL,
     SAFE_CANCEL_GUIDE_URL,
     SAFE_CANCEL_SHOOTING_RULES,
     SAFE_CANCEL_SHOOTING_RULES_FOOTNOTE,
@@ -16,7 +17,7 @@ export default function SafeCancelShootingRules({ isConditional = false }: SafeC
     return (
         <div className="bg-card border-2 border-brand rounded-xl p-4 text-left">
             {isConditional && (
-                <p className="text-[11px] font-semibold text-brand-strong mb-1">안심취소 캠핑장 협찬이라면</p>
+                <p className="text-[11px] font-semibold text-brand-strong mb-1">안심취소 80 캠핑장 협찬이라면</p>
             )}
             <p className="text-sm font-bold text-ink mb-3">{SAFE_CANCEL_SHOOTING_RULES_TITLE}</p>
             <ol className="space-y-2.5">
@@ -33,16 +34,27 @@ export default function SafeCancelShootingRules({ isConditional = false }: SafeC
             <p className="mt-3 pt-3 border-t border-line text-[11px] text-ink3 leading-relaxed">
                 {SAFE_CANCEL_SHOOTING_RULES_FOOTNOTE}
             </p>
-            {SAFE_CANCEL_GUIDE_URL && (
+            {/* CHANGED: 가이드 정렬 — 대상 확인용 안심취소 80 목록 링크 추가 */}
+            <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
                 <a
-                    href={SAFE_CANCEL_GUIDE_URL}
+                    href={SAFE_CANCEL_80_LIST_URL}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-block mt-2 text-xs font-medium text-brand-strong underline underline-offset-2"
+                    className="text-xs font-medium text-brand-strong underline underline-offset-2"
                 >
-                    상세 가이드 바로가기
+                    안심취소 80 캠핑장 보기
                 </a>
-            )}
+                {SAFE_CANCEL_GUIDE_URL && (
+                    <a
+                        href={SAFE_CANCEL_GUIDE_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs font-medium text-brand-strong underline underline-offset-2"
+                    >
+                        상세 가이드 바로가기
+                    </a>
+                )}
+            </div>
         </div>
     );
 }

@@ -422,8 +422,8 @@ function DashboardContent() {
 
             {/* Main Content */}
             <main className="max-w-7xl mx-auto px-5 py-6">
-                {/* CHANGED: 안심취소 리워드 배너 — 릴스 전용이라 인스타 채널 보유자에게만, 파일럿 기간에만 */}
-                {!showContentView && SAFE_CANCEL_BANNER_ENABLED && userInfo?.channelTypes?.includes('인스타') && (
+                {/* CHANGED: 안심취소 리워드 배너 — 채널 무관(인스타 · 블로그 · 유튜브) 전원, 파일럿 기간에만 */}
+                {!showContentView && SAFE_CANCEL_BANNER_ENABLED && userInfo && (
                     <div className="mb-4">
                         <SafeCancelDashboardBanner />
                     </div>

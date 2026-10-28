@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef } from 'react';
 import type { SponsorshipType, ChannelType } from '@/types';
 // CHANGED: 안심취소 리워드(트랙 A 파일럿) 설정값
-import { SAFE_CANCEL_CHECKLIST, isInstagramReelUrl } from '@/lib/safeCancelReward';
+import { SAFE_CANCEL_CHECKLIST, getApplicableSafeCancelChecklist } from '@/lib/safeCancelReward';
 import type { SafeCancelChecklistKey, SafeCancelParticipationType } from '@/lib/safeCancelReward';
 // CHANGED: 캠냥이 마스코트 + 오브젝트 아이콘
 import Mascot from './Mascot';
@@ -66,7 +66,6 @@ export default function ContentSubmitModal({
     const [safeCancelEnabled, setSafeCancelEnabled] = useState(false);
     const [safeCancelChecklist, setSafeCancelChecklist] = useState(EMPTY_SAFE_CANCEL_CHECKLIST);
     const [participationType, setParticipationType] = useState<SafeCancelParticipationType | null>(null);
-    const [repostConsent, setRepostConsent] = useState(false);
 
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
@@ -94,7 +93,6 @@ export default function ContentSubmitModal({
             setSafeCancelEnabled(false); // CHANGED: 안심취소 리워드 리셋
             setSafeCancelChecklist(EMPTY_SAFE_CANCEL_CHECKLIST);
             setParticipationType(null);
-            setRepostConsent(false);
             setError('');
             isSubmittingRef.current = false;
         }
@@ -184,18 +182,14 @@ export default function ContentSubmitModal({
             setError('프리미엄 협찬 캠핑장을 선택해주세요.');
             return;
         }
-        // CHANGED: 안심취소 리워드 참여 시 릴스 링크 · 체크리스트 · 오픈소스 여부 검증
+        // CHANGED: 안심취소 리워드 참여 시 참여 유형 · 체크리스트 검증 (채널 무관 — 링크 형식 제한 없음)
         if (safeCancelEnabled) {
-            if (!isInstagramReelUrl(contentLink)) {
-                setError('안심취소 리워드는 인스타그램 릴스 링크만 참여할 수 있어요.');
-                return;
-            }
-            if (SAFE_CANCEL_CHECKLIST.some((item) => !safeCancelChecklist[item.key])) {
-                setError('안심취소 리워드 「올리기 전 체크」와 「참여 동의」를 모두 확인해주세요.');
-                return;
-            }
             if (participationType === null) {
                 setError('안심취소 리워드 참여 유형을 선택해주세요.');
+                return;
+            }
+            if (getApplicableSafeCancelChecklist(participationType).some((item) => !safeCancelChecklist[item.key])) {
+                setError('안심취소 리워드 「체크리스트」와 「참여 동의」를 모두 확인해주세요.');
                 return;
             }
         }
@@ -219,7 +213,7 @@ export default function ContentSubmitModal({
                     premiumCampaignRecordId: selectedCampaign?.id,
                     // CHANGED: 안심취소 리워드 — 토글 ON일 때만 전송
                     safeCancelReward: safeCancelEnabled
-                        ? { checklist: safeCancelChecklist, participationType, repostConsent }
+                        ? { checklist: safeCancelChecklist, participationType }
                         : undefined,
                 })
             });
@@ -245,7 +239,7 @@ export default function ContentSubmitModal({
 
     // CHANGED: 안심취소 리워드 토글 ON인데 체크 · 참여 동의 · 참여 유형이 다 안 채워졌으면 전달 버튼 비활성
     const isSafeCancelIncomplete = safeCancelEnabled && (
-        SAFE_CANCEL_CHECKLIST.some((item) => !safeCancelChecklist[item.key]) || participationType === null
+        participationType === null || getApplicableSafeCancelChecklist(participationType).some((item) => !safeCancelChecklist[item.key])
     );
 
     if (!isOpen) return null;
@@ -596,8 +590,6 @@ export default function ContentSubmitModal({
                                 }
                                 participationType={participationType}
                                 onParticipationTypeChange={setParticipationType}
-                                repostConsent={repostConsent}
-                                onRepostConsentChange={setRepostConsent}
                             />
                         )}
 
@@ -611,7 +603,7 @@ export default function ContentSubmitModal({
                         {/* CHANGED: 비활성 이유 안내 — 버튼만 흐려지면 무엇이 빠졌는지 알 수 없다 */}
                         {isSafeCancelIncomplete && (
                             <p className="mb-2 text-[11px] text-ink3 text-center">
-                                안심취소 리워드 「올리기 전 체크」 · 「참여 동의」 · 「참여 유형」을 모두 채우면 전달할 수 있어요
+                                안심취소 리워드 「참여 유형」 · 「체크리스트」 · 「참여 동의」를 모두 채우면 전달할 수 있어요
                             </p>
                         )}
 

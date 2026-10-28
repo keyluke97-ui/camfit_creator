@@ -1,5 +1,5 @@
-// 안심취소 리워드 대시보드 상단 배너 — 인스타 채널 보유 크리에이터에게만, 파일럿 기간에만 노출
-// 누르면 「촬영 전에 꼭 지켜주세요」 펼침. 상세 가이드는 SAFE_CANCEL_GUIDE_URL이 생기면 박스 안 링크로 연결
+// 안심취소 리워드 대시보드 상단 배너 — 채널 무관 전원, 파일럿 기간에만 노출
+// 누르면 「촬영 전에 꼭 지켜주세요」 펼침. 상세 가이드 · 안심취소 80 목록은 박스 안 링크로 연결
 'use client';
 
 import { useState } from 'react';
@@ -18,7 +18,9 @@ export default function SafeCancelDashboardBanner() {
             >
                 <div className="flex flex-col gap-0.5 min-w-0">
                     <span className="text-[10px] font-bold tracking-wider text-brand-strong">NEW · 안심취소 리워드</span>
-                    <span className="text-sm font-bold text-ink">릴스에 안심취소를 소개하고 캠핏 포인트 받기</span>
+                    {/* CHANGED: 가이드 히어로 문구와 맞춤 — 협찬 그대로, 안심취소 소개 시 보너스 */}
+                    <span className="text-sm font-bold text-ink">협찬 콘텐츠에 안심취소를 소개하면 포인트 보너스</span>
+                    <span className="text-[11px] text-ink2">안심취소 80 캠핑장 협찬이라면 기본형 1만P · 클립형 3만P</span>
                 </div>
                 <span className="text-brand-strong text-xs font-semibold flex-shrink-0">
                     {isExpanded ? '접기' : '촬영 전 확인'}

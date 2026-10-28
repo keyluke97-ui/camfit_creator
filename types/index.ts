@@ -331,7 +331,7 @@ export interface ContentSubmitPayload {
 export interface SafeCancelRewardSubmission {
     checklist: Record<string, boolean>;   // lib/safeCancelReward.ts SAFE_CANCEL_CHECKLIST의 key → 체크 여부
     participationType: string;            // 참여 유형 자기 신고값 (lib/safeCancelReward.ts SAFE_CANCEL_PARTICIPATION_TYPES)
-    repostConsent: boolean;               // 캠핏 공식 계정 리포스트(2차 활용) 동의 — 선택
+    // CHANGED: 2차 활용 동의 제거 — 크리에이터 가이드(정본)에 없는 항목
 }
 
 // CHANGED: 콘텐츠 업로드 조회 도메인 타입
