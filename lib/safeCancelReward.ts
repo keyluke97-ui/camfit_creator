@@ -5,8 +5,8 @@
 
 import type { SafeCancelRewardSubmission } from '@/types';
 
-// 크리에이터 가이드 (링크가 있는 모든 사용자 공개, 수정 즉시 반영)
-export const SAFE_CANCEL_GUIDE_URL: string | null = 'https://claude.ai/artifact/WaZaYcfA4AQNjqP1sW7wuU';
+// CHANGED: 크리에이터 가이드 — 아티팩트 링크는 로그인 환경이 필요해 일반 웹페이지(Vercel 별도 배포)로 교체. 로그인 없이 열림
+export const SAFE_CANCEL_GUIDE_URL: string | null = 'https://camfit-safecancel-guide.vercel.app';
 
 // 안심취소 80 캠핑장 목록 — 대상 확인용 (안심취소+ 캠핑장은 대상 아님)
 export const SAFE_CANCEL_80_LIST_URL =
