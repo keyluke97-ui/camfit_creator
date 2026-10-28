@@ -178,10 +178,11 @@ export function resolveOfferTrack(input: {
     }
     // '' (아직 공개 신청 전) + 알 수 없는 값. 프로필 조회 실패 폴백도 여기로 떨어진다.
     // NEW 뱃지가 붙는 유일한 상태 — 한 번 등록하면 사라지므로 뱃지가 소진되지 않는다.
+    // CHANGED: 시스템 점검 기간 — NEW 뱃지 · 등록 유도 대신 오픈 준비 중 안내 (점검 종료 시 원래 문구로 복구)
     return {
         state: 'UNREGISTERED',
-        badge: 'NEW',
-        message: '내가 정한 금액부터 제안이 시작됩니다',
+        badge: '오픈 준비 중',
+        message: '현재 시스템 점검으로 인해 오픈 준비 중이에요',
         destination: 'profile',
         tone: 'brand',
     };
