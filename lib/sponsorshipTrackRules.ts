@@ -57,6 +57,7 @@ export interface OfferTrackView {
     message: string;
     destination: OfferTrackDestination;
     tone: OfferTrackTone;
+    isDisabled?: boolean;                 // CHANGED: true면 버튼을 누를 수 없음 (시스템 점검 기간 미등록 상태)
 }
 
 /**
@@ -185,5 +186,8 @@ export function resolveOfferTrack(input: {
         message: '현재 시스템 점검으로 인해 오픈 준비 중이에요',
         destination: 'profile',
         tone: 'brand',
+        // CHANGED: 「오픈 준비 중」인데 누르면 등록 화면이 열리면 앞뒤가 안 맞아 클릭을 막는다.
+        //          이미 등록 · 제안 보유자는 막지 않는다 — 회신 기한(2영업일)이 있는 수신함 링크가 이 카드뿐이다.
+        isDisabled: true,
     };
 }
