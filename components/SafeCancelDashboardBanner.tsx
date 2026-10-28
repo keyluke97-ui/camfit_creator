@@ -1,9 +1,10 @@
 // 안심취소 리워드 대시보드 상단 배너 — 채널 무관 전원, 파일럿 기간에만 노출
-// 누르면 「촬영 전에 꼭 지켜주세요」 펼침. 상세 가이드 · 안심취소 80 목록은 박스 안 링크로 연결
+// 누르면 가이드 맨 위 「리워드 종류」 카드 펼침. 상세 가이드 · 안심취소 80 목록은 카드 안 링크로 연결
 'use client';
 
 import { useState } from 'react';
-import SafeCancelShootingRules from './SafeCancelShootingRules';
+// CHANGED: 「촬영 전에 꼭 지켜주세요」 → 가이드 「리워드 종류」 카드
+import SafeCancelRewardTypes from './SafeCancelRewardTypes';
 
 export default function SafeCancelDashboardBanner() {
     const [isExpanded, setIsExpanded] = useState(false);
@@ -23,12 +24,12 @@ export default function SafeCancelDashboardBanner() {
                     <span className="text-[11px] text-ink2">안심취소 80 캠핑장 협찬이라면 기본형 1만P · 클립형 3만P</span>
                 </div>
                 <span className="text-brand-strong text-xs font-semibold flex-shrink-0">
-                    {isExpanded ? '접기' : '촬영 전 확인'}
+                    {isExpanded ? '접기' : '자세히 보기'}
                 </span>
             </button>
             {isExpanded && (
                 <div className="px-3 pb-3">
-                    <SafeCancelShootingRules />
+                    <SafeCancelRewardTypes />
                 </div>
             )}
         </div>
