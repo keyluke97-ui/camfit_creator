@@ -57,6 +57,7 @@ export interface OfferTrackView {
     message: string;
     destination: OfferTrackDestination;
     tone: OfferTrackTone;
+    isDisabled?: boolean;                 // CHANGED: true면 버튼을 누를 수 없음 (시스템 점검 기간 미등록 상태)
 }
 
 /**
@@ -178,11 +179,15 @@ export function resolveOfferTrack(input: {
     }
     // '' (아직 공개 신청 전) + 알 수 없는 값. 프로필 조회 실패 폴백도 여기로 떨어진다.
     // NEW 뱃지가 붙는 유일한 상태 — 한 번 등록하면 사라지므로 뱃지가 소진되지 않는다.
+    // CHANGED: 시스템 점검 기간 — NEW 뱃지 · 등록 유도 대신 오픈 준비 중 안내 (점검 종료 시 원래 문구로 복구)
     return {
         state: 'UNREGISTERED',
-        badge: 'NEW',
-        message: '내가 정한 금액부터 제안이 시작됩니다',
+        badge: '오픈 준비 중',
+        message: '현재 시스템 점검으로 인해 오픈 준비 중이에요',
         destination: 'profile',
         tone: 'brand',
+        // CHANGED: 「오픈 준비 중」인데 누르면 등록 화면이 열리면 앞뒤가 안 맞아 클릭을 막는다.
+        //          이미 등록 · 제안 보유자는 막지 않는다 — 회신 기한(2영업일)이 있는 수신함 링크가 이 카드뿐이다.
+        isDisabled: true,
     };
 }

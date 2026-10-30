@@ -44,6 +44,8 @@ export default function SponsorshipTracks({
         : resolveOfferTrack({ reviewStatus, isPublic, offerCount, pendingCount, newOfferCount });
     // 반려만 위험 톤. 나머지는 브랜드 그린을 유지해 '제안받기'가 늘 같은 자리로 읽히게 한다.
     const isRejected = offer.tone === 'danger';
+    // CHANGED: 시스템 점검 기간 미등록 상태 — 누를 수 없는 회색 카드
+    const isOfferDisabled = offer.isDisabled === true;
 
     return (
         // CHANGED: aria-label 대신 pill을 aria-labelledby로 참조 — 라벨과 보이는 제목이
@@ -82,32 +84,37 @@ export default function SponsorshipTracks({
             <button
                 type="button"
                 onClick={() => onOfferClick(offer.destination)}
+                disabled={isOfferDisabled}
                 className={`w-full text-left rounded-lg px-3.5 py-3 border transition-colors ${
-                    isRejected
-                        ? 'bg-red-500/10 border-red-500/60 hover:border-red-500'
-                        : 'bg-brand border-transparent hover:bg-brand-hover'
+                    isOfferDisabled
+                        ? 'bg-subtle border-line cursor-not-allowed'
+                        : isRejected
+                            ? 'bg-red-500/10 border-red-500/60 hover:border-red-500'
+                            : 'bg-brand border-transparent hover:bg-brand-hover'
                 }`}
             >
                 {/* ⚠️ 이 flex 래퍼가 접근 가능한 이름의 띄어쓰기를 만든다. 자식 span들이
                          flex item이라 blockify되어 "제안받기 새 제안 1 …"로 분리돼 읽힌다.
                          평범한 inline span으로 바꾸면 "제안받기새 제안 1"로 붙는다. */}
                 <span className="flex items-center gap-1.5">
-                    <span className={`text-[15px] font-bold ${isRejected ? 'text-red-700' : 'text-black'}`}>
+                    <span className={`text-[15px] font-bold ${isOfferDisabled ? 'text-ink2' : isRejected ? 'text-red-700' : 'text-black'}`}>
                         제안받기
                     </span>
                     {offer.badge && (
                         <span
                             className={`text-[10px] font-bold rounded px-1.5 py-0.5 tracking-wide ${
-                                isRejected
-                                    ? 'text-red-700 border border-red-500'
-                                    : 'bg-black text-brand'
+                                isOfferDisabled
+                                    ? 'bg-card text-ink2 border border-strong'
+                                    : isRejected
+                                        ? 'text-red-700 border border-red-500'
+                                        : 'bg-black text-brand'
                             }`}
                         >
                             {offer.badge}
                         </span>
                     )}
                 </span>
-                <span className={`block text-xs mt-1 ${isRejected ? 'text-red-700' : 'text-black/70'}`}>
+                <span className={`block text-xs mt-1 ${isOfferDisabled ? 'text-ink2' : isRejected ? 'text-red-700' : 'text-black/70'}`}>
                     {offer.message}
                 </span>
             </button>
