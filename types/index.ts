@@ -323,6 +323,15 @@ export interface ContentSubmitPayload {
     // CHANGED: 채널명 + 제출 경로 필드 추가
     channelName?: string;                 // 인플루언서 컨텐츠 업로드 프라이머리 필드(채널명) 채우기
     submissionSource?: string;            // 제출 경로 표시 (포털: "크리에이터 포털 통해서 진행")
+    // CHANGED: 안심취소 리워드(트랙 A 파일럿) 참여 — 토글 ON일 때만 존재
+    safeCancelReward?: SafeCancelRewardSubmission;
+}
+
+// CHANGED: 안심취소 리워드 전달 정보 (등급 선택형 — 인사이트 제출 없음)
+export interface SafeCancelRewardSubmission {
+    checklist: Record<string, boolean>;   // lib/safeCancelReward.ts SAFE_CANCEL_CHECKLIST의 key → 체크 여부
+    participationType: string;            // 참여 유형 자기 신고값 (lib/safeCancelReward.ts SAFE_CANCEL_PARTICIPATION_TYPES)
+    // CHANGED: 2차 활용 동의 제거 — 크리에이터 가이드(정본)에 없는 항목
 }
 
 // CHANGED: 콘텐츠 업로드 조회 도메인 타입

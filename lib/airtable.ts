@@ -2045,6 +2045,16 @@ export async function searchCreatorPremiumCampaigns(
     }
 }
 
+// CHANGED: 안심취소 리워드 — 인플루언서 컨텐츠 업로드 테이블 필드명 (2026-10 생성 완료). 「안심취소 2차 활용 동의」 필드는 가이드에서 빠져 포털이 쓰지 않음
+const SAFE_CANCEL_FIELDS = {
+    participating: '안심취소 리워드 참여',           // 체크
+    participationType: '안심취소 참여 유형',         // 단일 선택 (자기 신고값)
+    checklistConfirmed: '안심취소 체크리스트 확인',  // 체크
+    reviewStatus: '안심취소 검수 상태',              // 단일 선택: 제출됨 / 수정 요청 / 승인 / 지급 완료
+    confirmedGrade: '안심취소 확정 등급',            // 단일 선택 — 운영 입력
+    revisionReason: '안심취소 수정 요청 사유',       // 긴 텍스트 — 운영 입력
+} as const;
+
 // CHANGED: 콘텐츠 제출 — 인플루언서 컨텐츠 업로드 테이블에 레코드 생성
 export async function submitContentUpload(payload: ContentSubmitPayload): Promise<{ recordId: string }> {
     try {
@@ -2081,6 +2091,15 @@ export async function submitContentUpload(payload: ContentSubmitPayload): Promis
         }
         if (payload.premiumRegistrationRecordId) {
             fields['프리미엄 협찬을 신청했나요?'] = [payload.premiumRegistrationRecordId];
+        }
+
+        // CHANGED: 안심취소 리워드(트랙 A 파일럿) — 참여 유형 값은 Airtable 단일 선택 선택지와 글자까지 같아야 함 (없으면 전달 실패)
+        // 확정 등급 · 수정 요청 사유는 운영이 검수 때 Airtable에서 직접 입력 (포털은 쓰지 않음)
+        if (payload.safeCancelReward) {
+            fields[SAFE_CANCEL_FIELDS.participating] = true;
+            fields[SAFE_CANCEL_FIELDS.participationType] = payload.safeCancelReward.participationType;
+            fields[SAFE_CANCEL_FIELDS.checklistConfirmed] = true; // API에서 전 항목 체크를 검증한 뒤에만 도달
+            fields[SAFE_CANCEL_FIELDS.reviewStatus] = '제출됨';
         }
 
         const record = await contentUploadTable().create(fields as unknown as Partial<FieldSet>);

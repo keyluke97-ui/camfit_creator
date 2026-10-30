@@ -4,6 +4,8 @@ import { cookies } from 'next/headers';
 import { jwtVerify } from 'jose';
 import { submitContentUpload } from '@/lib/airtable';
 import type { ContentSubmitPayload, SponsorshipType } from '@/types';
+// CHANGED: 안심취소 리워드(트랙 A 파일럿) 설정값 — 클라이언트와 같은 검증 기준
+import { parseSafeCancelReward } from '@/lib/safeCancelReward';
 
 if (!process.env.NEXTAUTH_SECRET) {
     throw new Error('NEXTAUTH_SECRET 환경변수가 설정되지 않았습니다.');
@@ -66,6 +68,12 @@ export async function POST(request: Request) {
             );
         }
 
+        // CHANGED: 안심취소 리워드 참여 검증 — 같은 달 여러 건 전달 허용 (인당 1건 선정은 검수에서)
+        const safeCancel = parseSafeCancelReward(body.safeCancelReward);
+        if (safeCancel.error) {
+            return NextResponse.json({ error: safeCancel.error }, { status: 400 });
+        }
+
         const submitPayload: ContentSubmitPayload = {
             creatorListRecordId: creatorId,
             sponsorshipType,
@@ -81,6 +89,7 @@ export async function POST(request: Request) {
             // CHANGED: 채널명 + 제출 경로 필드 추가
             channelName,
             submissionSource: '크리에이터 포털 통해서 진행',
+            safeCancelReward: safeCancel.value,
         };
 
         const result = await submitContentUpload(submitPayload);

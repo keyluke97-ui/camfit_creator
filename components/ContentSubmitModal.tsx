@@ -3,9 +3,13 @@
 
 import { useState, useEffect, useRef } from 'react';
 import type { SponsorshipType, ChannelType } from '@/types';
+// CHANGED: 안심취소 리워드(트랙 A 파일럿) 설정값
+import { SAFE_CANCEL_CHECKLIST, getApplicableSafeCancelChecklist } from '@/lib/safeCancelReward';
+import type { SafeCancelChecklistKey, SafeCancelParticipationType } from '@/lib/safeCancelReward';
 // CHANGED: 캠냥이 마스코트 + 오브젝트 아이콘
 import Mascot from './Mascot';
 import BrandIcon from './BrandIcon';
+import SafeCancelRewardSection from './SafeCancelRewardSection';
 
 interface ContentSubmitModalProps {
     isOpen: boolean;
@@ -25,6 +29,11 @@ interface SelectOption {
 }
 
 type Step = 'form' | 'success';
+
+// CHANGED: 안심취소 리워드 체크리스트 초기값 (전부 미체크)
+const EMPTY_SAFE_CANCEL_CHECKLIST = Object.fromEntries(
+    SAFE_CANCEL_CHECKLIST.map((item) => [item.key, false])
+) as Record<SafeCancelChecklistKey, boolean>;
 
 export default function ContentSubmitModal({
     isOpen,
@@ -53,6 +62,11 @@ export default function ContentSubmitModal({
     const [selectedCampaign, setSelectedCampaign] = useState<SelectOption | null>(null);
     const [isCampaignDropdownOpen, setIsCampaignDropdownOpen] = useState(false);
 
+    // CHANGED: 안심취소 리워드 참여 필드
+    const [safeCancelEnabled, setSafeCancelEnabled] = useState(false);
+    const [safeCancelChecklist, setSafeCancelChecklist] = useState(EMPTY_SAFE_CANCEL_CHECKLIST);
+    const [participationType, setParticipationType] = useState<SafeCancelParticipationType | null>(null);
+
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const isSubmittingRef = useRef(false);
@@ -76,6 +90,9 @@ export default function ContentSubmitModal({
             setCampaignSearch('');
             setCampaignOptions([]);
             setSelectedCampaign(null);
+            setSafeCancelEnabled(false); // CHANGED: 안심취소 리워드 리셋
+            setSafeCancelChecklist(EMPTY_SAFE_CANCEL_CHECKLIST);
+            setParticipationType(null);
             setError('');
             isSubmittingRef.current = false;
         }
@@ -165,6 +182,17 @@ export default function ContentSubmitModal({
             setError('프리미엄 협찬 캠핑장을 선택해주세요.');
             return;
         }
+        // CHANGED: 안심취소 리워드 참여 시 참여 유형 · 체크리스트 검증 (채널 무관 — 링크 형식 제한 없음)
+        if (safeCancelEnabled) {
+            if (participationType === null) {
+                setError('안심취소 리워드 참여 유형을 선택해주세요.');
+                return;
+            }
+            if (getApplicableSafeCancelChecklist(participationType).some((item) => !safeCancelChecklist[item.key])) {
+                setError('안심취소 리워드 「체크리스트」와 「참여 동의」를 모두 확인해주세요.');
+                return;
+            }
+        }
 
         isSubmittingRef.current = true;
         setIsLoading(true);
@@ -183,6 +211,10 @@ export default function ContentSubmitModal({
                     camfitLoungeUrl: camfitLoungeUrl || undefined,
                     officialCollabRequest: officialCollabRequest && collabConfirmed, // CHANGED: 서브 확인까지 체크해야 true
                     premiumCampaignRecordId: selectedCampaign?.id,
+                    // CHANGED: 안심취소 리워드 — 토글 ON일 때만 전송
+                    safeCancelReward: safeCancelEnabled
+                        ? { checklist: safeCancelChecklist, participationType }
+                        : undefined,
                 })
             });
 
@@ -204,6 +236,11 @@ export default function ContentSubmitModal({
             setIsLoading(false);
         }
     };
+
+    // CHANGED: 안심취소 리워드 토글 ON인데 체크 · 참여 동의 · 참여 유형이 다 안 채워졌으면 전달 버튼 비활성
+    const isSafeCancelIncomplete = safeCancelEnabled && (
+        participationType === null || getApplicableSafeCancelChecklist(participationType).some((item) => !safeCancelChecklist[item.key])
+    );
 
     if (!isOpen) return null;
 
@@ -542,6 +579,20 @@ export default function ContentSubmitModal({
                             </div>
                         )}
 
+                        {/* CHANGED: 안심취소 리워드 참여 — 협찬 종류 선택 후 표시 */}
+                        {sponsorshipType && (
+                            <SafeCancelRewardSection
+                                enabled={safeCancelEnabled}
+                                onToggle={setSafeCancelEnabled}
+                                checklist={safeCancelChecklist}
+                                onChecklistChange={(key, checked) =>
+                                    setSafeCancelChecklist((prev) => ({ ...prev, [key]: checked }))
+                                }
+                                participationType={participationType}
+                                onParticipationTypeChange={setParticipationType}
+                            />
+                        )}
+
                         {/* 에러 메시지 */}
                         {error && (
                             <div className="mb-4 bg-red-500/10 border border-red-500/30 rounded-lg p-3">
@@ -549,10 +600,17 @@ export default function ContentSubmitModal({
                             </div>
                         )}
 
+                        {/* CHANGED: 비활성 이유 안내 — 버튼만 흐려지면 무엇이 빠졌는지 알 수 없다 */}
+                        {isSafeCancelIncomplete && (
+                            <p className="mb-2 text-[11px] text-ink3 text-center">
+                                안심취소 리워드 「참여 유형」 · 「체크리스트」 · 「참여 동의」를 모두 채우면 전달할 수 있어요
+                            </p>
+                        )}
+
                         {/* 제출 버튼 */}
                         <button
                             onClick={handleSubmit}
-                            disabled={isLoading || !sponsorshipType}
+                            disabled={isLoading || !sponsorshipType || isSafeCancelIncomplete}
                             className="w-full h-12 bg-brand text-black font-bold text-base rounded-xl hover:bg-brand-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                         >
                             {isLoading ? (
